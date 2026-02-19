@@ -1,62 +1,81 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+// src/pages/Products.jsx
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, Search, Filter } from 'lucide-react';
 import ProductModal from '../components/ProductModal';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorAlert from '../components/common/ErrorAlert';
+import EmptyState from '../components/common/EmptyState';
+import SearchBar from '../components/common/SearchBar';
+import Pagination from '../components/common/Pagination';
+import ConfirmDialog from '../components/common/ConfirmDialog';
+import { useProducts } from '../hooks/useProducts';
+import { PRODUCT_CATEGORIES } from '../utils/constants';
+import { formatCurrency } from '../utils/formatters';
 
 export default function Products() {
-  const [products, setProducts] = useState([]);
+  const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
-  useEffect(() => { fetchProducts(); }, []);
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+    
+    if (categoryFilter !== 'All') {
+      filtered = filtered.filter(p => p.category === categoryFilter);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [products, searchQuery, categoryFilter]);
 
-  const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('id');
-    setProducts(data || []);
-  };
+  // Pagination
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   const handleSaveProduct = async (productData) => {
-    // Construct payload from the data passed by the Modal component
-    const payload = {
-      name: productData.name,
-      category: productData.category,
-      current_price: parseFloat(productData.current_price),
-      stock_quantity: parseInt(productData.stock_quantity),
-      unit: productData.unit,
-      description: productData.description
-    };
-
-    let error;
-    if (editingProduct) {
-      const { error: updateError } = await supabase
-        .from('products')
-        .update(payload)
-        .eq('id', editingProduct.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from('products')
-        .insert([payload]);
-      error = insertError;
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productData);
+      } else {
+        await addProduct(productData);
+      }
+      setIsModalOpen(false);
+      setEditingProduct(null);
+    } catch (err) {
+      // Error is handled by hook
     }
-
-    if (error) {
-      alert('Error saving product: ' + error.message);
-      return;
-    }
-
-    setIsModalOpen(false);
-    setEditingProduct(null);
-    fetchProducts();
   };
 
-  const handleDelete = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this product?")) return;
-    
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if(error) alert('Error deleting product');
-    else fetchProducts();
-  }
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (productToDelete) {
+      await deleteProduct(productToDelete.id);
+      setShowDeleteDialog(false);
+      setProductToDelete(null);
+    }
+  };
 
   const openEdit = (product) => {
     setEditingProduct(product);
@@ -68,58 +87,188 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
+  if (loading) return <LoadingSpinner fullPage />;
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Inventory</h2>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-2xl font-bold text-gray-800">Inventory Management</h2>
+        
         <button 
           onClick={openAdd}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
+          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:from-blue-700 hover:to-blue-800 transition shadow-lg"
         >
-          <Plus size={18} /> <span className="hidden sm:inline">Add Product</span>
+          <Plus size={18} />
+          Add New Product
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 relative group">
-            <div className={`absolute top-4 right-4 px-2 py-1 text-xs font-bold rounded ${
-              product.stock_quantity > 10 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {product.stock_quantity} {product.unit} left
-            </div>
+      {error && <ErrorAlert message={error} />}
 
-            <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-xl">
-              {product.category === 'Fuel' ? '⛽' : '🛢️'}
-            </div>
-            
-            <h3 className="font-bold text-gray-900">{product.name}</h3>
-            <p className="text-sm text-gray-500 mb-2">{product.category}</p>
-            <p className="font-bold text-blue-600 text-lg">₱{product.current_price}</p>
-
-            <div className="mt-4 pt-4 border-t flex gap-2">
-              <button 
-                onClick={() => openEdit(product)}
-                className="flex-1 bg-gray-50 text-gray-700 py-2 rounded hover:bg-gray-100 text-sm font-medium flex items-center justify-center gap-2"
-              >
-                <Edit2 size={14} /> Edit
-              </button>
-              <button 
-                onClick={() => handleDelete(product.id)}
-                className="bg-red-50 text-red-600 px-3 rounded hover:bg-red-100 flex items-center justify-center"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <SearchBar 
+          onSearch={setSearchQuery}
+          placeholder="Search products..."
+          className="flex-1"
+        />
+        
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+        >
+          <option value="All">All Categories</option>
+          {Object.values(PRODUCT_CATEGORIES).map(category => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
       </div>
 
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-500">Total Products</p>
+          <p className="text-2xl font-bold text-gray-900">{products.length}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-500">Low Stock</p>
+          <p className="text-2xl font-bold text-red-600">
+            {products.filter(p => p.stock_quantity < 10).length}
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-500">Categories</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {new Set(products.map(p => p.category)).size}
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-500">Total Value</p>
+          <p className="text-2xl font-bold text-green-600">
+            {formatCurrency(products.reduce((sum, p) => sum + (p.current_price * p.stock_quantity), 0))}
+          </p>
+        </div>
+      </div>
+
+      {filteredProducts.length === 0 ? (
+        <EmptyState 
+          type="products"
+          message={searchQuery ? "No products match your search" : "No products found"}
+          action={searchQuery ? {
+            label: "Clear Search",
+            onClick: () => setSearchQuery('')
+          } : {
+            label: "Add Your First Product",
+            onClick: openAdd
+          }}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paginatedProducts.map((product) => (
+              <div 
+                key={product.id} 
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition group"
+              >
+                <div className="h-32 bg-gradient-to-br from-blue-500 to-blue-600 relative">
+                  <div className="absolute top-2 right-2">
+                    <span className={`px-2 py-1 text-xs font-bold rounded ${
+                      product.stock_quantity > 10 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {product.stock_quantity} {product.unit}
+                    </span>
+                  </div>
+                  <div className="absolute -bottom-6 left-4">
+                    <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center text-2xl">
+                      {product.category === PRODUCT_CATEGORIES.FUEL ? '⛽' : '🛢️'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-8 p-4">
+                  <h3 className="font-bold text-gray-900 mb-1">{product.name}</h3>
+                  <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+                  
+                  {product.stock_quantity < 10 && (
+                    <div className="flex items-center text-red-600 text-xs mb-2">
+                      <AlertTriangle size={12} className="mr-1" />
+                      Low stock alert
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center mt-3">
+                    <div>
+                      <p className="text-xs text-gray-400">Price</p>
+                      <p className="font-bold text-blue-600 text-lg">
+                        {formatCurrency(product.current_price)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">Stock</p>
+                      <p className={`font-medium ${
+                        product.stock_quantity > 10 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {product.stock_quantity} {product.unit}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t flex gap-2">
+                    <button 
+                      onClick={() => openEdit(product)}
+                      className="flex-1 bg-gray-50 text-gray-700 py-2 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center justify-center gap-2 transition"
+                    >
+                      <Edit2 size={14} />
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteClick(product)}
+                      className="bg-red-50 text-red-600 px-4 rounded-lg hover:bg-red-100 flex items-center justify-center transition"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination 
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </>
+      )}
+
+      {/* Product Modal */}
       <ProductModal 
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProduct(null);
+        }}
         product={editingProduct}
         onSave={handleSaveProduct}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
       />
     </div>
   );
