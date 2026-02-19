@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
@@ -9,11 +9,32 @@ import {
   LogOut, 
   Menu, 
   X,
-  Bell,
   User,
   Settings,
   ChevronDown
 } from 'lucide-react';
+
+// Memoized NavItem component to prevent unnecessary re-renders
+const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center w-full px-4 py-3 rounded-lg transition-all ${
+        isActive 
+          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md' 
+          : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+      }`}
+    >
+      <Icon size={20} className="mr-3" />
+      <span className="font-medium">{label}</span>
+      {isActive && (
+        <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
+      )}
+    </button>
+  );
+});
+
+NavItem.displayName = 'NavItem';
 
 export default function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -22,33 +43,19 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate('/login');
-  };
+  }, [signOut, navigate]);
 
-  const NavItem = ({ to, icon: Icon, label }) => {
-    const isActive = location.pathname === to;
-    return (
-      <button
-        onClick={() => {
-          navigate(to);
-          setIsMobileMenuOpen(false);
-        }}
-        className={`flex items-center w-full px-4 py-3 rounded-lg transition-all ${
-          isActive 
-            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md' 
-            : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
-        }`}
-      >
-        <Icon size={20} className="mr-3" />
-        <span className="font-medium">{label}</span>
-        {isActive && (
-          <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
-        )}
-      </button>
-    );
-  };
+  const handleNavigation = useCallback((to) => {
+    navigate(to);
+    setIsMobileMenuOpen(false);
+    setIsProfileMenuOpen(false);
+  }, [navigate]);
+
+  // Check if current route matches
+  const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -67,9 +74,27 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1">
-          <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-          <NavItem to="/orders" icon={ShoppingCart} label="Orders" />
-          <NavItem to="/products" icon={Package} label="Inventory" />
+          <NavItem 
+            to="/" 
+            icon={LayoutDashboard} 
+            label="Dashboard" 
+            isActive={isActive('/')}
+            onClick={() => handleNavigation('/')}
+          />
+          <NavItem 
+            to="/orders" 
+            icon={ShoppingCart} 
+            label="Orders" 
+            isActive={isActive('/orders')}
+            onClick={() => handleNavigation('/orders')}
+          />
+          <NavItem 
+            to="/products" 
+            icon={Package} 
+            label="Inventory" 
+            isActive={isActive('/products')}
+            onClick={() => handleNavigation('/products')}
+          />
         </nav>
 
         {/* Profile Section */}
@@ -80,24 +105,36 @@ export default function Layout() {
               className="flex items-center w-full px-4 py-3 rounded-lg hover:bg-gray-50 transition"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white font-bold mr-3">
-                {profile?.full_name?.charAt(0) || 'A'}
+                {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {profile?.full_name || 'Admin'}
                 </p>
-                <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
+                <p className="text-xs text-gray-500 truncate">{profile?.email || 'admin@petron.com'}</p>
               </div>
               <ChevronDown size={18} className="text-gray-400" />
             </button>
 
             {isProfileMenuOpen && (
               <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                <button 
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                  onClick={() => {
+                    // Handle profile click
+                    setIsProfileMenuOpen(false);
+                  }}
+                >
                   <User size={16} className="mr-2" />
                   Profile
                 </button>
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                <button 
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                  onClick={() => {
+                    // Handle settings click
+                    setIsProfileMenuOpen(false);
+                  }}
+                >
                   <Settings size={16} className="mr-2" />
                   Settings
                 </button>
@@ -127,6 +164,7 @@ export default function Layout() {
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg"
+            aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -134,22 +172,40 @@ export default function Layout() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 top-16 bg-white z-10 p-4">
+          <div className="md:hidden fixed inset-0 top-16 bg-white z-10 p-4 overflow-y-auto">
             <nav className="space-y-2">
-              <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-              <NavItem to="/orders" icon={ShoppingCart} label="Orders" />
-              <NavItem to="/products" icon={Package} label="Inventory" />
+              <NavItem 
+                to="/" 
+                icon={LayoutDashboard} 
+                label="Dashboard" 
+                isActive={isActive('/')}
+                onClick={() => handleNavigation('/')}
+              />
+              <NavItem 
+                to="/orders" 
+                icon={ShoppingCart} 
+                label="Orders" 
+                isActive={isActive('/orders')}
+                onClick={() => handleNavigation('/orders')}
+              />
+              <NavItem 
+                to="/products" 
+                icon={Package} 
+                label="Inventory" 
+                isActive={isActive('/products')}
+                onClick={() => handleNavigation('/products')}
+              />
             </nav>
             
             <div className="absolute bottom-4 left-4 right-4">
               <div className="border-t pt-4">
                 <div className="flex items-center mb-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white font-bold mr-3">
-                    {profile?.full_name?.charAt(0) || 'A'}
+                    {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{profile?.full_name || 'Admin'}</p>
-                    <p className="text-sm text-gray-500">{profile?.email}</p>
+                    <p className="text-sm text-gray-500">{profile?.email || 'admin@petron.com'}</p>
                   </div>
                 </div>
                 <button 
@@ -164,7 +220,7 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Main Content */}
+        {/* Main Content - This is the key part that was causing reloads */}
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50">
           <Outlet />
         </main>

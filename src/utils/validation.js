@@ -1,4 +1,6 @@
 // src/utils/validation.js
+import { ORDER_STATUS } from './constants'; // ADD THIS IMPORT
+
 export const validateProduct = (product) => {
   const errors = {};
   
