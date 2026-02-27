@@ -1,6 +1,6 @@
 // src/pages/Products.jsx
 import React, { useState, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, ImageOff } from 'lucide-react';
 import ProductModal from '../components/ProductModal';
 import ErrorAlert from '../components/common/ErrorAlert';
 import EmptyState from '../components/common/EmptyState';
@@ -11,11 +11,25 @@ import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_CATEGORIES } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 
+// Default placeholder images based on category
+const getPlaceholderImage = (category) => {
+  switch(category) {
+    case PRODUCT_CATEGORIES.FUEL:
+      return 'https://images.unsplash.com/photo-1588707631731-9627b1e4cd2a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+    case PRODUCT_CATEGORIES.MOTOR_OIL:
+      return 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+    case PRODUCT_CATEGORIES.ENGINE_OIL:
+      return 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+    default:
+      return 'https://images.unsplash.com/photo-1588707631731-9627b1e4cd2a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+  }
+};
+
 // Skeleton Components
 const ProductCardSkeleton = () => (
   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
-    <div className="h-32 bg-gray-200"></div>
-    <div className="pt-8 p-4">
+    <div className="h-48 bg-gray-200"></div>
+    <div className="p-4">
       <div className="h-5 w-32 bg-gray-200 rounded mb-2"></div>
       <div className="h-4 w-24 bg-gray-200 rounded mb-3"></div>
       <div className="flex justify-between items-center mt-3">
@@ -53,6 +67,12 @@ export default function Products() {
   const [itemsPerPage] = useState(12);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+
+  // Handle image error
+  const handleImageError = (productId) => {
+    setImageErrors(prev => ({ ...prev, [productId]: true }));
+  };
 
   // Memoized filtered products
   const filteredProducts = useMemo(() => {
@@ -260,30 +280,65 @@ export default function Products() {
                 key={product.id} 
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-150 group"
               >
-                <div className="h-32 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] relative">
+                {/* Product Image */}
+                <div className="h-48 bg-gray-100 relative overflow-hidden">
+                  {!imageErrors[product.id] && product.image_url ? (
+                    <img 
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      onError={() => handleImageError(product.id)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                      {product.category === PRODUCT_CATEGORIES.FUEL ? (
+                        <div className="text-center">
+                          <div className="text-6xl mb-2">⛽</div>
+                          <p className="text-sm text-gray-400">Fuel Product</p>
+                        </div>
+                      ) : product.category === PRODUCT_CATEGORIES.MOTOR_OIL ? (
+                        <div className="text-center">
+                          <div className="text-6xl mb-2">🛢️</div>
+                          <p className="text-sm text-gray-400">Motor Oil</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-6xl mb-2">🔧</div>
+                          <p className="text-sm text-gray-400">Engine Oil</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Stock Badge */}
                   <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-1 text-xs font-bold rounded ${
+                    <span className={`px-2 py-1 text-xs font-bold rounded shadow-lg ${
                       product.stock_quantity > 10 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-red-500 text-white'
                     }`}>
                       {product.stock_quantity} {product.unit}
                     </span>
                   </div>
-                  <div className="absolute -bottom-6 left-4">
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center text-2xl">
-                      {product.category === PRODUCT_CATEGORIES.FUEL ? '⛽' : '🛢️'}
-                    </div>
+
+                  {/* Category Badge */}
+                  <div className="absolute top-2 left-2">
+                    <span className="px-2 py-1 text-xs font-bold rounded bg-white/90 backdrop-blur-sm text-gray-700 shadow-lg">
+                      {product.category}
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-8 p-4">
-                  <h3 className="font-bold text-gray-900 mb-1">{product.name}</h3>
-                  <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+                <div className="p-4">
+                  <h3 className="font-bold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
+                  
+                  {product.description && (
+                    <p className="text-sm text-gray-500 mb-2 line-clamp-2">{product.description}</p>
+                  )}
                   
                   {product.stock_quantity < 10 && (
-                    <div className="flex items-center text-[#ED1C24] text-xs mb-2">
-                      <AlertTriangle size={12} className="mr-1" />
+                    <div className="flex items-center text-[#ED1C24] text-xs mb-2 bg-red-50 p-1 rounded">
+                      <AlertTriangle size={12} className="mr-1 flex-shrink-0" />
                       Low stock alert
                     </div>
                   )}

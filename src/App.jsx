@@ -6,6 +6,9 @@ import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
+import Customers from './pages/Customers';
+import Riders from './pages/Riders';
+import Reports from './pages/Reports';
 import Products from './pages/Products';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -43,6 +46,9 @@ export default function App() {
               <Route index element={<Dashboard />} />
               <Route path="orders" element={<Orders />} />
               <Route path="products" element={<Products />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="riders" element={<Riders />} />
+              <Route path="reports" element={<Reports />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

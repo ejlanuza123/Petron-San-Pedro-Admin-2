@@ -29,25 +29,28 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-petron-blue-light to-petron-red-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-petron-blue p-8 text-center">
-          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <img 
-              src={petronLogo} 
-              alt="Petron Logo" 
-              className="h-24 w-auto object-contain" // Adjust height as needed
-            />
+        {/* Header with Petron colors */}
+        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <img 
+                src={petronLogo} 
+                alt="Petron Logo" 
+                className="h-16 w-auto object-contain"
+              />
+            </div>
           </div>
           <h2 className="text-2xl font-bold text-white">Welcome Back!</h2>
-          <p className="text-blue-100 mt-2">Sign in to manage your store</p>
+          <p className="text-white/80 mt-2">Sign in to manage your store</p>
         </div>
 
         <form onSubmit={handleLogin} className="p-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+            <div className="bg-red-50 border-l-4 border-[#ED1C24] p-4 rounded">
               <div className="flex items-center">
-                <AlertCircle className="text-red-500 mr-2" size={20} />
+                <AlertCircle className="text-[#ED1C24] mr-2 flex-shrink-0" size={20} />
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
@@ -62,8 +65,8 @@ export default function Login() {
               <input
                 type="email"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="admin@example.com"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent outline-none transition"
+                placeholder="admin@petron.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -79,7 +82,7 @@ export default function Login() {
               <input
                 type="password"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent outline-none transition"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -89,10 +92,16 @@ export default function Login() {
 
           <div className="flex items-center justify-between">
             <label className="flex items-center">
-              <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <input 
+                type="checkbox" 
+                className="rounded border-gray-300 text-[#0033A0] focus:ring-[#0033A0] focus:ring-2" 
+              />
               <span className="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
-            <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+            <button 
+              type="button" 
+              className="text-sm text-[#0033A0] hover:text-[#ED1C24] font-medium transition-colors duration-200"
+            >
               Forgot password?
             </button>
           </div>
@@ -100,8 +109,8 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-petron-blue hover:bg-petron-blue-dark text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
-    >
+            className="w-full bg-gradient-to-r from-[#0033A0] to-[#ED1C24] hover:opacity-90 text-white font-bold py-3 rounded-lg transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+          >
             {loading ? (
               <>
                 <Loader2 className="animate-spin mr-2" size={20} />
@@ -117,7 +126,7 @@ export default function Login() {
               Need an admin account?{' '}
               <Link 
                 to="/register" 
-                className="text-blue-600 font-bold hover:text-blue-700 hover:underline"
+                className="text-[#0033A0] font-bold hover:text-[#ED1C24] hover:underline transition-colors duration-200"
               >
                 Register here
               </Link>
