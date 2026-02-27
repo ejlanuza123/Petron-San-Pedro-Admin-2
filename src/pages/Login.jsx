@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import petronLogo from '../assets/images/petron-logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,11 +29,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-petron-blue-light to-petron-red-light flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-center">
+        <div className="bg-petron-blue p-8 text-center">
           <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-4xl font-bold text-blue-600">P</span>
+            <img 
+              src={petronLogo} 
+              alt="Petron Logo" 
+              className="h-24 w-auto object-contain" // Adjust height as needed
+            />
           </div>
           <h2 className="text-2xl font-bold text-white">Welcome Back!</h2>
           <p className="text-blue-100 mt-2">Sign in to manage your store</p>
@@ -95,8 +100,8 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
-          >
+            className="w-full bg-petron-blue hover:bg-petron-blue-dark text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
+    >
             {loading ? (
               <>
                 <Loader2 className="animate-spin mr-2" size={20} />

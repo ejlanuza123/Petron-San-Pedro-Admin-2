@@ -1,8 +1,7 @@
 // src/pages/Orders.jsx
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Eye, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Eye, ChevronDown } from 'lucide-react';
 import OrderModal from '../components/OrderModal';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorAlert from '../components/common/ErrorAlert';
 import EmptyState from '../components/common/EmptyState';
 import SearchBar from '../components/common/SearchBar';
@@ -11,6 +10,43 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useOrders } from '../hooks/useOrders';
 import { ORDER_STATUS, ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
+
+// Skeleton Components
+const TableRowSkeleton = () => (
+  <tr className="animate-pulse">
+    <td className="px-6 py-4"><div className="h-4 w-16 bg-gray-200 rounded"></div></td>
+    <td className="px-6 py-4">
+      <div className="space-y-2">
+        <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        <div className="h-3 w-24 bg-gray-200 rounded"></div>
+      </div>
+    </td>
+    <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 rounded"></div></td>
+    <td className="px-6 py-4"><div className="h-6 w-20 bg-gray-200 rounded-full"></div></td>
+    <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-200 rounded"></div></td>
+    <td className="px-6 py-4"><div className="h-8 w-20 bg-gray-200 rounded"></div></td>
+  </tr>
+);
+
+const MobileCardSkeleton = () => (
+  <div className="bg-white p-4 rounded-xl border border-gray-200 animate-pulse">
+    <div className="flex justify-between items-start mb-3">
+      <div className="space-y-2">
+        <div className="h-5 w-20 bg-gray-200 rounded"></div>
+        <div className="h-4 w-32 bg-gray-200 rounded"></div>
+      </div>
+      <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+    </div>
+    <div className="space-y-2 mb-4">
+      <div className="h-4 w-40 bg-gray-200 rounded"></div>
+      <div className="h-4 w-36 bg-gray-200 rounded"></div>
+    </div>
+    <div className="flex gap-2 pt-3 border-t">
+      <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+      <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+    </div>
+  </div>
+);
 
 export default function Orders() {
   const { orders, loading, error, selectedOrder, setSelectedOrder, updateStatus, viewOrderDetails } = useOrders();
@@ -21,7 +57,7 @@ export default function Orders() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState(null);
 
-  // Filter and search orders
+  // Memoized filtered orders
   const filteredOrders = useMemo(() => {
     let filtered = orders;
     
@@ -41,7 +77,7 @@ export default function Orders() {
     return filtered;
   }, [orders, filter, searchQuery]);
 
-  // Pagination
+  // Memoized pagination
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredOrders.slice(start, start + itemsPerPage);
@@ -49,22 +85,93 @@ export default function Orders() {
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
-  const handleStatusUpdate = async (orderId, newStatus) => {
+  // Memoized stats
+  const stats = useMemo(() => ({
+    total: orders.length,
+    pending: orders.filter(o => o.status === ORDER_STATUS.PENDING).length
+  }), [orders]);
+
+  const handleStatusUpdate = useCallback((orderId, newStatus) => {
     setPendingStatusUpdate({ orderId, newStatus });
     setShowConfirmDialog(true);
-  };
+  }, []);
 
-  const confirmStatusUpdate = async () => {
+  const confirmStatusUpdate = useCallback(async () => {
     if (pendingStatusUpdate) {
       try {
         await updateStatus(pendingStatusUpdate.orderId, pendingStatusUpdate.newStatus);
+        setShowConfirmDialog(false);
+        setPendingStatusUpdate(null);
       } catch (err) {
         // Error is handled by hook
       }
     }
-  };
+  }, [pendingStatusUpdate, updateStatus]);
 
-  if (loading) return <LoadingSpinner fullPage />;
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page on search
+  }, []);
+
+  const handleFilterChange = useCallback((e) => {
+    setFilter(e.target.value);
+    setCurrentPage(1); // Reset to first page on filter change
+  }, []);
+
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setCurrentPage(1);
+  }, []);
+
+  const closeDialogs = useCallback(() => {
+    setShowConfirmDialog(false);
+    setPendingStatusUpdate(null);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
+          <div className="flex gap-4">
+            <div className="h-10 w-20 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 w-20 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Filters Skeleton */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 h-12 bg-gray-200 rounded animate-pulse"></div>
+          <div className="w-48 h-12 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+
+        {/* Desktop Table Skeleton */}
+        <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                {[1,2,3,4,5,6].map(i => (
+                  <th key={i} className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 rounded"></div></th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {[1,2,3,4,5,6,7,8,9,10].map(i => <TableRowSkeleton key={i} />)}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards Skeleton */}
+        <div className="md:hidden space-y-4">
+          {[1,2,3,4,5].map(i => <MobileCardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -74,13 +181,11 @@ export default function Orders() {
         {/* Stats Summary */}
         <div className="flex gap-4 text-sm">
           <div className="text-center">
-            <span className="block text-2xl font-bold text-blue-600">{orders.length}</span>
+            <span className="block text-2xl font-bold text-[#0033A0]">{stats.total}</span>
             <span className="text-gray-500">Total</span>
           </div>
           <div className="text-center">
-            <span className="block text-2xl font-bold text-yellow-600">
-              {orders.filter(o => o.status === ORDER_STATUS.PENDING).length}
-            </span>
+            <span className="block text-2xl font-bold text-[#ED1C24]">{stats.pending}</span>
             <span className="text-gray-500">Pending</span>
           </div>
         </div>
@@ -91,7 +196,7 @@ export default function Orders() {
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4">
         <SearchBar 
-          onSearch={setSearchQuery}
+          onSearch={handleSearch}
           placeholder="Search orders by ID, customer, or address..."
           className="flex-1"
         />
@@ -99,8 +204,8 @@ export default function Orders() {
         <div className="relative">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 outline-none"
+            onChange={handleFilterChange}
+            className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-[#0033A0] outline-none"
           >
             <option value="All">All Status</option>
             {Object.values(ORDER_STATUS).map(status => (
@@ -117,7 +222,7 @@ export default function Orders() {
           message={searchQuery ? "No orders match your search" : "No orders found"}
           action={searchQuery ? {
             label: "Clear Search",
-            onClick: () => setSearchQuery('')
+            onClick: clearSearch
           } : undefined}
         />
       ) : (
@@ -127,17 +232,17 @@ export default function Orders() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {paginatedOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition">
+                  <tr key={order.id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 py-4">
                       <span className="font-medium text-gray-900">#{order.id}</span>
                     </td>
@@ -149,7 +254,7 @@ export default function Orders() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-bold text-blue-600">{formatCurrency(order.total_amount)}</span>
+                      <span className="font-bold text-[#0033A0]">{formatCurrency(order.total_amount)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status]}`}>
@@ -163,7 +268,7 @@ export default function Orders() {
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => viewOrderDetails(order.id)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-2 text-[#0033A0] hover:bg-[#E5EEFF] rounded-lg transition-colors duration-150"
                           title="View Details"
                         >
                           <Eye size={18} />
@@ -171,7 +276,7 @@ export default function Orders() {
                         <select 
                           value={order.status}
                           onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                          className="bg-gray-50 border border-gray-300 text-sm rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="bg-gray-50 border border-gray-300 text-sm rounded-lg p-2 focus:ring-2 focus:ring-[#0033A0] outline-none"
                         >
                           {Object.values(ORDER_STATUS).map(status => (
                             <option key={status} value={status}>{status}</option>
@@ -190,7 +295,7 @@ export default function Orders() {
             {paginatedOrders.map((order) => (
               <div 
                 key={order.id} 
-                className="bg-white p-4 rounded-xl shadow-sm border border-gray-200"
+                className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-150"
               >
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -217,14 +322,14 @@ export default function Orders() {
                 <div className="flex gap-2 pt-3 border-t">
                   <button
                     onClick={() => viewOrderDetails(order.id)}
-                    className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-lg text-sm font-medium hover:bg-blue-100"
+                    className="flex-1 bg-[#E5EEFF] text-[#0033A0] py-2 rounded-lg text-sm font-medium hover:bg-[#0033A0] hover:text-white transition-colors duration-150"
                   >
                     View Details
                   </button>
                   <select
                     value={order.status}
                     onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                    className="flex-1 bg-gray-50 border border-gray-300 text-sm rounded-lg p-2"
+                    className="flex-1 bg-gray-50 border border-gray-300 text-sm rounded-lg p-2 focus:ring-2 focus:ring-[#0033A0] outline-none"
                   >
                     {Object.values(ORDER_STATUS).map(status => (
                       <option key={status} value={status}>{status}</option>
@@ -240,7 +345,7 @@ export default function Orders() {
             <Pagination 
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={handlePageChange}
             />
           )}
         </>
@@ -257,10 +362,7 @@ export default function Orders() {
       {/* Confirm Dialog */}
       <ConfirmDialog
         isOpen={showConfirmDialog}
-        onClose={() => {
-          setShowConfirmDialog(false);
-          setPendingStatusUpdate(null);
-        }}
+        onClose={closeDialogs}
         onConfirm={confirmStatusUpdate}
         title="Update Order Status"
         message={`Are you sure you want to change this order status to "${pendingStatusUpdate?.newStatus}"?`}

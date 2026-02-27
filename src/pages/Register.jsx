@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Lock, Mail, User, Phone, Loader2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
+import petronLogo from '../assets/images/petron-logo.png';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -59,7 +60,6 @@ export default function Register() {
     setError('');
 
     try {
-      // 1. Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -74,7 +74,6 @@ export default function Register() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // 2. Create/Update profile with admin role
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -89,7 +88,6 @@ export default function Register() {
         
         setSuccess(true);
         
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate('/login');
         }, 3000);
@@ -103,8 +101,11 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <img src={petronLogo} alt="Petron Logo" className="h-16 w-auto" />
+          </div>
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="text-green-600" size={40} />
           </div>
@@ -114,7 +115,7 @@ export default function Register() {
           </p>
           <Link 
             to="/login"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            className="inline-block bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white px-6 py-3 rounded-lg hover:opacity-90"
           >
             Go to Login
           </Link>
@@ -124,17 +125,21 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-center relative">
-          <Link to="/login" className="absolute top-6 left-6 text-blue-200 hover:text-white transition">
+        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-8 text-center relative">
+          <Link to="/login" className="absolute top-6 left-6 text-white/80 hover:text-white transition">
             <ArrowLeft size={24} />
           </Link>
-          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-4xl font-bold text-blue-600">P</span>
+          <div className="flex justify-center mb-4">
+            <img 
+              src={petronLogo} 
+              alt="Petron Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <h2 className="text-2xl font-bold text-white">Create Admin Account</h2>
-          <p className="text-blue-100 mt-2">Join the management team</p>
+          <p className="text-white/80 mt-2">Join the management team</p>
         </div>
 
         <form onSubmit={handleRegister} className="p-8 space-y-5">
@@ -157,7 +162,7 @@ export default function Register() {
                 name="fullName"
                 type="text"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
                 placeholder="Juan Dela Cruz"
                 value={formData.fullName}
                 onChange={handleChange}
@@ -175,7 +180,7 @@ export default function Register() {
                 name="phone"
                 type="tel"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
                 placeholder="0912 345 6789"
                 value={formData.phone}
                 onChange={handleChange}
@@ -193,7 +198,7 @@ export default function Register() {
                 name="email"
                 type="email"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
                 placeholder="admin@petron.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -212,7 +217,7 @@ export default function Register() {
                   name="password"
                   type="password"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
                   placeholder="••••••"
                   value={formData.password}
                   onChange={handleChange}
@@ -229,7 +234,7 @@ export default function Register() {
                   name="confirmPassword"
                   type="password"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
                   placeholder="••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -239,7 +244,7 @@ export default function Register() {
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-xs text-blue-700">
+            <p className="text-xs text-[#0033A0]">
               <span className="font-bold">Note:</span> By creating an admin account, you'll have full access to manage orders, products, and view all system data.
             </p>
           </div>
@@ -247,7 +252,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
+            className="w-full bg-gradient-to-r from-[#0033A0] to-[#ED1C24] hover:opacity-90 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
           >
             {loading ? (
               <>
@@ -262,7 +267,7 @@ export default function Register() {
           <div className="text-center mt-4">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 font-bold hover:text-blue-700 hover:underline">
+              <Link to="/login" className="text-[#0033A0] font-bold hover:text-[#ED1C24] hover:underline">
                 Sign In
               </Link>
             </p>
