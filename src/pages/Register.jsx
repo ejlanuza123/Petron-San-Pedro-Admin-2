@@ -109,9 +109,9 @@ export default function Register() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="text-green-600" size={40} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Admin Account Created!</h2>
           <p className="text-gray-600 mb-6">
-            Your admin account has been created. You will be redirected to the login page.
+            Your admin account has been successfully created. Proceed to login with your credentials.
           </p>
           <Link 
             to="/login"
@@ -139,7 +139,7 @@ export default function Register() {
             />
           </div>
           <h2 className="text-2xl font-bold text-white">Create Admin Account</h2>
-          <p className="text-white/80 mt-2">Join the management team</p>
+          <p className="text-white/80 mt-2">Admin Dashboard - Admins Only</p>
         </div>
 
         <form onSubmit={handleRegister} className="p-8 space-y-5">

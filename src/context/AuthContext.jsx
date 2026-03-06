@@ -57,9 +57,9 @@ export const AuthProvider = ({ children }) => {
         setUser(authUser);
         setProfile(data);
       } else {
-        // Not an admin, sign them out
+        // Not an admin, sign them out immediately
         await supabase.auth.signOut();
-        setError('Access Denied: You do not have admin privileges.');
+        setError(`Access Denied: This dashboard is for admins only. Your role is: ${data?.role || 'unknown'}. If you are a rider, please use the mobile app.`);
         setUser(null);
         setProfile(null);
       }

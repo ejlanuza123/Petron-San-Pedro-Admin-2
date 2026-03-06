@@ -1,11 +1,29 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, XCircle } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import { supabase } from '../lib/supabase';
 
-// Skeleton Components
+// Helper function to get rider email from auth.users
+const fetchRiderEmail = async (userId) => {
+  try {
+    // Note: This requires admin privileges to access auth.users
+    const { data, error } = await supabase
+      .from('profiles') // We can't directly query auth.users, so we'll need to handle this differently
+      .select('email')
+      .eq('id', userId)
+      .single();
+    
+    if (error) throw error;
+    return data?.email;
+  } catch (error) {
+    console.error('Error fetching email:', error);
+    return null;
+  }
+};
+
+// Skeleton Components (keep as is)
 const RiderCardSkeleton = () => (
   <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
     <div className="flex items-start justify-between mb-4">
@@ -51,51 +69,136 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone_number: '',
-    address: ''
+    address: '',
+    vehicle_type: '',
+    vehicle_plate: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+  };
+
+  const validateForm = () => {
+    if (!formData.full_name.trim()) {
+      setError('Full name is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.password) {
+      setError('Password is required');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    if (!formData.phone_number.trim()) {
+      setError('Phone number is required');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+
     setLoading(true);
     setError('');
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.signUp({
+      // 1. Create auth user with custom password
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
-        password: Math.random().toString(36).slice(-8), // Generate random password
+        password: formData.password,
         options: {
           data: {
             full_name: formData.full_name,
             phone_number: formData.phone_number,
-            role: 'rider'
+            role: 'rider'  // This goes into raw_user_meta_data
           }
         }
       });
 
       if (authError) throw authError;
 
-      if (user) {
+      if (authData.user) {
+        // IMPORTANT: Wait a moment for the trigger to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 2. Update the profile with additional rider-specific data
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
             full_name: formData.full_name,
             phone_number: formData.phone_number,
             address: formData.address,
-            role: 'rider',
-            is_active: true
+            vehicle_type: formData.vehicle_type || null,
+            vehicle_plate: formData.vehicle_plate?.toUpperCase() || null,
+            role: 'rider',  // Explicitly set role to rider
+            is_active: true,
+            email: formData.email, // If you added email column
+            updated_at: new Date().toISOString()
           })
-          .eq('id', user.id);
+          .eq('id', authData.user.id);
 
         if (profileError) throw profileError;
-      }
 
-      onAdd();
-      onClose();
+        // 3. Show success and close modal
+        alert('Rider account created successfully!\n\nEmail: ' + formData.email + '\nPassword: ' + formData.password + '\n\nShare these credentials securely with the rider to log into the mobile app.');
+        onAdd();
+        onClose();
+        
+        // Reset form
+        setFormData({
+          full_name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          phone_number: '',
+          address: '',
+          vehicle_type: '',
+          vehicle_plate: ''
+        });
+      }
     } catch (err) {
-      setError(err.message);
+      console.error('Error creating rider:', err);
+      
+      // Handle specific error messages
+      if (err.message.includes('duplicate key value violates unique constraint')) {
+        if (err.message.includes('phone_number')) {
+          setError('This phone number is already registered');
+        } else if (err.message.includes('email')) {
+          setError('This email is already registered');
+        } else {
+          setError('A rider with this information already exists');
+        }
+      } else if (err.message.includes('already registered')) {
+        setError('This email is already registered');
+      } else {
+        setError(err.message || 'Failed to create rider account');
+      }
     } finally {
       setLoading(false);
     }
@@ -104,9 +207,9 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl my-8">
+        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center sticky top-0">
           <h3 className="text-xl font-bold text-white">Add New Rider</h3>
           <button 
             onClick={onClose}
@@ -116,69 +219,173 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
-              placeholder="Juan Dela Cruz"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Column */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="full_name"
+                  required
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+                  placeholder="Juan Dela Cruz"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+                  placeholder="rider@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none pr-10"
+                    placeholder="••••••••"
+                    minLength="6"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none pr-10"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  required
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+                  placeholder="0912 345 6789"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vehicle Type
+                </label>
+                <select
+                  name="vehicle_type"
+                  value={formData.vehicle_type}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+                >
+                  <option value="">Select vehicle type</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Scooter">Scooter</option>
+                  <option value="Bicycle">Bicycle</option>
+                  <option value="Car">Car</option>
+                  <option value="Van">Van</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Plate Number
+                </label>
+                <input
+                  type="text"
+                  name="vehicle_plate"
+                  value={formData.vehicle_plate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none uppercase"
+                  placeholder="ABC-1234"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none resize-none"
+                  rows="3"
+                  placeholder="Rider's complete address"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email *
-            </label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
-              placeholder="rider@example.com"
-            />
+          {/* Important Note */}
+          <div className="bg-blue-50 p-4 rounded-lg mt-4">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> The rider will use this email and password to log in to the mobile app. 
+              Please save these credentials and share them securely with the rider.
+            </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number *
-            </label>
-            <input
-              type="tel"
-              required
-              value={formData.phone_number}
-              onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
-              placeholder="0912 345 6789"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Address
-            </label>
-            <textarea
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none resize-none"
-              rows="3"
-              placeholder="Rider's address"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="flex gap-3 pt-4 border-t mt-4">
             <button
               type="button"
               onClick={onClose}
@@ -191,7 +398,17 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
               disabled={loading}
               className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
             >
-              {loading ? 'Adding...' : 'Add Rider'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating Account...
+                </>
+              ) : (
+                'Create Rider Account'
+              )}
             </button>
           </div>
         </form>
@@ -207,7 +424,10 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
-    address: ''
+    address: '',
+    vehicle_type: '',
+    vehicle_plate: '',
+    is_active: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -217,10 +437,21 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
       setFormData({
         full_name: rider.full_name || '',
         phone_number: rider.phone_number || '',
-        address: rider.address || ''
+        address: rider.address || '',
+        vehicle_type: rider.vehicle_type || '',
+        vehicle_plate: rider.vehicle_plate || '',
+        is_active: rider.is_active !== undefined ? rider.is_active : true
       });
     }
   }, [rider]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -233,7 +464,10 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
         .update({
           full_name: formData.full_name,
           phone_number: formData.phone_number,
-          address: formData.address
+          address: formData.address,
+          vehicle_type: formData.vehicle_type || null,
+          vehicle_plate: formData.vehicle_plate?.toUpperCase() || null,
+          is_active: formData.is_active
         })
         .eq('id', rider.id);
 
@@ -276,9 +510,10 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
             </label>
             <input
               type="text"
+              name="full_name"
               required
               value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
             />
           </div>
@@ -289,10 +524,44 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
             </label>
             <input
               type="tel"
+              name="phone_number"
               required
               value={formData.phone_number}
-              onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vehicle Type
+            </label>
+            <select
+              name="vehicle_type"
+              value={formData.vehicle_type}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+            >
+              <option value="">Select vehicle type</option>
+              <option value="Motorcycle">Motorcycle</option>
+              <option value="Scooter">Scooter</option>
+              <option value="Bicycle">Bicycle</option>
+              <option value="Car">Car</option>
+              <option value="Van">Van</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Plate Number
+            </label>
+            <input
+              type="text"
+              name="vehicle_plate"
+              value={formData.vehicle_plate}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none uppercase"
+              style={{ textTransform: 'uppercase' }}
             />
           </div>
 
@@ -301,11 +570,26 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
               Address
             </label>
             <textarea
+              name="address"
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none resize-none"
-              rows="3"
+              rows="2"
             />
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="is_active"
+              id="is_active"
+              checked={formData.is_active}
+              onChange={handleChange}
+              className="rounded border-gray-300 text-[#0033A0] focus:ring-[#0033A0]"
+            />
+            <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">
+              Active (can log in and receive deliveries)
+            </label>
           </div>
 
           <div className="flex gap-3 pt-4 border-t">
@@ -321,7 +605,17 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
               disabled={loading}
               className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
             >
-              {loading ? 'Updating...' : 'Update Rider'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : (
+                'Update Rider'
+              )}
             </button>
           </div>
         </form>
@@ -332,6 +626,172 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
 
 EditRiderModal.displayName = 'EditRiderModal';
 
+// Reset Password Modal Component
+const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!newPassword) {
+      setError('Password is required');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Update password using admin API (requires service role key)
+      const { error } = await supabase.auth.admin.updateUserById(
+        rider.id,
+        { password: newPassword }
+      );
+
+      if (error) throw error;
+
+      alert('Password reset successfully!');
+      onReset();
+      onClose();
+    } catch (err) {
+      console.error('Error resetting password:', err);
+      setError(err.message || 'Failed to reset password. Make sure you have admin privileges.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-white">Reset Password</h3>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <X size={20} className="text-white" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rider
+            </label>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="font-medium text-gray-900">{rider?.full_name}</p>
+              <p className="text-sm text-gray-500">{rider?.email}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              New Password *
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none pr-10"
+                placeholder="••••••••"
+                minLength="6"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Confirm New Password *
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none pr-10"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 p-4 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Password reset requires admin privileges in Supabase. 
+              Make sure your service role key is configured.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Resetting...
+                </>
+              ) : (
+                'Reset Password'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+});
+
+ResetPasswordModal.displayName = 'ResetPasswordModal';
+
 export default function Riders() {
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -339,6 +799,7 @@ export default function Riders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState(null);
 
   const fetchRiders = useCallback(async () => {
@@ -362,6 +823,7 @@ export default function Riders() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      
       setRiders(data || []);
     } catch (err) {
       setError(err.message);
@@ -400,13 +862,13 @@ export default function Riders() {
     const pendingDeliveries = deliveries.filter(d => d.status === 'assigned' || d.status === 'picked_up').length;
     const failedDeliveries = deliveries.filter(d => d.status === 'failed').length;
     
-    // Calculate average delivery time (if you have timing data)
+    // Calculate average delivery time
     const deliveryTimes = deliveries
       .filter(d => d.delivered_at && d.assigned_at)
       .map(d => new Date(d.delivered_at) - new Date(d.assigned_at));
     
     const avgDeliveryTime = deliveryTimes.length > 0 
-      ? Math.round(deliveryTimes.reduce((a, b) => a + b, 0) / deliveryTimes.length / (1000 * 60)) // in minutes
+      ? Math.round(deliveryTimes.reduce((a, b) => a + b, 0) / deliveryTimes.length / (1000 * 60))
       : null;
 
     return {
@@ -425,9 +887,10 @@ export default function Riders() {
     const query = searchQuery.toLowerCase().trim();
     return riders.filter(rider =>
       rider.full_name?.toLowerCase().includes(query) ||
-      rider.email?.toLowerCase().includes(query) ||
       rider.phone_number?.includes(query) ||
-      rider.address?.toLowerCase().includes(query)
+      rider.address?.toLowerCase().includes(query) ||
+      rider.vehicle_type?.toLowerCase().includes(query) ||
+      rider.vehicle_plate?.toLowerCase().includes(query)
     );
   }, [riders, searchQuery]);
 
@@ -466,8 +929,18 @@ export default function Riders() {
     setShowEditModal(true);
   }, []);
 
+  const handleResetPasswordClick = useCallback((rider) => {
+    setSelectedRider(rider);
+    setShowResetPasswordModal(true);
+  }, []);
+
   const handleCloseEdit = useCallback(() => {
     setShowEditModal(false);
+    setSelectedRider(null);
+  }, []);
+
+  const handleCloseResetPassword = useCallback(() => {
+    setShowResetPasswordModal(false);
     setSelectedRider(null);
   }, []);
 
@@ -544,7 +1017,7 @@ export default function Riders() {
       {/* Search */}
       <SearchBar 
         onSearch={handleSearch}
-        placeholder="Search riders by name, email, phone, or address..."
+        placeholder="Search riders by name, phone, vehicle, or address..."
         className="w-full"
       />
 
@@ -604,24 +1077,38 @@ export default function Riders() {
                   </div>
                 </div>
 
-                {rider.email && (
-                  <div className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Email:</span> {rider.email}
-                  </div>
-                )}
+                <div className="space-y-2 mb-4">
+                  {rider.email && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Email:</span> {rider.email}
+                    </div>
+                  )}
+                  
+                  {rider.vehicle_type && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Vehicle:</span> {rider.vehicle_type} 
+                      {rider.vehicle_plate && ` (${rider.vehicle_plate})`}
+                    </div>
+                  )}
 
-                {rider.address && (
-                  <div className="flex items-start text-sm text-gray-600 mb-4">
-                    <MapPin size={16} className="mr-2 text-gray-400 flex-shrink-0 mt-0.5" />
-                    <span className="line-clamp-2">{rider.address}</span>
-                  </div>
-                )}
+                  {rider.address && (
+                    <div className="flex items-start text-sm text-gray-600">
+                      <MapPin size={16} className="mr-2 text-gray-400 flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{rider.address}</span>
+                    </div>
+                  )}
 
-                {riderStats.avgDeliveryTime && (
-                  <div className="text-xs text-gray-500 mb-4">
-                    Avg delivery time: {riderStats.avgDeliveryTime} mins
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Calendar size={12} className="mr-1" />
+                    Joined: {new Date(rider.created_at).toLocaleDateString()}
                   </div>
-                )}
+
+                  {riderStats.avgDeliveryTime && (
+                    <div className="text-xs text-gray-500">
+                      Avg delivery time: {riderStats.avgDeliveryTime} mins
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex gap-2 pt-4 border-t">
                   <button
@@ -633,6 +1120,16 @@ export default function Riders() {
                     }`}
                   >
                     {rider.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button 
+                    onClick={() => handleResetPasswordClick(rider)}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    title="Reset Password"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
                   </button>
                   <button 
                     onClick={() => handleEditClick(rider)}
@@ -660,6 +1157,13 @@ export default function Riders() {
         onClose={handleCloseEdit}
         rider={selectedRider}
         onUpdate={handleUpdateSuccess}
+      />
+
+      <ResetPasswordModal
+        isOpen={showResetPasswordModal}
+        onClose={handleCloseResetPassword}
+        rider={selectedRider}
+        onReset={handleUpdateSuccess}
       />
     </div>
   );
