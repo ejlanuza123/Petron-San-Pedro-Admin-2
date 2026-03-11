@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { productService } from '../services/productService';
 import { useAdminLog } from './useAdminLog';
+import { diffObjects, formatChangesDescription } from '../utils/diff';
+import { notifySuccess } from '../utils/successNotifier';
 
 export function useProducts() {
   const { logProductAction } = useAdminLog();
@@ -24,6 +26,20 @@ export function useProducts() {
 
   useEffect(() => {
     fetchProducts();
+
+    const subscription = productService.subscribeToChanges((payload) => {
+      if (payload.eventType === 'INSERT') {
+        setProducts(prev => [payload.new, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        setProducts(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p));
+      } else if (payload.eventType === 'DELETE') {
+        setProducts(prev => prev.filter(p => p.id !== payload.old.id));
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchProducts]);
 
   const addProduct = async (productData) => {
@@ -32,6 +48,7 @@ export function useProducts() {
       const newProduct = await productService.create(productData);
       setProducts(prev => [...prev, newProduct]);
       await logProductAction(newProduct.id, 'create_product', { name: newProduct.name });
+      notifySuccess(`Created product: ${newProduct.name}`);
       return newProduct;
     } catch (err) {
       setError(err.message);
@@ -42,9 +59,29 @@ export function useProducts() {
   const updateProduct = async (id, productData) => {
     try {
       setError(null);
+      const existingProduct = products.find((p) => p.id === id) || {};
       const updatedProduct = await productService.update(id, productData);
       setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
-      await logProductAction(id, 'update_product', { name: updatedProduct.name });
+
+      const changes = diffObjects(
+        {
+          name: existingProduct.name,
+          description: existingProduct.description,
+          price: existingProduct.price,
+          stock: existingProduct.stock
+        },
+        {
+          name: updatedProduct.name,
+          description: updatedProduct.description,
+          price: updatedProduct.price,
+          stock: updatedProduct.stock
+        }
+      );
+
+      const description = formatChangesDescription(changes) || 'Updated product';
+
+      await logProductAction(id, 'update_product', changes, description);
+      notifySuccess(description);
       return updatedProduct;
     } catch (err) {
       setError(err.message);
@@ -58,6 +95,7 @@ export function useProducts() {
       await productService.delete(id);
       setProducts(prev => prev.filter(p => p.id !== id));
       await logProductAction(id, 'delete_product');
+      notifySuccess('Deleted product successfully');
     } catch (err) {
       setError(err.message);
       throw err;

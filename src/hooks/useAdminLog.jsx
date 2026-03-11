@@ -49,48 +49,53 @@ export const useAdminLog = () => {
     }
   }, [user]);
 
-  const logOrderAction = useCallback(async (orderId, action, details = {}) => {
+  const logOrderAction = useCallback(async (orderId, action, details = {}, description = '') => {
     return logAction({
       action,
       entityType: 'order',
       entityId: orderId,
-      details
+      details,
+      description
     });
   }, [logAction]);
 
-  const logProductAction = useCallback(async (productId, action, details = {}) => {
+  const logProductAction = useCallback(async (productId, action, details = {}, description = '') => {
     return logAction({
       action,
       entityType: 'product',
       entityId: productId,
-      details
+      details,
+      description
     });
   }, [logAction]);
 
-  const logRiderAction = useCallback(async (riderId, action, details = {}) => {
+  const logRiderAction = useCallback(async (riderId, action, details = {}, description = '') => {
     return logAction({
       action,
       entityType: 'rider',
       entityId: riderId,
-      details
+      details,
+      description
     });
   }, [logAction]);
 
-  const logCustomerAction = useCallback(async (customerId, action, details = {}) => {
+  const logCustomerAction = useCallback(async (customerId, action, details = {}, description = '') => {
     return logAction({
       action,
       entityType: 'customer',
       entityId: customerId,
-      details
+      details,
+      description
     });
   }, [logAction]);
 
-  const logSystemAction = useCallback(async (action, details = {}) => {
+  const logSystemAction = useCallback(async (action, details = {}, description = '') => {
     return logAction({
       action,
       entityType: 'system',
       entityId: 'system',
-      details
+      details,
+      description
     });
   }, [logAction]);
 

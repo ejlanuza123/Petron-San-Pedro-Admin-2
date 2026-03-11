@@ -6,6 +6,8 @@ import SearchBar from '../components/common/SearchBar';
 import Pagination from '../components/common/Pagination';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { diffObjects, formatChangesDescription } from '../utils/diff';
+import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 
 // Skeleton Components (keep as is)
@@ -95,10 +97,23 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 
       if (error) throw error;
 
-      await logCustomerAction(customer.id, 'update_customer', {
-        full_name: formData.full_name,
-        phone_number: formData.phone_number
-      });
+      const changes = diffObjects(
+        {
+          full_name: customer.full_name,
+          phone_number: customer.phone_number,
+          address: customer.address
+        },
+        {
+          full_name: formData.full_name,
+          phone_number: formData.phone_number,
+          address: formData.address
+        }
+      );
+
+      const description = formatChangesDescription(changes) || 'Updated customer details';
+
+      await logCustomerAction(customer.id, 'update_customer', changes, description);
+      notifySuccess(description);
 
       onUpdate();
       onClose();
@@ -391,6 +406,17 @@ export default function Customers() {
 
   useEffect(() => {
     fetchCustomers();
+
+    const subscription = supabase
+      .channel('customers-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: 'role=eq.customer' }, () => {
+        fetchCustomers();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchCustomers]);
 
   // Memoized filtered customers

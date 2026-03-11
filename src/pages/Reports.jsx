@@ -238,6 +238,17 @@ export default function Reports() {
 
   useEffect(() => {
     fetchReportData();
+
+    const subscription = supabase
+      .channel('reports-orders-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchReportData();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchReportData]);
 
   const handleRefresh = useCallback(() => {

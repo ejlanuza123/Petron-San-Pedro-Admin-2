@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../services/orderService';
 import { useAdminLog } from './useAdminLog';
+import { diffObjects, formatChangesDescription } from '../utils/diff';
+import { notifySuccess } from '../utils/successNotifier';
 
 export function useOrders() {
   const { logOrderAction } = useAdminLog();
@@ -53,9 +55,17 @@ export function useOrders() {
   const updateStatus = async (orderId, newStatus) => {
     try {
       setError(null);
+      const existingOrder = orders.find((o) => o.id === orderId);
+      const oldStatus = existingOrder?.status;
+
       await orderService.updateStatus(orderId, newStatus);
       // State will be updated by real-time subscription
-      await logOrderAction(orderId, 'update_status', { newStatus });
+
+      const changes = diffObjects({ status: oldStatus }, { status: newStatus });
+      const description = formatChangesDescription(changes) || `Status updated to ${newStatus}`;
+
+      await logOrderAction(orderId, 'update_status', changes, description);
+      notifySuccess(description);
     } catch (err) {
       setError(err.message);
       throw err;

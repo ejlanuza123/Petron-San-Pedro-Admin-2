@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Truck, MapPin, Phone, User, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { diffObjects } from '../utils/diff';
+import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 
 export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, availableRiders }) {
@@ -95,11 +97,21 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
       if (notifError) console.error('Error creating notification:', notifError);
 
-      await logOrderAction(order.id, 'assign_rider', {
-        riderId: selectedRider,
-        deliveryId: delivery?.id
-      });
+      const changes = diffObjects(
+        { status: order.status },
+        { status: 'Out for Delivery' }
+      );
 
+      const description = formatChangesDescription(changes) || `Assigned rider and changed status from ${order.status} to Out for Delivery`;
+
+      await logOrderAction(
+        order.id,
+        'assign_rider',
+        { riderId: selectedRider, deliveryId: delivery?.id, ...changes },
+        description
+      );
+
+      notifySuccess(description);
       setSuccess(true);
       
       // Close after showing success

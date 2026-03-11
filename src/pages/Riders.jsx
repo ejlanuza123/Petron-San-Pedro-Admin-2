@@ -4,6 +4,8 @@ import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calenda
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import { supabase } from '../lib/supabase';
+import { diffObjects, formatChangesDescription } from '../utils/diff';
+import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 
 // Helper function to get rider email from auth.users
@@ -168,7 +170,7 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
         if (profileError) throw profileError;
 
         // 3. Show success and close modal
-        alert('Rider account created successfully!\n\nEmail: ' + formData.email + '\nPassword: ' + formData.password + '\n\nShare these credentials securely with the rider to log into the mobile app.');
+        notifySuccess(`Created rider ${formData.full_name}`);
 
         await logRiderAction(authData.user.id, 'create_rider', {
           email: formData.email,
@@ -483,11 +485,29 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
 
       if (error) throw error;
 
-      await logRiderAction(rider.id, 'update_rider', {
-        full_name: formData.full_name,
-        phone_number: formData.phone_number,
-        is_active: formData.is_active
-      });
+      const changes = diffObjects(
+        {
+          full_name: rider.full_name,
+          phone_number: rider.phone_number,
+          address: rider.address,
+          vehicle_type: rider.vehicle_type,
+          vehicle_plate: rider.vehicle_plate,
+          is_active: rider.is_active
+        },
+        {
+          full_name: formData.full_name,
+          phone_number: formData.phone_number,
+          address: formData.address,
+          vehicle_type: formData.vehicle_type,
+          vehicle_plate: formData.vehicle_plate,
+          is_active: formData.is_active
+        }
+      );
+
+      const description = formatChangesDescription(changes) || 'Updated rider details';
+
+      await logRiderAction(rider.id, 'update_rider', changes, description);
+      notifySuccess(description);
 
       onUpdate();
       onClose();
@@ -680,7 +700,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 
       if (error) throw error;
 
-      alert('Password reset successfully!');
+      notifySuccess('Password reset successfully');
       await logRiderAction(rider.id, 'reset_password');
       onReset();
       onClose();
@@ -853,6 +873,25 @@ export default function Riders() {
 
   useEffect(() => {
     fetchRiders();
+
+    const ridersSubscription = supabase
+      .channel('riders-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: 'role=eq.rider' }, () => {
+        fetchRiders();
+      })
+      .subscribe();
+
+    const deliveriesSubscription = supabase
+      .channel('deliveries-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, () => {
+        fetchRiders();
+      })
+      .subscribe();
+
+    return () => {
+      ridersSubscription.unsubscribe();
+      deliveriesSubscription.unsubscribe();
+    };
   }, [fetchRiders]);
 
   const updateRiderStatus = useCallback(async (riderId, isActive) => {
@@ -871,6 +910,7 @@ export default function Riders() {
       ));
 
       await logRiderAction(riderId, isActive ? 'activate_rider' : 'deactivate_rider', { is_active: isActive });
+      notifySuccess(isActive ? 'Rider activated' : 'Rider deactivated');
     } catch (err) {
       setError(err.message);
     }

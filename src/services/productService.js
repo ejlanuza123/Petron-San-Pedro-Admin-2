@@ -83,5 +83,14 @@ export const productService = {
     
     if (error) throw error;
     return data;
+  },
+
+  subscribeToChanges(callback) {
+    return supabase
+      .channel('products-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        callback(payload);
+      })
+      .subscribe();
   }
 };

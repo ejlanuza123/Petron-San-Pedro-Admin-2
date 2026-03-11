@@ -12,6 +12,7 @@ import StatsCard from '../components/StatsCard';
 import ErrorAlert from '../components/common/ErrorAlert';
 import { orderService } from '../services/orderService';
 import { productService } from '../services/productService';
+import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/formatters';
 import { Link } from 'react-router-dom';
 
@@ -107,6 +108,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+
+    const subscription = supabase
+      .channel('dashboard-orders-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchDashboardData]);
 
   // Memoized stats values to prevent unnecessary recalculations
