@@ -31,7 +31,7 @@ const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
         relative flex items-center w-full px-4 py-3 rounded-lg 
         transition-all duration-300 ease-in-out
         ${isActive 
-          ? 'bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white shadow-lg' 
+          ? 'bg-petron-blue text-white shadow-lg' 
           : 'text-gray-600 hover:bg-[#E5EEFF] hover:text-[#0033A0]'
         }
       `}
@@ -39,7 +39,7 @@ const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
       {/* Animated background for active state */}
       {isActive && (
         <motion.div 
-          className="absolute inset-0 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-lg opacity-50"
+          className="absolute inset-0 bg-petron-blue rounded-lg opacity-50"
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
         />
@@ -98,7 +98,8 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
     { to: '/products', icon: Package, label: 'Inventory' },
     { to: '/customers', icon: Users, label: 'Customers' },
     { to: '/riders', icon: Truck, label: 'Riders' },
-    { to: '/reports', icon: FileText, label: 'Reports' }
+    { to: '/reports', icon: FileText, label: 'Reports' },
+    { to: '/audit-logs', icon: FileText, label: 'Audit Logs' }
   ];
 
   return (
@@ -110,7 +111,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
     >
       {/* Logo Section */}
       <motion.div 
-        className="p-6 border-b bg-gradient-to-r from-[#0033A0] to-[#ED1C24]"
+        className="p-6 border-b bg-petron-blue"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -169,7 +170,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
             className="flex items-center w-full px-4 py-3 rounded-lg hover:bg-[#E5EEFF] transition-all duration-300"
           >
             <motion.div 
-              className="w-8 h-8 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-lg flex items-center justify-center text-white font-bold mr-3 flex-shrink-0"
+              className="w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 flex-shrink-0"
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             >
@@ -327,7 +328,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
             >
               <div className="border-t pt-4">
                 <div className="flex items-center mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                  <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3">
                     {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
                   </div>
                   <div className="min-w-0">

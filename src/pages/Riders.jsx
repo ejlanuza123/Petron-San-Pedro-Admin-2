@@ -4,6 +4,7 @@ import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calenda
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import { supabase } from '../lib/supabase';
+import { useAdminLog } from '../hooks/useAdminLog';
 
 // Helper function to get rider email from auth.users
 const fetchRiderEmail = async (userId) => {
@@ -66,6 +67,7 @@ const StatCardSkeleton = () => (
 
 // Add Rider Modal Component
 const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
+  const { logRiderAction } = useAdminLog();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -167,6 +169,13 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
 
         // 3. Show success and close modal
         alert('Rider account created successfully!\n\nEmail: ' + formData.email + '\nPassword: ' + formData.password + '\n\nShare these credentials securely with the rider to log into the mobile app.');
+
+        await logRiderAction(authData.user.id, 'create_rider', {
+          email: formData.email,
+          phone_number: formData.phone_number,
+          vehicle_type: formData.vehicle_type
+        });
+
         onAdd();
         onClose();
         
@@ -209,7 +218,7 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
       <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl my-8">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center sticky top-0">
+        <div className="bg-petron-blue p-6 flex justify-between items-center sticky top-0">
           <h3 className="text-xl font-bold text-white">Add New Rider</h3>
           <button 
             onClick={onClose}
@@ -396,7 +405,7 @@ const AddRiderModal = React.memo(({ isOpen, onClose, onAdd }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 py-2.5 bg-petron-blue text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
             >
               {loading ? (
                 <>
@@ -421,6 +430,7 @@ AddRiderModal.displayName = 'AddRiderModal';
 
 // Edit Rider Modal Component
 const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
+  const { logRiderAction } = useAdminLog();
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
@@ -473,6 +483,12 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
 
       if (error) throw error;
 
+      await logRiderAction(rider.id, 'update_rider', {
+        full_name: formData.full_name,
+        phone_number: formData.phone_number,
+        is_active: formData.is_active
+      });
+
       onUpdate();
       onClose();
     } catch (err) {
@@ -487,7 +503,7 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Edit Rider</h3>
           <button 
             onClick={onClose}
@@ -603,7 +619,7 @@ const EditRiderModal = React.memo(({ isOpen, onClose, rider, onUpdate }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 py-2.5 bg-petron-blue text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
             >
               {loading ? (
                 <>
@@ -628,6 +644,7 @@ EditRiderModal.displayName = 'EditRiderModal';
 
 // Reset Password Modal Component
 const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
+  const { logRiderAction } = useAdminLog();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -664,6 +681,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
       if (error) throw error;
 
       alert('Password reset successfully!');
+      await logRiderAction(rider.id, 'reset_password');
       onReset();
       onClose();
     } catch (err) {
@@ -679,7 +697,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Reset Password</h3>
           <button 
             onClick={onClose}
@@ -769,7 +787,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 py-2.5 bg-petron-blue text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
             >
               {loading ? (
                 <>
@@ -793,6 +811,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 ResetPasswordModal.displayName = 'ResetPasswordModal';
 
 export default function Riders() {
+  const { logRiderAction } = useAdminLog();
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -850,10 +869,12 @@ export default function Riders() {
       setRiders(prev => prev.map(rider => 
         rider.id === riderId ? { ...rider, is_active: isActive } : rider
       ));
+
+      await logRiderAction(riderId, isActive ? 'activate_rider' : 'deactivate_rider', { is_active: isActive });
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [logRiderAction]);
 
   // Calculate delivery stats for each rider
   const getRiderStats = useCallback((rider) => {
@@ -948,9 +969,19 @@ export default function Riders() {
     fetchRiders();
   }, [fetchRiders]);
 
-  const handleUpdateSuccess = useCallback(() => {
+  const handleUpdateSuccess = async () => {
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: selectedRider.id,
+        type: 'system',
+        title: 'Profile Updated',
+        message: 'Your profile has been updated by admin',
+        data: { refresh: true }
+      });
+    
     fetchRiders();
-  }, [fetchRiders]);
+  };
 
   if (loading) {
     return (
@@ -982,7 +1013,7 @@ export default function Riders() {
         <h2 className="text-2xl font-bold text-gray-800">Rider Management</h2>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
+          className="bg-petron-blue text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
         >
           <Plus size={18} />
           Add Rider
@@ -1031,7 +1062,7 @@ export default function Riders() {
           {!searchQuery && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="mt-4 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white px-6 py-2 rounded-lg hover:opacity-90"
+              className="mt-4 bg-petron-blue text-white px-6 py-2 rounded-lg hover:opacity-90"
             >
               Add Your First Rider
             </button>
@@ -1046,7 +1077,7 @@ export default function Riders() {
               <div key={rider.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-xl flex items-center justify-center text-white font-bold text-xl mr-3 shadow-md">
+                    <div className="w-12 h-12 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-xl mr-3 shadow-md">
                       {rider.full_name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                     <div>

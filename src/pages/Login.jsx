@@ -29,10 +29,10 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-petron-blue flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
         {/* Header with Petron colors */}
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-8 text-center">
+        <div className="bg-petron-red p-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center shadow-lg">
               <img 
@@ -109,7 +109,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[#0033A0] to-[#ED1C24] hover:opacity-90 text-white font-bold py-3 rounded-lg transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+            className="w-full bg-petron-red hover:opacity-90 text-white font-bold py-3 rounded-lg transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
           >
             {loading ? (
               <>

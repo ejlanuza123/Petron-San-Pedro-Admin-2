@@ -15,6 +15,24 @@ export const ORDER_STATUS_COLORS = {
   [ORDER_STATUS.CANCELLED]: 'bg-red-100 text-petron-red border-red-200'
 };
 
+export const DELIVERY_STATUS = {
+  ASSIGNED: 'assigned',
+  ACCEPTED: 'accepted',
+  PICKED_UP: 'picked_up',
+  DELIVERED: 'delivered',
+  FAILED: 'failed',
+  DECLINED: 'declined'
+};
+
+export const DELIVERY_STATUS_COLORS = {
+  [DELIVERY_STATUS.ASSIGNED]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  [DELIVERY_STATUS.ACCEPTED]: 'bg-green-100 text-green-800 border-green-200',
+  [DELIVERY_STATUS.PICKED_UP]: 'bg-blue-100 text-blue-800 border-blue-200',
+  [DELIVERY_STATUS.DELIVERED]: 'bg-green-600 text-white',
+  [DELIVERY_STATUS.FAILED]: 'bg-red-100 text-red-800 border-red-200',
+  [DELIVERY_STATUS.DECLINED]: 'bg-gray-100 text-gray-800 border-gray-200'
+};
+
 export const PRODUCT_CATEGORIES = {
   FUEL: 'Fuel',
   MOTOR_OIL: 'Motor Oil',

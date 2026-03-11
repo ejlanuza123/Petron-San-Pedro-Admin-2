@@ -26,3 +26,14 @@ export const formatPhoneNumber = (phone) => {
   }
   return phone;
 };
+
+export const formatOrderNumber = (orderNumber, orderId) => {
+  if (orderNumber) return orderNumber;
+  
+  // Format like mobile app: ORD-000010 -> ORD-10
+  if (orderId) {
+    const padded = orderId.toString().padStart(6, '0');
+    return `ORD-${padded.replace(/^0+/, '')}`;
+  }
+  return `#${orderId}`;
+};

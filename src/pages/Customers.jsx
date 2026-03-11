@@ -6,6 +6,7 @@ import SearchBar from '../components/common/SearchBar';
 import Pagination from '../components/common/Pagination';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { useAdminLog } from '../hooks/useAdminLog';
 
 // Skeleton Components (keep as is)
 const TableRowSkeleton = () => (
@@ -58,6 +59,7 @@ const StatCardSkeleton = () => (
 
 // Edit Customer Modal Component
 const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) => {
+  const { logCustomerAction } = useAdminLog();
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
@@ -93,6 +95,11 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 
       if (error) throw error;
 
+      await logCustomerAction(customer.id, 'update_customer', {
+        full_name: formData.full_name,
+        phone_number: formData.phone_number
+      });
+
       onUpdate();
       onClose();
     } catch (err) {
@@ -112,7 +119,7 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Edit Customer</h3>
           <button 
             onClick={onClose}
@@ -183,7 +190,7 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 bg-petron-blue text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 'Saving...'
@@ -226,7 +233,7 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Customer Details</h3>
           <button 
             onClick={onClose}
@@ -240,7 +247,7 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
           <div className="space-y-6">
             {/* Customer Profile */}
             <div className="flex items-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-xl flex items-center justify-center text-white font-bold text-2xl mr-4 shadow-lg">
+              <div className="w-16 h-16 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-2xl mr-4 shadow-lg">
                 {customer.full_name?.charAt(0)?.toUpperCase()}
               </div>
               <div>
@@ -593,7 +600,7 @@ export default function Customers() {
                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] rounded-lg flex items-center justify-center text-white font-bold mr-3 shadow-sm">
+                          <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 shadow-sm">
                             {customer.full_name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div>

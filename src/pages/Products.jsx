@@ -209,7 +209,7 @@ export default function Products() {
         
         <button 
           onClick={openAdd}
-          className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity duration-150 shadow-lg"
+          className="bg-petron-blue text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity duration-150 shadow-lg"
         >
           <Plus size={18} />
           Add New Product

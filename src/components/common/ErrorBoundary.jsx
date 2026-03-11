@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 text-center">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertTriangle className="text-red-600" size={40} />
@@ -54,7 +54,7 @@ export class ErrorBoundary extends React.Component {
             <div className="flex gap-4 justify-center">
               <button
                 onClick={this.handleReset}
-                className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg"
+                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg"
               >
                 <RefreshCw size={20} className="mr-2" />
                 Refresh Page

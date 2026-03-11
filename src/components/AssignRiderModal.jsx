@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Truck, MapPin, Phone, User, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAdminLog } from '../hooks/useAdminLog';
 
 export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, availableRiders }) {
+  const { logOrderAction } = useAdminLog();
   const [selectedRider, setSelectedRider] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -77,22 +79,26 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
       if (orderError) throw orderError;
 
       // 3. Create notification for rider
-      const { error: notifError } = await supabase
+      const { error: notifError } =await supabase
         .from('notifications')
-        .insert({
-          user_id: selectedRider,
+        .insert([{
+          user_id: order.user_id, // Customer
           type: 'order_status',
-          title: 'New Delivery Assignment',
-          message: `You have been assigned to deliver Order #${order.id}`,
-          data: { 
-            order_id: order.id,
-            delivery_id: delivery.id,
-            amount: order.total_amount,
-            address: order.delivery_address
-          }
-        });
+          title: 'Rider Assigned',
+          message: `Your order #${order.id} has been assigned to a rider`
+        }, {
+          user_id: selectedRider, // Rider
+          type: 'order_status',
+          title: 'New Delivery',
+          message: `You've been assigned to deliver order #${order.id}`
+        }]);
 
       if (notifError) console.error('Error creating notification:', notifError);
+
+      await logOrderAction(order.id, 'assign_rider', {
+        riderId: selectedRider,
+        deliveryId: delivery?.id
+      });
 
       setSuccess(true);
       
@@ -123,7 +129,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-6 flex justify-between items-center">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white flex items-center">
             <Truck className="mr-2" size={24} />
             Assign Rider
@@ -236,7 +242,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
                 <button
                   onClick={handleAssign}
                   disabled={loading || !selectedRider || riders.length === 0}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
+                  className="flex-1 py-2.5 bg-petron-blue text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center"
                 >
                   {loading ? (
                     <>

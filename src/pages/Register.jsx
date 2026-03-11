@@ -101,7 +101,7 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-petron-blue flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 text-center">
           <div className="flex justify-center mb-4">
             <img src={petronLogo} alt="Petron Logo" className="h-16 w-auto" />
@@ -115,7 +115,7 @@ export default function Register() {
           </p>
           <Link 
             to="/login"
-            className="inline-block bg-gradient-to-r from-[#0033A0] to-[#ED1C24] text-white px-6 py-3 rounded-lg hover:opacity-90"
+            className="inline-block bg-petron-blue text-white px-6 py-3 rounded-lg hover:opacity-90"
           >
             Go to Login
           </Link>
@@ -125,9 +125,9 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0033A0] to-[#ED1C24] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-petron-blue flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-[#0033A0] to-[#ED1C24] p-8 text-center relative">
+        <div className="bg-petron-red p-8 text-center relative">
           <Link to="/login" className="absolute top-6 left-6 text-white/80 hover:text-white transition">
             <ArrowLeft size={24} />
           </Link>
@@ -252,7 +252,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[#0033A0] to-[#ED1C24] hover:opacity-90 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
+            className="w-full bg-petron-blue hover:opacity-90 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center shadow-lg"
           >
             {loading ? (
               <>

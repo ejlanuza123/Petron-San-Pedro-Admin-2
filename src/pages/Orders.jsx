@@ -27,6 +27,7 @@ import { useOrders } from '../hooks/useOrders';
 import { ORDER_STATUS, ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
+import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
 
 // Skeleton Components
 const TableRowSkeleton = () => (
@@ -58,11 +59,25 @@ export default function Orders() {
   const [selectedRider, setSelectedRider] = useState('all');
   const [deliveryInfoMap, setDeliveryInfoMap] = useState({});
   const [deliveryInfoLoading, setDeliveryInfoLoading] = useState(true);
+  const [showTrackingMap, setShowTrackingMap] = useState(false);
+  const [selectedDeliveryForMap, setSelectedDeliveryForMap] = useState(null);
 
   // Fetch available riders
   useEffect(() => {
     fetchAvailableRiders();
   }, []);
+
+  const handleOpenTrackingMap = (order) => {
+    // Find the delivery ID for this order
+    const deliveryInfo = deliveryInfoMap[order.id];
+    if (deliveryInfo) {
+      setSelectedDeliveryForMap({
+        deliveryId: deliveryInfo.id,
+        orderId: order.id
+      });
+      setShowTrackingMap(true);
+    }
+  };
 
   const fetchAvailableRiders = async () => {
     try {
@@ -79,6 +94,23 @@ export default function Orders() {
       console.error('Error fetching riders:', err);
     }
   };
+
+  useEffect(() => {
+    const subscription = supabase
+      .channel('deliveries-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'deliveries' },
+        (payload) => {
+          // Refresh delivery info when changes occur
+          if (payload.new.order_id) {
+            fetchDeliveryInfo(payload.new.order_id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => subscription.unsubscribe();
+}, []);
 
   // Fetch delivery details for an order
   const fetchDeliveryDetails = async (orderId) => {
@@ -427,8 +459,8 @@ export default function Orders() {
       ) : (
         <>
           {/* Orders Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+            <table className="w-full min-w-[900px]">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
@@ -466,7 +498,7 @@ export default function Orders() {
                       </td>
                       <td className="px-6 py-4">
                         {deliveryInfo ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Truck size={16} className="text-gray-400" />
                             <span className={`text-xs px-2 py-1 rounded-full ${getDeliveryStatusColor(deliveryInfo.status)}`}>
                               {deliveryInfo.status === 'assigned' ? 'Ready to Pick Up' :
@@ -528,9 +560,9 @@ export default function Orders() {
                               {!deliveryInfoLoading && deliveryInfo && (
                                 // Rider assigned - show track button
                                 <button
-                                  onClick={() => handleTrackDelivery(order)}
+                                  onClick={() => handleOpenTrackingMap(order)}
                                   className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                  title="Track Delivery"
+                                  title="Track Delivery Live"
                                 >
                                   <MapPin size={18} />
                                 </button>
@@ -548,9 +580,9 @@ export default function Orders() {
                           {order.status === 'Out for Delivery' && (
                             <>
                               <button
-                                onClick={() => handleTrackDelivery(order)}
+                                onClick={() => handleOpenTrackingMap(order)}
                                 className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Track Delivery"
+                                title="Live Track Delivery"
                               >
                                 <MapPin size={18} />
                               </button>
@@ -611,6 +643,16 @@ export default function Orders() {
         }}
         order={selectedOrderForAction}
         delivery={deliveryDetails}
+      />
+
+      <DeliveryTrackingMap
+        isOpen={showTrackingMap}
+        onClose={() => {
+          setShowTrackingMap(false);
+          setSelectedDeliveryForMap(null);
+        }}
+        deliveryId={selectedDeliveryForMap?.deliveryId}
+        orderId={selectedDeliveryForMap?.orderId}
       />
 
       <ConfirmDialog

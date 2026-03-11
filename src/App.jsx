@@ -9,6 +9,7 @@ import Orders from './pages/Orders';
 import Customers from './pages/Customers';
 import Riders from './pages/Riders';
 import Reports from './pages/Reports';
+import AuditLogs from './pages/AuditLogs';
 import Products from './pages/Products';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="customers" element={<Customers />} />
               <Route path="riders" element={<Riders />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

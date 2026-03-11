@@ -10,7 +10,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className="flex justify-between items-center p-6 border-b bg-blue-600">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center">
               <Hash className="mr-2" size={20} />

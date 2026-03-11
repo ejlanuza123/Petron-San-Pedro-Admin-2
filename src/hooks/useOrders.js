@@ -1,8 +1,10 @@
 // src/hooks/useOrders.js
 import { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../services/orderService';
+import { useAdminLog } from './useAdminLog';
 
 export function useOrders() {
+  const { logOrderAction } = useAdminLog();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,27 +34,28 @@ export function useOrders() {
         setOrders(prev => prev.map(o => 
           o.id === payload.new.id ? { ...o, ...payload.new } : o
         ));
-        if (selectedOrder?.id === payload.new.id) {
-          setSelectedOrder(prev => ({ ...prev, ...payload.new }));
-        }
+        setSelectedOrder(prev => (
+          prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev
+        ));
       } else if (payload.eventType === 'DELETE') {
         setOrders(prev => prev.filter(o => o.id !== payload.old.id));
-        if (selectedOrder?.id === payload.old.id) {
-          setSelectedOrder(null);
-        }
+        setSelectedOrder(prev => (
+          prev?.id === payload.old.id ? null : prev
+        ));
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchOrders, selectedOrder]);
+  }, [fetchOrders]);
 
   const updateStatus = async (orderId, newStatus) => {
     try {
       setError(null);
       await orderService.updateStatus(orderId, newStatus);
       // State will be updated by real-time subscription
+      await logOrderAction(orderId, 'update_status', { newStatus });
     } catch (err) {
       setError(err.message);
       throw err;

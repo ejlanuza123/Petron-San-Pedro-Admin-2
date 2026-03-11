@@ -1,8 +1,10 @@
 // src/hooks/useProducts.js
 import { useState, useEffect, useCallback } from 'react';
 import { productService } from '../services/productService';
+import { useAdminLog } from './useAdminLog';
 
 export function useProducts() {
+  const { logProductAction } = useAdminLog();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,6 +31,7 @@ export function useProducts() {
       setError(null);
       const newProduct = await productService.create(productData);
       setProducts(prev => [...prev, newProduct]);
+      await logProductAction(newProduct.id, 'create_product', { name: newProduct.name });
       return newProduct;
     } catch (err) {
       setError(err.message);
@@ -41,6 +44,7 @@ export function useProducts() {
       setError(null);
       const updatedProduct = await productService.update(id, productData);
       setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
+      await logProductAction(id, 'update_product', { name: updatedProduct.name });
       return updatedProduct;
     } catch (err) {
       setError(err.message);
@@ -53,6 +57,7 @@ export function useProducts() {
       setError(null);
       await productService.delete(id);
       setProducts(prev => prev.filter(p => p.id !== id));
+      await logProductAction(id, 'delete_product');
     } catch (err) {
       setError(err.message);
       throw err;

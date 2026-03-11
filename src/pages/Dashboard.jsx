@@ -161,7 +161,7 @@ export default function Dashboard() {
           title="Total Revenue" 
           value={memoizedStats.totalRevenue} 
           icon={DollarSign} 
-          color="bg-gradient-to-r from-[#0033A0] to-[#ED1C24]"
+          color="bg-petron-blue"
           trend={12.5}
           trendValue="vs last month"
         />
@@ -169,20 +169,20 @@ export default function Dashboard() {
           title="Today's Revenue" 
           value={memoizedStats.todayRevenue} 
           icon={TrendingUp} 
-          color="bg-gradient-to-r from-green-600 to-green-700"
+          color="bg-green-600"
         />
         <StatsCard 
           title="Pending Orders" 
           value={memoizedStats.pendingOrders} 
           icon={Clock} 
-          color="bg-gradient-to-r from-orange-500 to-orange-600"
+          color="bg-orange-500"
           subtext={`${memoizedStats.processingOrders} currently processing`}
         />
         <StatsCard 
           title="Low Stock Items" 
           value={memoizedStats.lowStock} 
           icon={AlertTriangle} 
-          color="bg-gradient-to-r from-red-500 to-red-600"
+          color="bg-red-500"
           subtext="Products below 10 units"
         />
       </div>
