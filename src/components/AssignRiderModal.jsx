@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Truck, MapPin, Phone, User, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { diffObjects } from '../utils/diff';
+import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 
