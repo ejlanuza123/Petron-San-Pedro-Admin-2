@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import petronLogo from '../assets/images/petron-logo.png';
 import PageTransition from './PageTransition';
 
+
 // Animated NavItem with scale and slide effects
 const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
   return (
@@ -360,7 +361,7 @@ export default function Layout() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [slideDirection, setSlideDirection] = useState('right');
+  const [slideDirection, setSlideDirection] = useState('right'); 
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -393,9 +394,7 @@ export default function Layout() {
         />
 
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50">
-        <PageTransition>
           <Outlet key={location.key} />
-        </PageTransition>
         </main>
       </div>
     </div>

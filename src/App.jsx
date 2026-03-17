@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import RouteForce from './components/RouteForce';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -46,13 +47,41 @@ export default function App() {
                   <Layout />
                 </ProtectedRoute>
               }>
-                <Route index element={<Dashboard />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="products" element={<Products />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="riders" element={<Riders />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="audit-logs" element={<AuditLogs />} />
+                <Route index element={
+                  <RouteForce>
+                    <Dashboard />
+                  </RouteForce>
+                } />
+                <Route path="orders" element={
+                  <RouteForce>
+                    <Orders />
+                  </RouteForce>
+                } />
+                <Route path="products" element={
+                  <RouteForce>
+                    <Products />
+                  </RouteForce>
+                } />
+                <Route path="customers" element={
+                  <RouteForce>
+                    <Customers />
+                  </RouteForce>
+                } />
+                <Route path="riders" element={
+                  <RouteForce>
+                    <Riders />
+                  </RouteForce>
+                } />
+                <Route path="reports" element={
+                  <RouteForce>
+                    <Reports />
+                  </RouteForce>
+                } />
+                <Route path="audit-logs" element={
+                  <RouteForce>
+                    <AuditLogs />
+                  </RouteForce>
+                } />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

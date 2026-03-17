@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/formatters';
 import { Link } from 'react-router-dom';
 
+
 // Skeleton Components
 const StatsCardSkeleton = () => (
   <div className="bg-white p-6 rounded-xl border border-gray-200 animate-pulse">
