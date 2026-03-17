@@ -1,5 +1,5 @@
 // src/App.jsx
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SuccessModalProvider } from './context/SuccessModalContext';
@@ -33,6 +33,21 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function App() {
+  useEffect(() => {
+    // Ensure the main element exists
+    const ensureMainElement = () => {
+      const main = document.querySelector('main');
+      if (!main) {
+        console.log('Main element missing - forcing re-render');
+        // Force a re-render by updating state
+        setForceRender(prev => prev + 1);
+      }
+    };
+    
+    ensureMainElement();
+  }, []);
+
+  const [forceRender, setForceRender] = useState(0);
   return (
     <ErrorBoundary>
       <BrowserRouter>

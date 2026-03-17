@@ -2,7 +2,7 @@
 let lastFocusTime = 0;
 let isRefreshing = false;
 let refreshCount = 0;
-const MAX_REFRESHES = 3; // Prevent infinite refresh loops
+const MAX_REFRESHES = 2;
 
 export const initTabFocusHandler = () => {
   const handleFocus = () => {
@@ -14,16 +14,8 @@ export const initTabFocusHandler = () => {
       refreshCount = 0;
     }
     
-    // Only trigger if:
-    // 1. It's been more than 5 seconds since last focus
-    // 2. We haven't exceeded max refreshes
-    // 3. We're not already refreshing
-    // 4. We're not on login/register pages
-    if (timeSinceLastFocus > 5000 && 
-        !isRefreshing && 
-        refreshCount < MAX_REFRESHES &&
-        !window.location.pathname.includes('/login') &&
-        !window.location.pathname.includes('/register')) {
+    // Only trigger if it's been more than 2 seconds since last focus
+    if (timeSinceLastFocus > 2000 && !isRefreshing && refreshCount < MAX_REFRESHES) {
       
       lastFocusTime = now;
       isRefreshing = true;
@@ -33,69 +25,78 @@ export const initTabFocusHandler = () => {
       // Give the page a moment to render
       setTimeout(() => {
         try {
-          // Check if the page is actually broken
-          const mainContent = document.querySelector('main');
-          const outlet = document.querySelector('main > *');
-          const hasButtons = document.querySelectorAll('button').length > 0;
+          // Check for critical elements
+          const root = document.getElementById('root');
+          const mainElement = document.querySelector('main');
+          const hasContent = mainElement && mainElement.children.length > 0;
           
           console.log('Page health check:', {
             path: window.location.pathname,
-            hasMain: !!mainContent,
-            mainChildren: mainContent?.children.length,
-            hasOutlet: !!outlet,
-            outletType: outlet?.constructor?.name,
-            hasButtons,
-            timestamp: new Date().toISOString()
+            hasRoot: !!root,
+            rootChildren: root?.children.length,
+            hasMain: !!mainElement,
+            mainChildren: mainElement?.children.length,
+            hasContent
           });
           
-          // Determine if page is broken
-          const isBroken = !mainContent || 
-                          mainContent.children.length === 0 || 
-                          (!hasButtons && window.location.pathname !== '/login');
+          // If root is empty or main is missing/no content, the app is corrupted
+          const isCorrupted = !root || 
+                             root.children.length === 0 || 
+                             !mainElement || 
+                             mainElement.children.length === 0;
           
-          if (isBroken) {
-            console.log('Page appears corrupted - attempting recovery...');
+          if (isCorrupted) {
+            console.log('Page is corrupted - attempting recovery...');
             refreshCount++;
             
-            // Try different recovery strategies based on refresh count
             if (refreshCount === 1) {
-              // First attempt: Force a re-render by dispatching events
-              console.log('Attempt 1: Dispatching re-render events');
-              window.dispatchEvent(new Event('resize'));
-              document.body.style.display = 'none';
-              document.body.style.display = '';
+              // First attempt: Try to force React to re-render by manipulating the root
+              console.log('Attempt 1: Forcing React re-render');
               
-              // Try to force React to re-render
-              const root = document.getElementById('root');
+              // Store the current path
+              const currentPath = window.location.pathname;
+              
+              // Force a re-render by temporarily hiding and showing root
               if (root) {
                 root.style.display = 'none';
+                // Force reflow
+                void root.offsetHeight;
                 root.style.display = '';
               }
               
-              // Don't reload yet, give it a chance
-              isRefreshing = false;
-            } 
-            else if (refreshCount === 2) {
-              // Second attempt: Navigate to current route again
-              console.log('Attempt 2: Re-navigating to current route');
+              // Dispatch events to wake up React
+              window.dispatchEvent(new Event('resize'));
               window.dispatchEvent(new PopStateEvent('popstate'));
-              isRefreshing = false;
-            }
+              
+              // If we're on a specific route, try navigating to it again
+              if (currentPath !== '/') {
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }
+              
+              // Check again in 500ms
+              setTimeout(() => {
+                const mainAfter = document.querySelector('main');
+                if (!mainAfter || mainAfter.children.length === 0) {
+                  console.log('First attempt failed, will try reload on next focus');
+                }
+                isRefreshing = false;
+              }, 500);
+            } 
             else {
-              // Final attempt: Hard reload
-              console.log('Attempt 3: Hard reloading page');
+              // Second attempt: Hard reload
+              console.log('Attempt 2: Hard reloading page');
               window.location.reload();
             }
           } else {
             console.log('Page is healthy');
-            refreshCount = 0; // Reset counter on healthy page
+            refreshCount = 0;
             isRefreshing = false;
           }
         } catch (error) {
           console.error('Error during health check:', error);
           isRefreshing = false;
         }
-      }, 500); // Give it half a second to render
+      }, 300);
     }
   };
 
@@ -107,7 +108,7 @@ export const initTabFocusHandler = () => {
     }
   });
 
-  // Also check on initial load
+  // Also check on initial load after a delay
   setTimeout(handleFocus, 1000);
 
   return () => {
