@@ -31,8 +31,8 @@ export default defineConfig({
       // Ignore node_modules
       ignored: ['**/node_modules/**', '**/dist/**'],
     },
-    // Force cache clear
-    force: true,
+    // Disabled force HMR for tab background stability
+    force: false,
   },
   optimizeDeps: {
     // Force include these dependencies

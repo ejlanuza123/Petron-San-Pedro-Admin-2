@@ -1,5 +1,6 @@
 // src/hooks/useProducts.js
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { useAdminLog } from './useAdminLog';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
@@ -7,9 +8,24 @@ import { notifySuccess } from '../utils/successNotifier';
 
 export function useProducts() {
   const { logProductAction } = useAdminLog();
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Throttle refetch to prevent excessive calls
+  const throttle = (func, limit) => {
+    let inThrottle;
+    return function() {
+      const args = arguments;
+      const context = this;
+      if (!inThrottle) {
+        func.apply(context, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    }
+  };
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -24,9 +40,30 @@ export function useProducts() {
     }
   }, []);
 
+  // Initial load + route change refetch
   useEffect(() => {
     fetchProducts();
+  }, [location.pathname, fetchProducts]);
 
+  // Visibility change refetch (tab switch)
+  useEffect(() => {
+    const throttledRefetch = throttle(fetchProducts, 1000);
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        throttledRefetch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchProducts]);
+
+  // Real-time subscription (unchanged)
+  useEffect(() => {
     const subscription = productService.subscribeToChanges((payload) => {
       if (payload.eventType === 'INSERT') {
         setProducts(prev => [payload.new, ...prev]);
@@ -40,7 +77,7 @@ export function useProducts() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProducts]);
+  }, []);
 
   const addProduct = async (productData) => {
     try {

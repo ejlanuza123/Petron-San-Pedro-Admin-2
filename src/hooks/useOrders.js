@@ -1,5 +1,6 @@
 // src/hooks/useOrders.js
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { orderService } from '../services/orderService';
 import { useAdminLog } from './useAdminLog';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
@@ -7,10 +8,25 @@ import { notifySuccess } from '../utils/successNotifier';
 
 export function useOrders() {
   const { logOrderAction } = useAdminLog();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  // Throttle refetch to prevent excessive calls
+  const throttle = (func, limit) => {
+    let inThrottle;
+    return function() {
+      const args = arguments;
+      const context = this;
+      if (!inThrottle) {
+        func.apply(context, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    }
+  };
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -25,10 +41,30 @@ export function useOrders() {
     }
   }, []);
 
+  // Initial load + route change refetch
   useEffect(() => {
     fetchOrders();
+  }, [location.pathname, fetchOrders]);
+
+  // Visibility change refetch (tab switch)
+  useEffect(() => {
+    const throttledRefetch = throttle(fetchOrders, 1000);
     
-    // Set up real-time subscription
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        throttledRefetch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchOrders]);
+
+  // Real-time subscription (unchanged)
+  useEffect(() => {
     const subscription = orderService.subscribeToChanges((payload) => {
       if (payload.eventType === 'INSERT') {
         setOrders(prev => [payload.new, ...prev]);
@@ -50,7 +86,7 @@ export function useOrders() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchOrders]);
+  }, []);
 
   const updateStatus = async (orderId, newStatus) => {
     try {

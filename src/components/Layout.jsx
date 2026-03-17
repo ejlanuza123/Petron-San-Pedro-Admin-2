@@ -393,9 +393,9 @@ export default function Layout() {
         />
 
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50">
-          <PageTransition direction={slideDirection}>
-            <Outlet />
-          </PageTransition>
+        <PageTransition>
+          <Outlet key={location.key} />
+        </PageTransition>
         </main>
       </div>
     </div>

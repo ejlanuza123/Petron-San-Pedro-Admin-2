@@ -156,24 +156,8 @@ const slideVariants = {
   }
 };
 
-const PageTransition = ({ children, direction = 'right' }) => {
-  const location = useLocation();
-  const variant = slideVariants[direction] || slideVariants.right;
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={variant}
-        className="w-full"
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  );
+const PageTransition = ({ children }) => {
+  return <div className="w-full">{children}</div>;
 };
 
 export default PageTransition;
