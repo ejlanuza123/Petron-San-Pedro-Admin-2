@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
 
         if (session?.user) {
           // Load profile in background
-          loadProfile(session.user).catch(console.error);
+          await loadProfile(session.user);
         } else {
           setUser(null);
           setProfile(null);
@@ -135,7 +135,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Rest of your auth functions remain the same...
   const signIn = async (email, password) => {
     try {
       setError(null);
@@ -152,11 +151,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+    } catch (err) {
+      console.error('Sign out error:', err);
+      setUser(null);
+      setProfile(null);
+    }
   };
 
+  // FIXED: Changed from contextValue to value
   const value = {
     user,
     profile,
@@ -168,7 +174,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
