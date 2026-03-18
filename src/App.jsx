@@ -19,10 +19,19 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 // NOTE: Deleted the RouteForce import
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, error, timeoutReached } = useAuth();
 
   if (loading) {
     return <LoadingSpinner fullPage />;
+  }
+  
+  if (timeoutReached || error) {
+    return (
+      <LoadingSpinner 
+        fullPage 
+        error={error || "Authentication timeout. Please check your connection and refresh."} 
+      />
+    );
   }
   
   if (!isAuthenticated) {

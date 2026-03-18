@@ -11,6 +11,20 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    console.log('Auth state:', { user, profile, loading, error });
+    // If loading is stuck, log the issue
+    if (loading) {
+      const timer = setTimeout(() => {
+        console.warn('Auth loading stuck - checking session...');
+        supabase.auth.getSession().then(({ data, error }) => {
+          console.log('Session check:', { data, error });
+        });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, profile, loading, error]);
+
+  useEffect(() => {
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
