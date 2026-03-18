@@ -14,12 +14,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
+    // ONLY trigger when the user returns to the tab.
+    // We do nothing when the tab is hidden to ensure F5/page refreshes 
+    // can unload the document cleanly without corrupting the Auth lock.
     if (document.visibilityState === 'visible') {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data?.session) {
-          supabase.auth.startAutoRefresh();
-        }
-      }).catch(console.error);
+      // 1. Restart the background timer safely
+      supabase.auth.startAutoRefresh();
+      
+      // 2. Force an immediate session check to unblock hanging queries
+      supabase.auth.getSession().catch(console.error);
     }
   });
 }
