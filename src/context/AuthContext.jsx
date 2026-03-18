@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 export const AuthContext = createContext(null);
@@ -9,69 +9,110 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const sessionCheckedRef = useRef(false);
 
   useEffect(() => {
-    console.log('Auth state:', { user, profile, loading, error });
-    // If loading is stuck, log the issue
-    if (loading) {
-      const timer = setTimeout(() => {
-        console.warn('Auth loading stuck - checking session...');
-        supabase.auth.getSession().then(({ data, error }) => {
-          console.log('Session check:', { data, error });
+    // Prevent multiple session checks
+    if (sessionCheckedRef.current) return;
+    sessionCheckedRef.current = true;
+
+    let mounted = true;
+    let timeoutId = null;
+
+    const checkUser = async () => {
+      try {
+        // Set a timeout for the session check
+        timeoutId = setTimeout(() => {
+          if (mounted && loading) {
+            console.warn('Session check timeout - forcing navigation to login');
+            setLoading(false);
+            setUser(null);
+            setProfile(null);
+          }
+        }, 3000); // 3 second timeout
+
+        // Try to get session with a timeout promise
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 2500)
+        );
+
+        const { data: { session }, error: sessionError } = await Promise.race([
+          sessionPromise,
+          timeoutPromise.then(() => { throw new Error('Session check timeout'); })
+        ]).catch(err => {
+          console.error('Session check failed:', err);
+          return { data: { session: null }, error: err };
         });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [user, profile, loading, error]);
 
-  useEffect(() => {
+        clearTimeout(timeoutId);
+
+        if (!mounted) return;
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          // Load profile in background
+          loadProfile(session.user).catch(console.error);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Auth check error:', err);
+        if (mounted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    };
+
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // TOKEN_REFRESHED fires every time the tab regains focus and Supabase
-      // silently refreshes the JWT. We must NOT reset loading or re-fetch the
-      // profile for this event — doing so causes the skeleton-lock bug.
-      if (event === 'TOKEN_REFRESHED') {
-        return;
-      }
-
-      if (session?.user) {
-        // SIGNED_IN: only load profile when we don't already have one,
-        // or when the user actually changed (e.g. a fresh login).
+      console.log('Auth event:', event);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
         await loadProfile(session.user);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const checkUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        await loadProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('Error checking user:', err);
-      setError(err.message);
-      setLoading(false);
-    }
-  };
 
   const loadProfile = async (authUser) => {
     try {
-      const { data, error } = await supabase
+      // Add timeout for profile fetch
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .single();
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+      );
+
+      const { data, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise.then(() => { throw new Error('Profile fetch timeout'); })
+      ]).catch(err => {
+        console.error('Profile fetch failed:', err);
+        return { data: null, error: err };
+      });
 
       if (error) throw error;
 
@@ -80,14 +121,12 @@ export const AuthProvider = ({ children }) => {
         setProfile(data);
       } else {
         await supabase.auth.signOut();
-        setError(
-          `Access Denied: This dashboard is for admins only. Your role is: ${data?.role || 'unknown'}. If you are a rider, please use the mobile app.`
-        );
+        setError('Access Denied: Admin only');
         setUser(null);
         setProfile(null);
       }
     } catch (err) {
-      console.error('Error loading profile:', err);
+      console.error('Profile error:', err);
       setError(err.message);
       setUser(null);
       setProfile(null);
@@ -96,19 +135,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Rest of your auth functions remain the same...
   const signIn = async (email, password) => {
     try {
       setError(null);
       setLoading(true);
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      // Profile will be loaded by onAuthStateChange
       return data;
     } catch (err) {
       setError(err.message);
@@ -119,19 +152,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    try {
-      setError(null);
-      // Unblock the auth queue before signing out so the call never hangs.
-      await supabase.auth.getSession().catch(() => {});
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-    } catch (err) {
-      // Even on error, clear local state so the UI returns to login.
-      setUser(null);
-      setProfile(null);
-      setError(err.message);
-    }
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
   };
 
   const value = {
@@ -145,7 +168,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
