@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export const AuthContext = createContext(null);
@@ -9,62 +9,102 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const sessionCheckedRef = useRef(false);
 
+  // Load profile with retry and longer timeout
+  const loadProfile = useCallback(async (authUser, retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    
+    try {
+      console.log(`Loading profile for ${authUser.email} (attempt ${retryCount + 1})...`);
+      
+      // Increase timeout to 10 seconds for Vercel
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      clearTimeout(timeoutId);
+
+      if (error) throw error;
+
+      if (data?.role === 'admin') {
+        console.log('Profile loaded successfully:', data.full_name);
+        setUser(authUser);
+        setProfile(data);
+        setLoading(false);
+      } else {
+        await supabase.auth.signOut();
+        setError('Access Denied: Admin only');
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error(`Profile fetch attempt ${retryCount + 1} failed:`, err.message);
+      
+      // Retry logic
+      if (retryCount < MAX_RETRIES) {
+        console.log(`Retrying profile fetch in ${(retryCount + 1) * 2} seconds...`);
+        setTimeout(() => {
+          loadProfile(authUser, retryCount + 1);
+        }, (retryCount + 1) * 2000); // Exponential backoff: 2s, 4s, 6s
+      } else {
+        console.error('Max retries reached for profile fetch');
+        setError('Unable to load profile. Please refresh.');
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  // Initial session check
   useEffect(() => {
-    // Prevent multiple session checks
-    if (sessionCheckedRef.current) return;
-    sessionCheckedRef.current = true;
-
     let mounted = true;
-    let timeoutId = null;
+    let checkCount = 0;
 
-    const checkUser = async () => {
+    const checkSession = async () => {
       try {
-        // Set a timeout for the session check
-        timeoutId = setTimeout(() => {
-          if (mounted && loading) {
-            console.warn('Session check timeout - forcing navigation to login');
-            setLoading(false);
-            setUser(null);
-            setProfile(null);
-          }
-        }, 3000); // 3 second timeout
-
-        // Try to get session with a timeout promise
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session check timeout')), 2500)
+        setLoading(true);
+        
+        // Check localStorage first
+        const authKey = Object.keys(localStorage).find(key => 
+          key.includes('supabase') || key.includes('sb-')
         );
-
-        const { data: { session }, error: sessionError } = await Promise.race([
-          sessionPromise,
-          timeoutPromise.then(() => { throw new Error('Session check timeout'); })
-        ]).catch(err => {
-          console.error('Session check failed:', err);
-          return { data: { session: null }, error: err };
+        
+        console.log('Checking session...', { 
+          hasAuthKey: !!authKey,
+          attempt: ++checkCount 
         });
 
-        clearTimeout(timeoutId);
+        if (!authKey) {
+          console.log('No auth key in localStorage');
+          setLoading(false);
+          return;
+        }
 
+        // Try to get session with longer timeout
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (!mounted) return;
 
-        if (sessionError) {
-          console.error('Session error:', sessionError);
+        if (error) {
+          console.error('Session error:', error);
           setLoading(false);
           return;
         }
 
         if (session?.user) {
-          // Load profile in background
+          console.log('Session found, loading profile...');
           await loadProfile(session.user);
         } else {
-          setUser(null);
-          setProfile(null);
+          console.log('No session found');
           setLoading(false);
         }
       } catch (err) {
-        console.error('Auth check error:', err);
+        console.error('Session check error:', err);
         if (mounted) {
           setError(err.message);
           setLoading(false);
@@ -72,13 +112,15 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    checkUser();
+    checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event, session?.user?.email);
       
+      if (!mounted) return;
+
       if (event === 'SIGNED_IN' && session?.user) {
-        await loadProfile(session.user);
+        loadProfile(session.user);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
@@ -88,81 +130,51 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
-
-  const loadProfile = async (authUser) => {
-    try {
-      // Add timeout for profile fetch
-      const profilePromise = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
-      );
-
-      const { data, error } = await Promise.race([
-        profilePromise,
-        timeoutPromise.then(() => { throw new Error('Profile fetch timeout'); })
-      ]).catch(err => {
-        console.error('Profile fetch failed:', err);
-        return { data: null, error: err };
-      });
-
-      if (error) throw error;
-
-      if (data?.role === 'admin') {
-        setUser(authUser);
-        setProfile(data);
-      } else {
-        await supabase.auth.signOut();
-        setError('Access Denied: Admin only');
-        setUser(null);
-        setProfile(null);
-      }
-    } catch (err) {
-      console.error('Profile error:', err);
-      setError(err.message);
-      setUser(null);
-      setProfile(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadProfile]);
 
   const signIn = async (email, password) => {
     try {
       setError(null);
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
       if (error) throw error;
+      
+      // Profile will be loaded by onAuthStateChange
       return data;
     } catch (err) {
       setError(err.message);
       throw err;
     } finally {
-      setLoading(false);
+      // Don't set loading false here - let the auth event handle it
     }
   };
 
   const signOut = async () => {
     try {
+      setLoading(true);
       await supabase.auth.signOut();
+      // Clear localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
       setUser(null);
       setProfile(null);
     } catch (err) {
       console.error('Sign out error:', err);
-      setUser(null);
-      setProfile(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // FIXED: Changed from contextValue to value
   const value = {
     user,
     profile,
