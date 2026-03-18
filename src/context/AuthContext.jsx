@@ -12,9 +12,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkUser();
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // TOKEN_REFRESHED fires every time the tab regains focus and Supabase
+      // silently refreshes the JWT. We must NOT reset loading or re-fetch the
+      // profile for this event — doing so causes the skeleton-lock bug.
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+
       if (session?.user) {
+        // SIGNED_IN: only load profile when we don't already have one,
+        // or when the user actually changed (e.g. a fresh login).
         await loadProfile(session.user);
       } else {
         setUser(null);
@@ -29,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const checkUser = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
         await loadProfile(session.user);
       } else {
@@ -52,14 +61,14 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Check if user has admin role
       if (data?.role === 'admin') {
         setUser(authUser);
         setProfile(data);
       } else {
-        // Not an admin, sign them out immediately
         await supabase.auth.signOut();
-        setError(`Access Denied: This dashboard is for admins only. Your role is: ${data?.role || 'unknown'}. If you are a rider, please use the mobile app.`);
+        setError(
+          `Access Denied: This dashboard is for admins only. Your role is: ${data?.role || 'unknown'}. If you are a rider, please use the mobile app.`
+        );
         setUser(null);
         setProfile(null);
       }
@@ -77,14 +86,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       setLoading(true);
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-      
+
       // Profile will be loaded by onAuthStateChange
       return data;
     } catch (err) {
@@ -98,10 +107,15 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setError(null);
+      // Unblock the auth queue before signing out so the call never hangs.
+      await supabase.auth.getSession().catch(() => {});
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
     } catch (err) {
+      // Even on error, clear local state so the UI returns to login.
+      setUser(null);
+      setProfile(null);
       setError(err.message);
     }
   };
@@ -113,7 +127,7 @@ export const AuthProvider = ({ children }) => {
     error,
     signIn,
     signOut,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
   };
 
   return (

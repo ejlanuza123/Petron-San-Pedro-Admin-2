@@ -1,5 +1,5 @@
 // src/hooks/useOrders.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { orderService } from '../services/orderService';
 import { useAdminLog } from './useAdminLog';
@@ -14,24 +14,33 @@ export function useOrders() {
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // ADDED: isSilent parameter defaults to false
+  // Track whether we have fetched at least once so that navigating back to
+  // this route doesn't flash skeletons over already-loaded data.
+  const hasFetchedRef = useRef(false);
+
   const fetchOrders = useCallback(async (isSilent = false) => {
     try {
-      if (!isSilent) setLoading(true); // ONLY set loading if not silent
+      // Only show skeletons on the very first load, never on silent refreshes
+      // or subsequent navigations where we already have data.
+      if (!isSilent && !hasFetchedRef.current) {
+        setLoading(true);
+      }
       setError(null);
       const data = await orderService.getAll();
       setOrders(data);
+      hasFetchedRef.current = true;
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false); // Always clear the loading state when done
+      setLoading(false);
     }
   }, []);
 
-  // Initial load + route change refetch (not silent, shows skeletons)
+  // Initial load only — do NOT re-run on pathname change to avoid
+  // skeleton-lock when returning from another tab or page.
   useEffect(() => {
     fetchOrders(false);
-  }, [location.pathname, fetchOrders]);
+  }, [fetchOrders]);
 
   // Real-time subscription
   useEffect(() => {
@@ -39,7 +48,7 @@ export function useOrders() {
       if (payload.eventType === 'INSERT') {
         setOrders(prev => [payload.new, ...prev]);
       } else if (payload.eventType === 'UPDATE') {
-        setOrders(prev => prev.map(o => 
+        setOrders(prev => prev.map(o =>
           o.id === payload.new.id ? { ...o, ...payload.new } : o
         ));
         setSelectedOrder(prev => (
@@ -94,6 +103,6 @@ export function useOrders() {
     setSelectedOrder,
     updateStatus,
     viewOrderDetails,
-    refetch: fetchOrders // This now accepts true/false!
+    refetch: fetchOrders,
   };
 }

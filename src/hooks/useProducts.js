@@ -1,5 +1,5 @@
 // src/hooks/useProducts.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { useAdminLog } from './useAdminLog';
@@ -13,24 +13,33 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ADDED: isSilent parameter defaults to false
+  // Track whether we have fetched at least once so that navigating back to
+  // this route doesn't flash skeletons over already-loaded data.
+  const hasFetchedRef = useRef(false);
+
   const fetchProducts = useCallback(async (isSilent = false) => {
     try {
-      if (!isSilent) setLoading(true); // ONLY set loading if not silent
+      // Only show skeletons on the very first load, never on silent refreshes
+      // or subsequent navigations where we already have data.
+      if (!isSilent && !hasFetchedRef.current) {
+        setLoading(true);
+      }
       setError(null);
       const data = await productService.getAll();
       setProducts(data);
+      hasFetchedRef.current = true;
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false); // Always clear the loading state when done
+      setLoading(false);
     }
   }, []);
 
-  // Initial load + route change refetch (not silent, shows skeletons)
+  // Initial load only — do NOT re-run on pathname change to avoid
+  // skeleton-lock when returning from another tab or page.
   useEffect(() => {
     fetchProducts(false);
-  }, [location.pathname, fetchProducts]);
+  }, [fetchProducts]);
 
   // Real-time subscription
   useEffect(() => {
@@ -75,13 +84,13 @@ export function useProducts() {
           name: existingProduct.name,
           description: existingProduct.description,
           price: existingProduct.price,
-          stock: existingProduct.stock
+          stock: existingProduct.stock,
         },
         {
           name: updatedProduct.name,
           description: updatedProduct.description,
           price: updatedProduct.price,
-          stock: updatedProduct.stock
+          stock: updatedProduct.stock,
         }
       );
 
@@ -126,6 +135,6 @@ export function useProducts() {
     updateProduct,
     deleteProduct,
     getLowStock,
-    refetch: fetchProducts // This now accepts true/false!
+    refetch: fetchProducts,
   };
 }
