@@ -14,9 +14,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    // ONLY trigger when the user returns to the tab.
-    // We do nothing when the tab is hidden to ensure F5/page refreshes 
-    // can unload the document cleanly without corrupting the Auth lock.
     if (document.visibilityState === 'visible') {
       // 1. Restart the background timer safely
       supabase.auth.startAutoRefresh();
