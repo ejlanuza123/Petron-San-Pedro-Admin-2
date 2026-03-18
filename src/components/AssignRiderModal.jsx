@@ -69,27 +69,28 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
       if (deliveryError) throw deliveryError;
 
-      // 2. Update order status
+      // 2. Update order status AND set rider_id
       const { error: orderError } = await supabase
         .from('orders')
         .update({ 
           status: 'Out for Delivery',
+          rider_id: selectedRider,  // ← ADD THIS LINE
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id);
 
       if (orderError) throw orderError;
 
-      // 3. Create notification for rider
-      const { error: notifError } =await supabase
+      // 3. Create notifications (keep as is)
+      const { error: notifError } = await supabase
         .from('notifications')
         .insert([{
-          user_id: order.user_id, // Customer
+          user_id: order.user_id,
           type: 'order_status',
           title: 'Rider Assigned',
           message: `Your order #${order.id} has been assigned to a rider`
         }, {
-          user_id: selectedRider, // Rider
+          user_id: selectedRider,
           type: 'order_status',
           title: 'New Delivery',
           message: `You've been assigned to deliver order #${order.id}`
@@ -97,12 +98,13 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
       if (notifError) console.error('Error creating notification:', notifError);
 
+      // Log the action
       const changes = diffObjects(
-        { status: order.status },
-        { status: 'Out for Delivery' }
+        { status: order.status, rider_id: null },
+        { status: 'Out for Delivery', rider_id: selectedRider }
       );
 
-      const description = formatChangesDescription(changes) || `Assigned rider and changed status from ${order.status} to Out for Delivery`;
+      const description = `Assigned rider and changed status from ${order.status} to Out for Delivery`;
 
       await logOrderAction(
         order.id,
@@ -116,7 +118,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
       
       // Close after showing success
       setTimeout(() => {
-        onAssigned(); // This will trigger the parent's handleRiderAssigned
+        onAssigned();
       }, 1500);
 
     } catch (err) {
