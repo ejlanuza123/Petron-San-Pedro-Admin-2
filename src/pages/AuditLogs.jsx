@@ -25,7 +25,7 @@ export default function AuditLogs() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Entity Type</label>
@@ -44,36 +44,36 @@ export default function AuditLogs() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Entity ID</label>
             <SearchBar
               onSearch={(value) => setEntityId(value)}
-              placeholder="Enter order, product, etc. ID"
+              placeholder="Search specific ID (e.g. 12)"
               className="w-full"
             />
           </div>
 
           <div className="flex items-end">
             <button
-              onClick={() => setEntityId('')}
-              className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+              onClick={() => {
+                setEntityId('');
+                setEntityType('all');
+              }}
+              className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
             >
-              Reset Filter
+              Reset Filters
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        {entityType === 'all' ? (
-          <p className="text-sm text-gray-500 mb-4">
-            Showing the most recent logs across all entities. To filter, choose a type and optionally enter an ID.
-          </p>
-        ) : (
-          <p className="text-sm text-gray-500 mb-4">
-            Showing logs for <span className="font-medium">{entityType}</span>{entityId ? ` (ID: ${entityId})` : ''}.
-          </p>
-        )}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <p className="text-sm text-gray-500 mb-4 pb-4 border-b">
+          {entityType === 'all' && !entityId 
+            ? "Showing the most recent logs across all entities." 
+            : `Filtered results for: ${entityType !== 'all' ? entityType.toUpperCase() : 'All Entities'}${entityId ? ` | ID: ${entityId}` : ''}`
+          }
+        </p>
 
         <AdminLogsViewer
-          entityType={entityType === 'all' ? undefined : entityType}
-          entityId={entityId || undefined}
+          entityType={entityType}
+          entityId={entityId}
           limit={100}
         />
       </div>

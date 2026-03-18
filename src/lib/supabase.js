@@ -12,18 +12,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
-// Handle browser tab sleeping/waking to prevent Auth Promise Deadlocks
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      // 1. Tab is hidden: Stop the background token refresh timer
-      // This prevents the browser from throttling it and causing a permanent lock.
-      supabase.auth.stopAutoRefresh();
-    } else {
-      // 2. Tab is active again: Restart the refresh timer
+    // ONLY trigger when the user returns to the tab.
+    // We do nothing when the tab is hidden to ensure F5/page refreshes 
+    // can unload the document cleanly without corrupting the Auth lock.
+    if (document.visibilityState === 'visible') {
+      // 1. Restart the background timer safely
       supabase.auth.startAutoRefresh();
       
-      // 3. Force an immediate session check to unblock any hanging database queries
+      // 2. Force an immediate session check to unblock hanging queries
       supabase.auth.getSession().catch(console.error);
     }
   });
