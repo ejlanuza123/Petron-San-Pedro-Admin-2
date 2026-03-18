@@ -13,56 +13,26 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Throttle refetch to prevent excessive calls
-  const throttle = (func, limit) => {
-    let inThrottle;
-    return function() {
-      const args = arguments;
-      const context = this;
-      if (!inThrottle) {
-        func.apply(context, args);
-        inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
-      }
-    }
-  };
-
-  const fetchProducts = useCallback(async () => {
+  // ADDED: isSilent parameter defaults to false
+  const fetchProducts = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true); // ONLY set loading if not silent
       setError(null);
       const data = await productService.getAll();
       setProducts(data);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setLoading(false); // Always clear the loading state when done
     }
   }, []);
 
-  // Initial load + route change refetch
+  // Initial load + route change refetch (not silent, shows skeletons)
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(false);
   }, [location.pathname, fetchProducts]);
 
-  // Visibility change refetch (tab switch)
-  useEffect(() => {
-    const throttledRefetch = throttle(fetchProducts, 1000);
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        throttledRefetch();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchProducts]);
-
-  // Real-time subscription (unchanged)
+  // Real-time subscription
   useEffect(() => {
     const subscription = productService.subscribeToChanges((payload) => {
       if (payload.eventType === 'INSERT') {
@@ -156,6 +126,6 @@ export function useProducts() {
     updateProduct,
     deleteProduct,
     getLowStock,
-    refetch: fetchProducts
+    refetch: fetchProducts // This now accepts true/false!
   };
 }

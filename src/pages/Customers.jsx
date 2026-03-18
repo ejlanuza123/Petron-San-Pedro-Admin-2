@@ -376,9 +376,9 @@ export default function Customers() {
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Fetch customers
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true); // Only show skeletons if NOT silent
       setError(null);
       
       const { data, error } = await supabase
@@ -410,7 +410,7 @@ export default function Customers() {
     const subscription = supabase
       .channel('customers-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: 'role=eq.customer' }, () => {
-        fetchCustomers();
+        fetchCustomers(true);
       })
       .subscribe();
 

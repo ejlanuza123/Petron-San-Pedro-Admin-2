@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SuccessModalProvider } from './context/SuccessModalContext';
@@ -16,7 +16,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import RouteForce from './components/RouteForce';
+// NOTE: Deleted the RouteForce import
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -33,21 +33,6 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function App() {
-  useEffect(() => {
-    // Ensure the main element exists
-    const ensureMainElement = () => {
-      const main = document.querySelector('main');
-      if (!main) {
-        console.log('Main element missing - forcing re-render');
-        // Force a re-render by updating state
-        setForceRender(prev => prev + 1);
-      }
-    };
-    
-    ensureMainElement();
-  }, []);
-
-  const [forceRender, setForceRender] = useState(0);
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -62,41 +47,14 @@ export default function App() {
                   <Layout />
                 </ProtectedRoute>
               }>
-                <Route index element={
-                  <RouteForce>
-                    <Dashboard />
-                  </RouteForce>
-                } />
-                <Route path="orders" element={
-                  <RouteForce>
-                    <Orders />
-                  </RouteForce>
-                } />
-                <Route path="products" element={
-                  <RouteForce>
-                    <Products />
-                  </RouteForce>
-                } />
-                <Route path="customers" element={
-                  <RouteForce>
-                    <Customers />
-                  </RouteForce>
-                } />
-                <Route path="riders" element={
-                  <RouteForce>
-                    <Riders />
-                  </RouteForce>
-                } />
-                <Route path="reports" element={
-                  <RouteForce>
-                    <Reports />
-                  </RouteForce>
-                } />
-                <Route path="audit-logs" element={
-                  <RouteForce>
-                    <AuditLogs />
-                  </RouteForce>
-                } />
+                {/* NOTE: Removed all <RouteForce> wrappers */}
+                <Route index element={<Dashboard />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="products" element={<Products />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="riders" element={<Riders />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="audit-logs" element={<AuditLogs />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

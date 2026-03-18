@@ -841,9 +841,9 @@ export default function Riders() {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState(null);
 
-  const fetchRiders = useCallback(async () => {
+  const fetchRiders = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       setError(null);
       
       const { data, error } = await supabase
@@ -877,14 +877,14 @@ export default function Riders() {
     const ridersSubscription = supabase
       .channel('riders-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: 'role=eq.rider' }, () => {
-        fetchRiders();
+        fetchRiders(true);
       })
       .subscribe();
 
     const deliveriesSubscription = supabase
       .channel('deliveries-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, () => {
-        fetchRiders();
+        fetchRiders(true);
       })
       .subscribe();
 

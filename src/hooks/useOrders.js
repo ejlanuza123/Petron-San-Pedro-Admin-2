@@ -14,56 +14,26 @@ export function useOrders() {
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Throttle refetch to prevent excessive calls
-  const throttle = (func, limit) => {
-    let inThrottle;
-    return function() {
-      const args = arguments;
-      const context = this;
-      if (!inThrottle) {
-        func.apply(context, args);
-        inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
-      }
-    }
-  };
-
-  const fetchOrders = useCallback(async () => {
+  // ADDED: isSilent parameter defaults to false
+  const fetchOrders = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true); // ONLY set loading if not silent
       setError(null);
       const data = await orderService.getAll();
       setOrders(data);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setLoading(false); // Always clear the loading state when done
     }
   }, []);
 
-  // Initial load + route change refetch
+  // Initial load + route change refetch (not silent, shows skeletons)
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(false);
   }, [location.pathname, fetchOrders]);
 
-  // Visibility change refetch (tab switch)
-  useEffect(() => {
-    const throttledRefetch = throttle(fetchOrders, 1000);
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        throttledRefetch();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchOrders]);
-
-  // Real-time subscription (unchanged)
+  // Real-time subscription
   useEffect(() => {
     const subscription = orderService.subscribeToChanges((payload) => {
       if (payload.eventType === 'INSERT') {
@@ -95,7 +65,6 @@ export function useOrders() {
       const oldStatus = existingOrder?.status;
 
       await orderService.updateStatus(orderId, newStatus);
-      // State will be updated by real-time subscription
 
       const changes = diffObjects({ status: oldStatus }, { status: newStatus });
       const description = formatChangesDescription(changes) || `Status updated to ${newStatus}`;
@@ -125,6 +94,6 @@ export function useOrders() {
     setSelectedOrder,
     updateStatus,
     viewOrderDetails,
-    refetch: fetchOrders
+    refetch: fetchOrders // This now accepts true/false!
   };
 }

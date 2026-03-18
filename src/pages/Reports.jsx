@@ -86,12 +86,12 @@ export default function Reports() {
     }
   }, [dateRange]);
 
-  const fetchReportData = useCallback(async (showRefreshing = false) => {
+  const fetchReportData = useCallback(async (isSilent = false, showRefreshing = false) => {
     try {
       if (showRefreshing) {
         setRefreshing(true);
-      } else {
-        setLoading(true);
+      } else if (!isSilent) {
+        setLoading(true); // Only set loading if NOT silent
       }
       setError(null);
       
@@ -242,7 +242,7 @@ export default function Reports() {
     const subscription = supabase
       .channel('reports-orders-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchReportData();
+        fetchReportData(true, false);
       })
       .subscribe();
 
