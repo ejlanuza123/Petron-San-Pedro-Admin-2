@@ -60,10 +60,13 @@ export default function RiderTrackingModal({ isOpen, onClose, order, delivery })
     switch(status) {
       case 'assigned':
         return <Clock className="text-yellow-500" size={20} />;
+      case 'accepted':
+        return <CheckCircle className="text-green-500" size={20} />;
       case 'picked_up':
         return <Truck className="text-blue-500" size={20} />;
       case 'delivered':
         return <CheckCircle className="text-green-500" size={20} />;
+      case 'declined':
       case 'failed':
         return <AlertCircle className="text-red-500" size={20} />;
       default:
@@ -75,10 +78,14 @@ export default function RiderTrackingModal({ isOpen, onClose, order, delivery })
     switch(status) {
       case 'assigned':
         return 'Assigned to rider';
+      case 'accepted':
+        return 'Accepted by rider';
       case 'picked_up':
         return 'Picked up by rider';
       case 'delivered':
         return 'Delivered to customer';
+      case 'declined':
+        return 'Delivery declined';
       case 'failed':
         return 'Delivery failed';
       default:

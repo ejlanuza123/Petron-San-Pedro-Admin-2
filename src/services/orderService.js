@@ -65,6 +65,18 @@ export const orderService = {
     if (error) throw error;
   },
 
+  async updateDeliveryFee(orderId, deliveryFee) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        delivery_fee: deliveryFee,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) throw error;
+  },
+
   async getStats() {
     try {
       const [revenueData, pendingCount, processingCount, completedCount, lowStockData] = await Promise.all([

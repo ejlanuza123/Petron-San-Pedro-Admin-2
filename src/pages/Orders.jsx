@@ -43,7 +43,7 @@ const TableRowSkeleton = () => (
 );
 
 export default function Orders() {
-  const { orders, loading, error, selectedOrder, setSelectedOrder, updateStatus, viewOrderDetails } = useOrders();
+  const { orders, loading, error, selectedOrder, setSelectedOrder, updateStatus, updateDeliveryFee, viewOrderDetails } = useOrders();
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,8 +180,10 @@ export default function Orders() {
   const getDeliveryStatusColor = (status) => {
     switch(status) {
       case 'assigned': return 'bg-yellow-100 text-yellow-800';
+      case 'accepted': return 'bg-green-100 text-green-800';
       case 'picked_up': return 'bg-blue-100 text-blue-800';
       case 'delivered': return 'bg-green-100 text-green-800';
+      case 'declined': return 'bg-red-100 text-red-800';
       case 'failed': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -272,6 +274,18 @@ export default function Orders() {
     setPendingStatusUpdate({ orderId, newStatus });
     setShowConfirmDialog(true);
   }, []);
+
+  const handleDeliveryFeeChange = useCallback(async (orderId, newFee) => {
+    try {
+      await updateDeliveryFee(orderId, newFee);
+      // Refresh selected order details if currently viewed
+      if (selectedOrder?.id === orderId) {
+        viewOrderDetails(orderId);
+      }
+    } catch (err) {
+      // Error is handled by hook
+    }
+  }, [updateDeliveryFee, selectedOrder, viewOrderDetails]);
 
   const confirmStatusUpdate = useCallback(async () => {
     if (pendingStatusUpdate) {
@@ -502,8 +516,12 @@ export default function Orders() {
                             <Truck size={16} className="text-gray-400" />
                             <span className={`text-xs px-2 py-1 rounded-full ${getDeliveryStatusColor(deliveryInfo.status)}`}>
                               {deliveryInfo.status === 'assigned' ? 'Ready to Pick Up' :
+                               deliveryInfo.status === 'accepted' ? 'Accepted' :
                                deliveryInfo.status === 'picked_up' ? 'On Delivery' :
-                               deliveryInfo.status === 'delivered' ? 'Delivered' : 'Failed'}
+                               deliveryInfo.status === 'delivered' ? 'Delivered' :
+                               deliveryInfo.status === 'declined' ? 'Declined' :
+                               deliveryInfo.status === 'failed' ? 'Failed' :
+                               deliveryInfo.status}
                             </span>
                           </div>
                         ) : (
@@ -621,6 +639,7 @@ export default function Orders() {
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
         onStatusChange={handleStatusUpdate}
+        onDeliveryFeeChange={handleDeliveryFeeChange}
       />
 
       <AssignRiderModal

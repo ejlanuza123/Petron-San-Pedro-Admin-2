@@ -86,6 +86,25 @@ export function useOrders() {
     }
   };
 
+  const updateDeliveryFee = async (orderId, newFee) => {
+    try {
+      setError(null);
+      const existingOrder = orders.find((o) => o.id === orderId);
+      const oldFee = existingOrder?.delivery_fee;
+
+      await orderService.updateDeliveryFee(orderId, newFee);
+
+      const changes = diffObjects({ delivery_fee: oldFee }, { delivery_fee: newFee });
+      const description = formatChangesDescription(changes) || `Delivery fee updated to ${newFee}`;
+
+      await logOrderAction(orderId, 'update_delivery_fee', changes, description);
+      notifySuccess(description);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
   const viewOrderDetails = async (orderId) => {
     try {
       const order = await orderService.getById(orderId);
@@ -102,6 +121,7 @@ export function useOrders() {
     selectedOrder,
     setSelectedOrder,
     updateStatus,
+    updateDeliveryFee,
     viewOrderDetails,
     refetch: fetchOrders,
   };

@@ -55,19 +55,51 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
     setError('');
 
     try {
-      // 1. Create delivery record
-      const { data: delivery, error: deliveryError } = await supabase
-        .from('deliveries')
-        .insert({
-          order_id: order.id,
-          rider_id: selectedRider,
-          status: 'assigned',
-          assigned_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      // 1. Ensure a single delivery record per order: update existing or insert new
+      let delivery = null;
+      try {
+        const { data: existing, error: fetchErr } = await supabase
+          .from('deliveries')
+          .select('*')
+          .eq('order_id', order.id)
+          .order('assigned_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (deliveryError) throw deliveryError;
+        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
+
+        if (existing) {
+          const { data: updatedDelivery, error: updateErr } = await supabase
+            .from('deliveries')
+            .update({
+              rider_id: selectedRider,
+              status: 'assigned',
+              assigned_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+          if (updateErr) throw updateErr;
+          delivery = updatedDelivery;
+        } else {
+          const { data: newDelivery, error: insertErr } = await supabase
+            .from('deliveries')
+            .insert({
+              order_id: order.id,
+              rider_id: selectedRider,
+              status: 'assigned',
+              assigned_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (insertErr) throw insertErr;
+          delivery = newDelivery;
+        }
+      } catch (err) {
+        throw err;
+      }
 
       // 2. Update order status AND set rider_id
       const { error: orderError } = await supabase

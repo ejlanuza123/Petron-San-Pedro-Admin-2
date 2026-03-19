@@ -565,8 +565,12 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId, order
                     {delivery.order.customer_name && (
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Customer</p>
-                        <p className="text-sm">{delivery.order.customer_name.full_name}</p>
-                        {delivery.order.customer_name.phone_number && (
+                        <p className="text-sm">
+                          {typeof delivery.order.customer_name === 'string'
+                            ? delivery.order.customer_name
+                            : delivery.order.customer_name.full_name}
+                        </p>
+                        {typeof delivery.order.customer_name !== 'string' && delivery.order.customer_name.phone_number && (
                           <p className="text-xs text-gray-500 mt-1">
                             {delivery.order.customer_name.phone_number}
                           </p>
