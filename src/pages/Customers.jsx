@@ -258,13 +258,21 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
           <div className="space-y-6">
             {/* Customer Profile */}
             <div className="flex items-center">
-              <div className="w-16 h-16 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-2xl mr-4 shadow-lg">
-                {customer.full_name?.charAt(0)?.toUpperCase()}
-              </div>
+              {customer.avatar_url ? (
+                <img
+                  src={customer.avatar_url}
+                  alt={customer.full_name}
+                  className="w-16 h-16 rounded-xl object-cover mr-4 border-2 border-gray-200 shadow-lg"
+                />
+              ) : (
+                <div className="w-16 h-16 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-2xl mr-4 shadow-lg">
+                  {customer.full_name?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
               <div>
                 <h4 className="text-xl font-bold text-gray-900">{customer.full_name}</h4>
                 <p className="text-gray-500 flex items-center mt-1">
@@ -320,14 +328,14 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
             </div>
 
             {/* Order History */}
-            {customer.orders && customer.orders.length > 0 && (
-              <div>
-                <h5 className="font-semibold text-gray-900 mb-3">Recent Orders</h5>
+            <div>
+              <h5 className="font-semibold text-gray-900 mb-3">Recent Orders</h5>
+              {customer.orders && customer.orders.length > 0 ? (
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {customer.orders.slice(0, 5).map(order => (
                     <div key={order.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div>
-                        <p className="font-medium text-gray-900">#{order.id}</p>
+                        <p className="font-medium text-gray-900">Order #{order.id}</p>
                         <p className="text-xs text-gray-500">{formatDate(order.created_at)}</p>
                       </div>
                       <div className="text-right">
@@ -344,18 +352,14 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="p-4 bg-gray-50 rounded-lg text-center">
+                  <Package size={24} className="mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">No orders yet</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className="p-6 border-t bg-gray-50">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -626,9 +630,17 @@ export default function Customers() {
                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 shadow-sm">
-                            {customer.full_name?.charAt(0)?.toUpperCase() || '?'}
-                          </div>
+                          {customer.avatar_url ? (
+                            <img
+                              src={customer.avatar_url}
+                              alt={customer.full_name}
+                              className="w-10 h-10 rounded-lg object-cover mr-3 border border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 shadow-sm">
+                              {customer.full_name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                          )}
                           <div>
                             <p className="font-medium text-gray-900">{customer.full_name || 'Unnamed'}</p>
                             <p className="text-sm text-gray-500">{customer.email || 'No email'}</p>

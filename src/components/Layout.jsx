@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import petronLogo from '../assets/images/petron-logo.png';
 import PageTransition from './PageTransition';
+import SettingsModal from './SettingsModal';
 
 
 // Animated NavItem with scale and slide effects
@@ -72,7 +73,7 @@ const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
 NavItem.displayName = 'NavItem';
 
 // Sidebar component
-const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection }) => {
+const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Handle navigation with slide direction
@@ -195,7 +196,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
           <AnimatePresence>
             {isProfileMenuOpen && (
               <motion.div 
-                className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -212,7 +213,10 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
                 <motion.button 
                   whileHover={{ x: 5 }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] flex items-center"
-                  onClick={() => setIsProfileMenuOpen(false)}
+                  onClick={() => {
+                    onSettingsClick();
+                    setIsProfileMenuOpen(false);
+                  }}
                 >
                   <Settings size={16} className="mr-2" />
                   Settings
@@ -361,7 +365,8 @@ export default function Layout() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [slideDirection, setSlideDirection] = useState('right'); 
+  const [slideDirection, setSlideDirection] = useState('right');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -382,6 +387,7 @@ export default function Layout() {
         isActive={isActive}
         handleNavigation={handleNavigation}
         setSlideDirection={setSlideDirection}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -397,6 +403,11 @@ export default function Layout() {
           <Outlet/>
         </main>
       </div>
+
+      <SettingsModal 
+        isOpen={isSettingsModalOpen} 
+        onClose={() => setIsSettingsModalOpen(false)} 
+      />
     </div>
   );
 }

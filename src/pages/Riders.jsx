@@ -1,6 +1,6 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import { supabase } from '../lib/supabase';
@@ -830,6 +830,157 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 
 ResetPasswordModal.displayName = 'ResetPasswordModal';
 
+// Rider Details Modal Component
+const RiderDetailsModal = React.memo(({ rider, onClose }) => {
+  if (!rider) return null;
+  
+  const stats = useMemo(() => {
+    const deliveries = rider.deliveries || [];
+    const completed = deliveries.filter(d => d.status === 'delivered').length;
+    const pending = deliveries.filter(d => ['assigned', 'accepted', 'picked_up'].includes(d.status)).length;
+    const failed = deliveries.filter(d => d.status === 'failed').length;
+    
+    return {
+      total: deliveries.length,
+      completed,
+      pending,
+      failed
+    };
+  }, [rider]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="bg-petron-blue p-6 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-white">Rider Details</h3>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <X size={20} className="text-white" />
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="space-y-6">
+            {/* Rider Profile */}
+            <div className="flex items-center">
+              {rider.avatar_url ? (
+                <img
+                  src={rider.avatar_url}
+                  alt={rider.full_name}
+                  className="w-20 h-20 rounded-xl object-cover mr-4 border-2 border-gray-200 shadow-lg"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-3xl mr-4 shadow-lg">
+                  {rider.full_name?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h4 className="text-xl font-bold text-gray-900">{rider.full_name}</h4>
+                <p className="text-gray-500 flex items-center mt-1">
+                  <Phone size={14} className="mr-1" />
+                  {rider.phone_number || 'No phone'}
+                </p>
+                <div className="mt-2 flex items-center">
+                  <span className={`w-3 h-3 rounded-full mr-2 ${rider.is_active ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span className="text-sm font-medium text-gray-600">{rider.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-blue-50 p-3 rounded-lg text-center">
+                <Package size={18} className="text-[#0033A0] mx-auto mb-1" />
+                <p className="text-xs text-gray-600">Total</p>
+                <p className="font-bold text-[#0033A0] text-lg">{stats.total}</p>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg text-center">
+                <CheckCircle size={18} className="text-green-600 mx-auto mb-1" />
+                <p className="text-xs text-gray-600">Completed</p>
+                <p className="font-bold text-green-600 text-lg">{stats.completed}</p>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                <Clock size={18} className="text-yellow-600 mx-auto mb-1" />
+                <p className="text-xs text-gray-600">Pending</p>
+                <p className="font-bold text-yellow-600 text-lg">{stats.pending}</p>
+              </div>
+              <div className="bg-red-50 p-3 rounded-lg text-center">
+                <X size={18} className="text-red-600 mx-auto mb-1" />
+                <p className="text-xs text-gray-600">Failed</p>
+                <p className="font-bold text-red-600 text-lg">{stats.failed}</p>
+              </div>
+            </div>
+
+            {/* Vehicle Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Vehicle Type</p>
+                <p className="font-medium text-gray-900 mt-1">{rider.vehicle_type || 'N/A'}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Vehicle Plate</p>
+                <p className="font-medium text-gray-900 mt-1">{rider.vehicle_plate || 'N/A'}</p>
+              </div>
+              {rider.address && (
+                <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 flex items-center">
+                    <MapPin size={14} className="mr-1" /> Address
+                  </p>
+                  <p className="font-medium text-gray-900 mt-1">{rider.address}</p>
+                </div>
+              )}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500 flex items-center">
+                  <Calendar size={14} className="mr-1" /> Member Since
+                </p>
+                <p className="font-medium text-gray-900 mt-1">
+                  {rider.created_at ? new Date(rider.created_at).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Deliveries */}
+            <div>
+              <h5 className="font-semibold text-gray-900 mb-3">Recent Deliveries</h5>
+              {rider.deliveries && rider.deliveries.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {rider.deliveries.slice(0, 5).map(delivery => (
+                    <div key={delivery.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div>
+                        <p className="font-medium text-gray-900">Order #{delivery.order_id}</p>
+                        <p className="text-xs text-gray-500">{new Date(delivery.assigned_at).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        delivery.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                        delivery.status === 'picked_up' ? 'bg-blue-100 text-blue-700' :
+                        delivery.status === 'accepted' ? 'bg-cyan-100 text-cyan-700' :
+                        delivery.status === 'assigned' ? 'bg-yellow-100 text-yellow-700' :
+                        delivery.status === 'failed' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {delivery.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 bg-gray-50 rounded-lg text-center">
+                  <Truck size={24} className="mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">No deliveries yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+RiderDetailsModal.displayName = 'RiderDetailsModal';
+
 export default function Riders() {
   const { logRiderAction } = useAdminLog();
   const [riders, setRiders] = useState([]);
@@ -839,7 +990,9 @@ export default function Riders() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [showRiderDetailsModal, setShowRiderDetailsModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState(null);
+  const [selectedRiderForDetails, setSelectedRiderForDetails] = useState(null);
 
   const fetchRiders = useCallback(async (isSilent = false) => {
     try {
@@ -995,6 +1148,11 @@ export default function Riders() {
     setShowResetPasswordModal(true);
   }, []);
 
+  const handleViewRiderDetails = useCallback((rider) => {
+    setSelectedRiderForDetails(rider);
+    setShowRiderDetailsModal(true);
+  }, []);
+
   const handleCloseEdit = useCallback(() => {
     setShowEditModal(false);
     setSelectedRider(null);
@@ -1117,9 +1275,17 @@ export default function Riders() {
               <div key={rider.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
-                    <div className="w-12 h-12 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-xl mr-3 shadow-md">
-                      {rider.full_name?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
+                    {rider.avatar_url ? (
+                      <img
+                        src={rider.avatar_url}
+                        alt={rider.full_name}
+                        className="w-12 h-12 rounded-xl object-cover mr-3 shadow-md border-2 border-gray-100"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-xl mr-3 shadow-md">
+                        {rider.full_name?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                    )}
                     <div>
                       <h3 className="font-bold text-gray-900">{rider.full_name || 'Unnamed'}</h3>
                       <p className="text-sm text-gray-500 flex items-center">
@@ -1209,6 +1375,13 @@ export default function Riders() {
                   >
                     <Edit2 size={18} className="text-gray-600" />
                   </button>
+                  <button 
+                    onClick={() => handleViewRiderDetails(rider)}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    title="View Details"
+                  >
+                    <Eye size={18} className="text-gray-600" />
+                  </button>
                 </div>
               </div>
             );
@@ -1235,6 +1408,14 @@ export default function Riders() {
         onClose={handleCloseResetPassword}
         rider={selectedRider}
         onReset={handleUpdateSuccess}
+      />
+
+      <RiderDetailsModal
+        rider={selectedRiderForDetails}
+        onClose={() => {
+          setShowRiderDetailsModal(false);
+          setSelectedRiderForDetails(null);
+        }}
       />
     </div>
   );
