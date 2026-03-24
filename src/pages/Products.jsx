@@ -239,22 +239,22 @@ export default function Products() {
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
           <p className="text-sm text-gray-500">Total Products</p>
           <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
           <p className="text-sm text-gray-500">Low Stock</p>
           <p className="text-2xl font-bold text-[#ED1C24]">{stats.lowStock}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
           <p className="text-sm text-gray-500">Categories</p>
           <p className="text-2xl font-bold text-gray-900">{stats.categories}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
           <p className="text-sm text-gray-500">Total Value</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-lg sm:text-2xl font-bold text-green-600 leading-tight break-words">
             {formatCurrency(stats.totalValue)}
           </p>
         </div>

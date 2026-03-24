@@ -539,8 +539,8 @@ export default function Customers() {
         </div>
 
         {/* Table Skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50">
               <tr>
                 {[1,2,3,4,5,6].map(i => (
@@ -611,8 +611,8 @@ export default function Customers() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+            <table className="w-full min-w-[900px]">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
