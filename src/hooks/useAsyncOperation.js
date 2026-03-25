@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useLoading } from '../context/LoadingContext';
 import { useError } from '../context/ErrorContext';
+import { isRetryableError, retryAsync } from '../utils/retry';
 
 /**
  * Hook for managing async operations with loading and error states
@@ -17,6 +18,9 @@ export const useAsyncOperation = () => {
       operationId = 'global',
       errorId = operationId,
       showGlobalLoader = false,
+      retries = 0,
+      retryDelayMs = 400,
+      shouldRetry = isRetryableError,
       onSuccess = null,
       onError = null
     } = options;
@@ -29,7 +33,17 @@ export const useAsyncOperation = () => {
       }
 
       clearError(errorId);
-      const result = await operation();
+      const result = await retryAsync(operation, {
+        maxRetries: retries,
+        initialDelayMs: retryDelayMs,
+        shouldRetry,
+        onRetry: ({ attempt, delay, error }) => {
+          console.warn(
+            `Retrying ${operationId} (attempt ${attempt}/${retries}) in ${delay}ms:`,
+            error
+          );
+        }
+      });
 
       if (onSuccess) {
         await onSuccess(result);

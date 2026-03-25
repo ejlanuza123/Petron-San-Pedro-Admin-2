@@ -1,14 +1,13 @@
 // src/hooks/useProducts.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { useAdminLog } from './useAdminLog';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
+import { retryAsync } from '../utils/retry';
 
 export function useProducts() {
   const { logProductAction } = useAdminLog();
-  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,7 +24,10 @@ export function useProducts() {
         setLoading(true);
       }
       setError(null);
-      const data = await productService.getAll();
+      const data = await retryAsync(() => productService.getAll(), {
+        maxRetries: 2,
+        initialDelayMs: 350
+      });
       setProducts(data);
       hasFetchedRef.current = true;
     } catch (err) {
@@ -61,7 +63,10 @@ export function useProducts() {
   const addProduct = async (productData) => {
     try {
       setError(null);
-      const newProduct = await productService.create(productData);
+      const newProduct = await retryAsync(() => productService.create(productData), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
       setProducts(prev => [...prev, newProduct]);
       await logProductAction(newProduct.id, 'create_product', { name: newProduct.name });
       notifySuccess(`Created product: ${newProduct.name}`);
@@ -76,7 +81,10 @@ export function useProducts() {
     try {
       setError(null);
       const existingProduct = products.find((p) => p.id === id) || {};
-      const updatedProduct = await productService.update(id, productData);
+      const updatedProduct = await retryAsync(() => productService.update(id, productData), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
       setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
 
       const changes = diffObjects(
@@ -108,7 +116,10 @@ export function useProducts() {
   const deleteProduct = async (id) => {
     try {
       setError(null);
-      await productService.delete(id);
+      await retryAsync(() => productService.delete(id), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
       setProducts(prev => prev.filter(p => p.id !== id));
       await logProductAction(id, 'delete_product');
       notifySuccess('Deleted product successfully');
@@ -120,7 +131,10 @@ export function useProducts() {
 
   const getLowStock = useCallback(async () => {
     try {
-      return await productService.getLowStock();
+      return await retryAsync(() => productService.getLowStock(), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
     } catch (err) {
       setError(err.message);
       return [];

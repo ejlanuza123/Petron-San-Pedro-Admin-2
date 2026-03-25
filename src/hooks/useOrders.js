@@ -1,14 +1,13 @@
 // src/hooks/useOrders.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 import { orderService } from '../services/orderService';
 import { useAdminLog } from './useAdminLog';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
+import { retryAsync } from '../utils/retry';
 
 export function useOrders() {
   const { logOrderAction } = useAdminLog();
-  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,7 +25,10 @@ export function useOrders() {
         setLoading(true);
       }
       setError(null);
-      const data = await orderService.getAll();
+      const data = await retryAsync(() => orderService.getAll(), {
+        maxRetries: 2,
+        initialDelayMs: 350
+      });
       setOrders(data);
       hasFetchedRef.current = true;
     } catch (err) {
@@ -67,15 +69,31 @@ export function useOrders() {
     };
   }, []);
 
-  const updateStatus = async (orderId, newStatus) => {
+  const updateStatus = async (orderId, newStatus, options = {}) => {
     try {
       setError(null);
       const existingOrder = orders.find((o) => o.id === orderId);
       const oldStatus = existingOrder?.status;
 
-      await orderService.updateStatus(orderId, newStatus);
+      await retryAsync(() => orderService.updateStatus(orderId, newStatus, options), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
 
-      const changes = diffObjects({ status: oldStatus }, { status: newStatus });
+      const changes = diffObjects(
+        {
+          status: oldStatus,
+          cancellation_reason: existingOrder?.cancellation_reason,
+          cancelled_by: existingOrder?.cancelled_by,
+          cancelled_at: existingOrder?.cancelled_at
+        },
+        {
+          status: newStatus,
+          cancellation_reason: options?.cancellationReason || existingOrder?.cancellation_reason,
+          cancelled_by: options?.cancelledBy || existingOrder?.cancelled_by,
+          cancelled_at: newStatus === 'Cancelled' ? new Date().toISOString() : existingOrder?.cancelled_at
+        }
+      );
       const description = formatChangesDescription(changes) || `Status updated to ${newStatus}`;
 
       await logOrderAction(orderId, 'update_status', changes, description);
@@ -92,7 +110,10 @@ export function useOrders() {
       const existingOrder = orders.find((o) => o.id === orderId);
       const oldFee = existingOrder?.delivery_fee;
 
-      await orderService.updateDeliveryFee(orderId, newFee);
+      await retryAsync(() => orderService.updateDeliveryFee(orderId, newFee), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
 
       const changes = diffObjects({ delivery_fee: oldFee }, { delivery_fee: newFee });
       const description = formatChangesDescription(changes) || `Delivery fee updated to ${newFee}`;
@@ -107,7 +128,10 @@ export function useOrders() {
 
   const viewOrderDetails = async (orderId) => {
     try {
-      const order = await orderService.getById(orderId);
+      const order = await retryAsync(() => orderService.getById(orderId), {
+        maxRetries: 1,
+        initialDelayMs: 300
+      });
       setSelectedOrder(order);
     } catch (err) {
       setError(err.message);
@@ -118,6 +142,7 @@ export function useOrders() {
     orders,
     loading,
     error,
+    clearError: () => setError(null),
     selectedOrder,
     setSelectedOrder,
     updateStatus,

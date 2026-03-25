@@ -21,8 +21,14 @@ export class ErrorBoundary extends React.Component {
     console.error('Error caught by boundary:', error, errorInfo);
   }
 
-  handleReset = () => {
+  handleTryAgain = () => {
     this.setState({ hasError: false, error: null, errorInfo: null });
+    if (typeof this.props.onReset === 'function') {
+      this.props.onReset();
+    }
+  };
+
+  handleReload = () => {
     window.location.reload();
   };
 
@@ -53,7 +59,14 @@ export class ErrorBoundary extends React.Component {
 
             <div className="flex gap-4 justify-center">
               <button
-                onClick={this.handleReset}
+                onClick={this.handleTryAgain}
+                className="flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-lg"
+              >
+                Try Again
+              </button>
+
+              <button
+                onClick={this.handleReload}
                 className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg"
               >
                 <RefreshCw size={20} className="mr-2" />

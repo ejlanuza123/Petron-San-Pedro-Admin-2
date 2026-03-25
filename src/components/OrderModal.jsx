@@ -1,5 +1,5 @@
 // src/components/OrderModal.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Edit3, Check, Image as ImageIcon, Truck } from 'lucide-react';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
@@ -14,16 +14,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
   const [riderInfo, setRiderInfo] = useState(null);
   const [loadingRider, setLoadingRider] = useState(false);
 
-  useEffect(() => {
-    if (order) {
-      setFeeInput(order.delivery_fee != null ? String(order.delivery_fee) : '');
-      setIsEditingFee(false);
-      fetchDeliveryProofs();
-      fetchRiderInfo();
-    }
-  }, [order]);
-
-  const fetchRiderInfo = async () => {
+  const fetchRiderInfo = useCallback(async () => {
     if (!order?.id) return;
     
     try {
@@ -60,9 +51,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
     } finally {
       setLoadingRider(false);
     }
-  };
+  }, [order?.id]);
 
-  const fetchDeliveryProofs = async () => {
+  const fetchDeliveryProofs = useCallback(async () => {
     if (!order?.id) return;
     
     try {
@@ -95,7 +86,16 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
     } finally {
       setLoadingProofs(false);
     }
-  };
+  }, [order?.id]);
+
+  useEffect(() => {
+    if (order) {
+      setFeeInput(order.delivery_fee != null ? String(order.delivery_fee) : '');
+      setIsEditingFee(false);
+      fetchDeliveryProofs();
+      fetchRiderInfo();
+    }
+  }, [order, fetchDeliveryProofs, fetchRiderInfo]);
 
   if (!isOpen || !order) return null;
 
@@ -157,6 +157,20 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
                   </select>
                 </div>
               </div>
+
+              {(order.cancellation_reason || order.cancelled_at || order.cancelled_by) && (
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-1 text-sm">
+                  {order.cancellation_reason && (
+                    <p><span className="text-gray-500">Reason:</span> <span className="font-medium text-gray-900">{order.cancellation_reason}</span></p>
+                  )}
+                  {order.cancelled_by && (
+                    <p><span className="text-gray-500">Cancelled By:</span> <span className="font-medium text-gray-900">{order.cancelled_by}</span></p>
+                  )}
+                  {order.cancelled_at && (
+                    <p><span className="text-gray-500">Cancelled At:</span> <span className="font-medium text-gray-900">{formatDate(order.cancelled_at)}</span></p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Customer and Delivery Info */}
@@ -390,6 +404,12 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
                             <p className="text-sm text-gray-600 bg-white p-2 rounded border border-gray-200">
                               {proof.notes}
                             </p>
+                          </div>
+                        )}
+
+                        {(proof.delivery_lat || proof.delivery_lng) && (
+                          <div className="mt-3 text-xs text-gray-600 bg-white p-2 rounded border border-gray-200">
+                            Coordinates: {proof.delivery_lat || 'N/A'}, {proof.delivery_lng || 'N/A'}
                           </div>
                         )}
                       </div>

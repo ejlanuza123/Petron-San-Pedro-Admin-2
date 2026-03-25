@@ -1,30 +1,13 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
+import RiderLiveTrackingModal from '../components/RiderLiveTrackingModal';
 import { supabase } from '../lib/supabase';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
-
-// Helper function to get rider email from auth.users
-const fetchRiderEmail = async (userId) => {
-  try {
-    // Note: This requires admin privileges to access auth.users
-    const { data, error } = await supabase
-      .from('profiles') // We can't directly query auth.users, so we'll need to handle this differently
-      .select('email')
-      .eq('id', userId)
-      .single();
-    
-    if (error) throw error;
-    return data?.email;
-  } catch (error) {
-    console.error('Error fetching email:', error);
-    return null;
-  }
-};
 
 // Skeleton Components (keep as is)
 const RiderCardSkeleton = () => (
@@ -831,11 +814,9 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 ResetPasswordModal.displayName = 'ResetPasswordModal';
 
 // Rider Details Modal Component
-const RiderDetailsModal = React.memo(({ rider, onClose }) => {
-  if (!rider) return null;
-  
+const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive }) => {
   const stats = useMemo(() => {
-    const deliveries = rider.deliveries || [];
+    const deliveries = rider?.deliveries || [];
     const completed = deliveries.filter(d => d.status === 'delivered').length;
     const pending = deliveries.filter(d => ['assigned', 'accepted', 'picked_up'].includes(d.status)).length;
     const failed = deliveries.filter(d => d.status === 'failed').length;
@@ -847,6 +828,8 @@ const RiderDetailsModal = React.memo(({ rider, onClose }) => {
       failed
     };
   }, [rider]);
+
+  if (!rider) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
@@ -972,6 +955,28 @@ const RiderDetailsModal = React.memo(({ rider, onClose }) => {
                 </div>
               )}
             </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-6 border-t mt-6">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              {onTrackLive && (
+                <button
+                  onClick={() => {
+                    onTrackLive(rider);
+                    onClose();
+                  }}
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Navigation size={18} />
+                  Track Live
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -991,8 +996,11 @@ export default function Riders() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showRiderDetailsModal, setShowRiderDetailsModal] = useState(false);
+  const [showRiderLiveTrackingModal, setShowRiderLiveTrackingModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState(null);
   const [selectedRiderForDetails, setSelectedRiderForDetails] = useState(null);
+  const [selectedRiderForTracking, setSelectedRiderForTracking] = useState(null);
+  const [statusUpdateInFlight, setStatusUpdateInFlight] = useState({});
 
   const fetchRiders = useCallback(async (isSilent = false) => {
     try {
@@ -1049,6 +1057,7 @@ export default function Riders() {
 
   const updateRiderStatus = useCallback(async (riderId, isActive) => {
     try {
+      setStatusUpdateInFlight((prev) => ({ ...prev, [riderId]: true }));
       setError(null);
       const { error } = await supabase
         .from('profiles')
@@ -1066,6 +1075,8 @@ export default function Riders() {
       notifySuccess(isActive ? 'Rider activated' : 'Rider deactivated');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setStatusUpdateInFlight((prev) => ({ ...prev, [riderId]: false }));
     }
   }, [logRiderAction]);
 
@@ -1151,6 +1162,11 @@ export default function Riders() {
   const handleViewRiderDetails = useCallback((rider) => {
     setSelectedRiderForDetails(rider);
     setShowRiderDetailsModal(true);
+  }, []);
+
+  const handleTrackRiderLive = useCallback((rider) => {
+    setSelectedRiderForTracking(rider);
+    setShowRiderLiveTrackingModal(true);
   }, []);
 
   const handleCloseEdit = useCallback(() => {
@@ -1296,6 +1312,7 @@ export default function Riders() {
                   </div>
                   <div className="flex items-center">
                     <span className={`w-3 h-3 rounded-full ${rider.is_active ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    <span className="ml-2 text-xs font-medium text-gray-600">{rider.is_active ? 'Active' : 'Inactive'}</span>
                   </div>
                 </div>
 
@@ -1350,13 +1367,14 @@ export default function Riders() {
                 <div className="flex gap-2 pt-4 border-t">
                   <button
                     onClick={() => updateRiderStatus(rider.id, !rider.is_active)}
+                    disabled={Boolean(statusUpdateInFlight[rider.id])}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                       rider.is_active
                         ? 'bg-red-50 text-red-600 hover:bg-red-100'
                         : 'bg-green-50 text-green-600 hover:bg-green-100'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {rider.is_active ? 'Deactivate' : 'Activate'}
+                    {statusUpdateInFlight[rider.id] ? 'Updating...' : (rider.is_active ? 'Deactivate' : 'Activate')}
                   </button>
                   <button 
                     onClick={() => handleResetPasswordClick(rider)}
@@ -1381,6 +1399,13 @@ export default function Riders() {
                     title="View Details"
                   >
                     <Eye size={18} className="text-gray-600" />
+                  </button>
+                  <button 
+                    onClick={() => handleTrackRiderLive(rider)}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
+                    title="Track Live Location"
+                  >
+                    <Navigation size={18} className="text-blue-600" />
                   </button>
                 </div>
               </div>
@@ -1410,12 +1435,24 @@ export default function Riders() {
         onReset={handleUpdateSuccess}
       />
 
-      <RiderDetailsModal
-        rider={selectedRiderForDetails}
+      {showRiderDetailsModal && (
+        <RiderDetailsModal
+          rider={selectedRiderForDetails}
+          onClose={() => {
+            setShowRiderDetailsModal(false);
+            setSelectedRiderForDetails(null);
+          }}
+          onTrackLive={handleTrackRiderLive}
+        />
+      )}
+
+      <RiderLiveTrackingModal
+        isOpen={showRiderLiveTrackingModal}
         onClose={() => {
-          setShowRiderDetailsModal(false);
-          setSelectedRiderForDetails(null);
+          setShowRiderLiveTrackingModal(false);
+          setSelectedRiderForTracking(null);
         }}
+        rider={selectedRiderForTracking}
       />
     </div>
   );

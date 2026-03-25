@@ -53,13 +53,31 @@ export const orderService = {
     return data;
   },
 
-  async updateStatus(orderId, status) {
+  async updateStatus(orderId, status, options = {}) {
+    const {
+      cancellationReason = null,
+      cancellationNote = null,
+      cancelledBy = null
+    } = options;
+
+    const updatePayload = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (status === ORDER_STATUS.CANCELLED) {
+      const reasonText = cancellationReason === 'Other' && cancellationNote
+        ? `Other: ${cancellationNote}`
+        : cancellationReason;
+
+      updatePayload.cancellation_reason = reasonText || 'Unspecified';
+      updatePayload.cancelled_by = cancelledBy;
+      updatePayload.cancelled_at = new Date().toISOString();
+    }
+
     const { error } = await supabase
       .from('orders')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', orderId);
     
     if (error) throw error;

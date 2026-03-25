@@ -24,10 +24,11 @@ import SearchBar from '../components/common/SearchBar';
 import Pagination from '../components/common/Pagination';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useOrders } from '../hooks/useOrders';
-import { ORDER_STATUS, ORDER_STATUS_COLORS } from '../utils/constants';
+import { ORDER_STATUS, ORDER_STATUS_COLORS, CANCELLATION_REASONS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
+import { useAuth } from '../hooks/useAuth';
 
 // Skeleton Components
 const TableRowSkeleton = () => (
@@ -43,7 +44,8 @@ const TableRowSkeleton = () => (
 );
 
 export default function Orders() {
-  const { orders, loading, error, selectedOrder, setSelectedOrder, updateStatus, updateDeliveryFee, viewOrderDetails } = useOrders();
+  const { user } = useAuth();
+  const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, updateDeliveryFee, viewOrderDetails } = useOrders();
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,6 +63,10 @@ export default function Orders() {
   const [deliveryInfoLoading, setDeliveryInfoLoading] = useState(true);
   const [showTrackingMap, setShowTrackingMap] = useState(false);
   const [selectedDeliveryForMap, setSelectedDeliveryForMap] = useState(null);
+  const [showCancellationDialog, setShowCancellationDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState(CANCELLATION_REASONS[0]);
+  const [cancelNote, setCancelNote] = useState('');
+  const [statusActionError, setStatusActionError] = useState('');
 
   // Fetch available riders
   useEffect(() => {
@@ -95,85 +101,57 @@ export default function Orders() {
     }
   };
 
+  const fetchDeliveryInfoForOrders = useCallback(async (orderIds) => {
+    if (!orderIds?.length) return {};
+
+    try {
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('id, order_id, rider_id, status, assigned_at')
+        .in('order_id', orderIds)
+        .order('assigned_at', { ascending: false });
+
+      if (error) throw error;
+
+      const latestByOrder = {};
+      for (const delivery of data || []) {
+        if (!latestByOrder[delivery.order_id]) {
+          latestByOrder[delivery.order_id] = delivery;
+        }
+      }
+
+      return latestByOrder;
+    } catch (err) {
+      console.error('Error fetching delivery info:', err);
+      return {};
+    }
+  }, []);
+
   useEffect(() => {
     const subscription = supabase
       .channel('deliveries-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'deliveries' },
-        (payload) => {
-          // Refresh delivery info when changes occur
-          if (payload.new.order_id) {
-            fetchDeliveryInfo(payload.new.order_id);
-          }
+        async (payload) => {
+          const orderId = payload.new?.order_id || payload.old?.order_id;
+          if (!orderId) return;
+
+          const latestInfo = await fetchDeliveryInfoForOrders([orderId]);
+          setDeliveryInfoMap(prev => ({
+            ...prev,
+            [orderId]: latestInfo[orderId] || null
+          }));
         }
       )
       .subscribe();
 
     return () => subscription.unsubscribe();
-}, []);
-
-  // Fetch delivery details for an order
-  const fetchDeliveryDetails = async (orderId) => {
-    try {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select(`
-          *,
-          rider:profiles!deliveries_rider_id_fkey (
-            id,
-            full_name,
-            phone_number,
-            vehicle_type,
-            vehicle_plate
-          )
-        `)
-        .eq('order_id', orderId)
-        .order('assigned_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setDeliveryDetails(data);
-    } catch (err) {
-      console.error('Error fetching delivery:', err);
-    }
-  };
+}, [fetchDeliveryInfoForOrders]);
 
   // Handle assign rider click
   const handleAssignRider = (order) => {
     setSelectedOrderForAction(order);
     setShowAssignModal(true);
-  };
-
-  // Handle track delivery click
-  const handleTrackDelivery = async (order) => {
-    await fetchDeliveryDetails(order.id);
-    setSelectedOrderForAction(order);
-    setShowTrackingModal(true);
-  };
-
-  // Check if order has assigned rider
-  const hasAssignedRider = async (orderId) => {
-    try {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('id, rider_id, status')
-        .eq('order_id', orderId)
-        .order('assigned_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    } catch (err) {
-      console.error('Error checking rider:', err);
-      return null;
-    }
-  };
-
-  // Get rider name from delivery
-  const getRiderName = (delivery) => {
-    return delivery?.rider?.full_name || 'Unassigned';
   };
 
   // Get delivery status color
@@ -224,11 +202,14 @@ export default function Orders() {
   useEffect(() => {
     const fetchAllDeliveryInfo = async () => {
       setDeliveryInfoLoading(true);
+      const orderIds = paginatedOrders.map(order => order.id);
+      const latestByOrder = await fetchDeliveryInfoForOrders(orderIds);
+
       const infoMap = {};
-      for (const order of paginatedOrders) {
-        const info = await hasAssignedRider(order.id);
-        infoMap[order.id] = info;
+      for (const orderId of orderIds) {
+        infoMap[orderId] = latestByOrder[orderId] || null;
       }
+
       setDeliveryInfoMap(infoMap);
       setDeliveryInfoLoading(false);
     };
@@ -238,7 +219,7 @@ export default function Orders() {
     } else {
       setDeliveryInfoLoading(false);
     }
-  }, [paginatedOrders]);
+  }, [paginatedOrders, fetchDeliveryInfoForOrders]);
 
   // Handle rider assigned
   const handleRiderAssigned = useCallback(() => {
@@ -247,16 +228,17 @@ export default function Orders() {
     
     // Refresh the delivery info for all orders
     const refreshDeliveryInfo = async () => {
+      const orderIds = paginatedOrders.map(order => order.id);
+      const latestByOrder = await fetchDeliveryInfoForOrders(orderIds);
       const infoMap = {};
-      for (const order of paginatedOrders) {
-        const info = await hasAssignedRider(order.id);
-        infoMap[order.id] = info;
+      for (const orderId of orderIds) {
+        infoMap[orderId] = latestByOrder[orderId] || null;
       }
       setDeliveryInfoMap(infoMap);
     };
     
     refreshDeliveryInfo();
-  }, [paginatedOrders]);
+  }, [paginatedOrders, fetchDeliveryInfoForOrders]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
@@ -271,8 +253,35 @@ export default function Orders() {
   }), [orders]);
 
   const handleStatusUpdate = useCallback((orderId, newStatus) => {
+    setStatusActionError('');
+
+    if (newStatus === ORDER_STATUS.CANCELLED) {
+      setPendingStatusUpdate({ orderId, newStatus });
+      setShowCancellationDialog(true);
+      return;
+    }
+
     setPendingStatusUpdate({ orderId, newStatus });
     setShowConfirmDialog(true);
+  }, []);
+
+  const checkOrderHasProof = useCallback(async (orderId) => {
+    const { data: deliveries, error: deliveryError } = await supabase
+      .from('deliveries')
+      .select('id')
+      .eq('order_id', orderId);
+
+    if (deliveryError) throw deliveryError;
+    const deliveryIds = (deliveries || []).map((d) => d.id);
+    if (!deliveryIds.length) return false;
+
+    const { count, error: proofError } = await supabase
+      .from('delivery_proofs')
+      .select('*', { count: 'exact', head: true })
+      .in('delivery_id', deliveryIds);
+
+    if (proofError) throw proofError;
+    return (count || 0) > 0;
   }, []);
 
   const handleDeliveryFeeChange = useCallback(async (orderId, newFee) => {
@@ -282,7 +291,7 @@ export default function Orders() {
       if (selectedOrder?.id === orderId) {
         viewOrderDetails(orderId);
       }
-    } catch (err) {
+    } catch {
       // Error is handled by hook
     }
   }, [updateDeliveryFee, selectedOrder, viewOrderDetails]);
@@ -290,14 +299,43 @@ export default function Orders() {
   const confirmStatusUpdate = useCallback(async () => {
     if (pendingStatusUpdate) {
       try {
+        if (pendingStatusUpdate.newStatus === ORDER_STATUS.COMPLETED) {
+          const hasProof = await checkOrderHasProof(pendingStatusUpdate.orderId);
+          if (!hasProof) {
+            setStatusActionError('Cannot mark as Completed without at least one delivery proof photo. Ask rider to upload proof first.');
+            setShowConfirmDialog(false);
+            setPendingStatusUpdate(null);
+            return;
+          }
+        }
+
         await updateStatus(pendingStatusUpdate.orderId, pendingStatusUpdate.newStatus);
         setShowConfirmDialog(false);
         setPendingStatusUpdate(null);
-      } catch (err) {
+      } catch {
         // Error is handled by hook
       }
     }
-  }, [pendingStatusUpdate, updateStatus]);
+  }, [pendingStatusUpdate, updateStatus, checkOrderHasProof]);
+
+  const confirmCancellation = useCallback(async () => {
+    if (!pendingStatusUpdate) return;
+
+    try {
+      await updateStatus(pendingStatusUpdate.orderId, ORDER_STATUS.CANCELLED, {
+        cancellationReason: cancelReason,
+        cancellationNote: cancelNote,
+        cancelledBy: user?.id || null
+      });
+
+      setShowCancellationDialog(false);
+      setPendingStatusUpdate(null);
+      setCancelReason(CANCELLATION_REASONS[0]);
+      setCancelNote('');
+    } catch {
+      // Error is handled by hook
+    }
+  }, [pendingStatusUpdate, updateStatus, cancelReason, cancelNote, user?.id]);
 
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
@@ -325,7 +363,10 @@ export default function Orders() {
 
   const closeDialogs = useCallback(() => {
     setShowConfirmDialog(false);
+    setShowCancellationDialog(false);
     setPendingStatusUpdate(null);
+    setCancelReason(CANCELLATION_REASONS[0]);
+    setCancelNote('');
   }, []);
 
   if (loading) {
@@ -389,7 +430,7 @@ export default function Orders() {
         </button>
       </div>
 
-      {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+      {(error || statusActionError) && <ErrorAlert message={error || statusActionError} onDismiss={() => { clearError(); setStatusActionError(''); }} />}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -552,6 +593,16 @@ export default function Orders() {
                               <UserPlus size={18} />
                             </button>
                           )}
+
+                          {!deliveryInfoLoading && deliveryInfo && ['assigned', 'accepted', 'picked_up', 'out_for_delivery'].includes(deliveryInfo.status) && (
+                            <button
+                              onClick={() => handleOpenTrackingMap(order)}
+                              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Track Specific Order"
+                            >
+                              <MapPin size={18} />
+                            </button>
+                          )}
                           
                           {/* Status Update Buttons */}
                           {order.status === 'Pending' && (
@@ -575,16 +626,6 @@ export default function Orders() {
                           
                           {order.status === 'Processing' && (
                             <>
-                              {!deliveryInfoLoading && deliveryInfo && (
-                                // Rider assigned - show track button
-                                <button
-                                  onClick={() => handleOpenTrackingMap(order)}
-                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                  title="Track Delivery Live"
-                                >
-                                  <MapPin size={18} />
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.CANCELLED)}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -597,13 +638,6 @@ export default function Orders() {
                           
                           {order.status === 'Out for Delivery' && (
                             <>
-                              <button
-                                onClick={() => handleOpenTrackingMap(order)}
-                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Live Track Delivery"
-                              >
-                                <MapPin size={18} />
-                              </button>
                               <button
                                 onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.COMPLETED)}
                                 className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -682,6 +716,57 @@ export default function Orders() {
         message={`Are you sure you want to change this order status to "${pendingStatusUpdate?.newStatus}"?`}
         confirmText="Update"
       />
+
+      {showCancellationDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
+            <div className="p-6 border-b bg-red-600 text-white">
+              <h3 className="text-lg font-bold">Cancel Order</h3>
+              <p className="text-sm text-red-100 mt-1">Provide reason for cancellation to keep audit trail complete.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cancellation Reason</label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none"
+                >
+                  {CANCELLATION_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes {cancelReason === 'Other' ? '(required)' : '(optional)'}</label>
+                <textarea
+                  value={cancelNote}
+                  onChange={(e) => setCancelNote(e.target.value)}
+                  rows={3}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none"
+                  placeholder="Add context for the cancellation"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={closeDialogs}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Back
+              </button>
+              <button
+                onClick={confirmCancellation}
+                disabled={cancelReason === 'Other' && !cancelNote.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -44,6 +44,17 @@ export const PAYMENT_METHODS = {
   GCASH: 'G-Cash'
 };
 
+export const CANCELLATION_REASONS = [
+  'Customer changed mind',
+  'Customer unreachable',
+  'Out of stock',
+  'Address issue',
+  'Rider unavailable',
+  'Payment issue',
+  'Duplicate order',
+  'Other'
+];
+
 // Petron Brand Colors
 export const PETRON_COLORS = {
   primary: '#0033A0',

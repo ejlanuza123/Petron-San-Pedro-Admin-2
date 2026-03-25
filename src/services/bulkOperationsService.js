@@ -1,11 +1,47 @@
 import { supabase } from '../lib/supabase';
 
+const buildAuditLog = (adminId, action, entityType, entityId, details = {}) => ({
+  admin_id: adminId,
+  action,
+  entity_type: entityType,
+  entity_id: String(entityId),
+  details
+});
+
+const tryInsertAuditLogs = async (logs) => {
+  const validLogs = (logs || []).filter((log) => Boolean(log?.admin_id));
+  if (!validLogs.length) {
+    return;
+  }
+
+  const { error } = await supabase.from('admin_logs').insert(validLogs);
+  if (error) {
+    // Audit failure should not rollback successful bulk operations.
+    console.error('Failed to insert audit logs:', error);
+  }
+};
+
+const resolveActorAdminId = async (adminId) => {
+  if (adminId) {
+    return adminId;
+  }
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error('Failed to resolve actor admin id:', error);
+    return null;
+  }
+
+  return data?.user?.id || null;
+};
+
 export const bulkOperationsService = {
   /**
    * Bulk update order status
    */
-  async bulkUpdateOrderStatus(orderIds, newStatus) {
+  async bulkUpdateOrderStatus(orderIds, newStatus, adminId) {
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const { error } = await supabase
         .from('orders')
         .update({
@@ -17,15 +53,14 @@ export const bulkOperationsService = {
       if (error) throw error;
 
       // Create audit logs for each update
-      const auditLogs = orderIds.map(orderId => ({
-        admin_id: null, // Should be passed from context
-        action: 'UPDATE_ORDER_STATUS',
-        entity_type: 'order',
-        entity_id: String(orderId),
-        details: { oldStatus: 'previous_status', newStatus }
-      }));
-
-      await supabase.from('admin_logs').insert(auditLogs);
+      const auditLogs = orderIds.map((orderId) => buildAuditLog(
+        actorAdminId,
+        'UPDATE_ORDER_STATUS',
+        'order',
+        orderId,
+        { oldStatus: 'previous_status', newStatus }
+      ));
+      await tryInsertAuditLogs(auditLogs);
 
       return {
         success: true,
@@ -40,8 +75,9 @@ export const bulkOperationsService = {
   /**
    * Bulk assign riders to deliveries
    */
-  async bulkAssignRiders(deliveryIds, riderId) {
+  async bulkAssignRiders(deliveryIds, riderId, adminId) {
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const { error } = await supabase
         .from('deliveries')
         .update({
@@ -64,6 +100,15 @@ export const bulkOperationsService = {
 
       await supabase.from('notifications').insert(notifications);
 
+      const auditLogs = deliveryIds.map((deliveryId) => buildAuditLog(
+        actorAdminId,
+        'ASSIGN_RIDER',
+        'delivery',
+        deliveryId,
+        { riderId }
+      ));
+      await tryInsertAuditLogs(auditLogs);
+
       return {
         success: true,
         count: deliveryIds.length,
@@ -77,8 +122,9 @@ export const bulkOperationsService = {
   /**
    * Bulk cancel orders
    */
-  async bulkCancelOrders(orderIds, cancellationReason, cancelledByUserId) {
+  async bulkCancelOrders(orderIds, cancellationReason, cancelledByUserId, adminId = cancelledByUserId) {
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const { error } = await supabase
         .from('orders')
         .update({
@@ -111,6 +157,15 @@ export const bulkOperationsService = {
         await supabase.from('notifications').insert(notifications);
       }
 
+      const auditLogs = orderIds.map((orderId) => buildAuditLog(
+        actorAdminId,
+        'CANCEL_ORDER',
+        'order',
+        orderId,
+        { cancellationReason, cancelledByUserId }
+      ));
+      await tryInsertAuditLogs(auditLogs);
+
       return {
         success: true,
         count: orderIds.length,
@@ -124,9 +179,10 @@ export const bulkOperationsService = {
   /**
    * Bulk update product stock
    */
-  async bulkUpdateStock(products) {
+  async bulkUpdateStock(products, adminId) {
     // products = [{ id, adjustment }, ...]
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const updates = await Promise.all(
         products.map(({ id, adjustment }) =>
           supabase
@@ -144,6 +200,15 @@ export const bulkOperationsService = {
         throw new Error(`Failed to update ${errors.length} products`);
       }
 
+      const auditLogs = products.map(({ id, adjustment }) => buildAuditLog(
+        actorAdminId,
+        'UPDATE_PRODUCT_STOCK',
+        'product',
+        id,
+        { adjustment }
+      ));
+      await tryInsertAuditLogs(auditLogs);
+
       return {
         success: true,
         count: products.length,
@@ -157,8 +222,9 @@ export const bulkOperationsService = {
   /**
    * Bulk apply discount to products
    */
-  async bulkApplyDiscount(productIds, discountPercentage) {
+  async bulkApplyDiscount(productIds, discountPercentage, adminId) {
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const { data: products, error: fetchError } = await supabase
         .from('products')
         .select('id, current_price')
@@ -183,6 +249,15 @@ export const bulkOperationsService = {
         if (error) throw error;
       }
 
+      const auditLogs = productIds.map((productId) => buildAuditLog(
+        actorAdminId,
+        'APPLY_PRODUCT_DISCOUNT',
+        'product',
+        productId,
+        { discountPercentage }
+      ));
+      await tryInsertAuditLogs(auditLogs);
+
       return {
         success: true,
         count: productIds.length,
@@ -196,8 +271,9 @@ export const bulkOperationsService = {
   /**
    * Bulk deactivate products
    */
-  async bulkDeactivateProducts(productIds) {
+  async bulkDeactivateProducts(productIds, adminId) {
     try {
+      const actorAdminId = await resolveActorAdminId(adminId);
       const { error } = await supabase
         .from('products')
         .update({
@@ -207,6 +283,15 @@ export const bulkOperationsService = {
         .in('id', productIds);
 
       if (error) throw error;
+
+      const auditLogs = productIds.map((productId) => buildAuditLog(
+        actorAdminId,
+        'DEACTIVATE_PRODUCT',
+        'product',
+        productId,
+        {}
+      ));
+      await tryInsertAuditLogs(auditLogs);
 
       return {
         success: true,

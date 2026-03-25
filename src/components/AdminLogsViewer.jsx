@@ -2,10 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-export default function AdminLogsViewer({ entityType = 'all', entityId = '', limit = 50 }) {
+export default function AdminLogsViewer({ entityType = 'all', entityId = '', startDate = '', endDate = '', limit = 50 }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [showSystemDetails, setShowSystemDetails] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 10), 100);
+  const totalPages = Math.max(1, Math.ceil(totalCount / safeLimit));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [entityType, entityId, startDate, endDate, safeLimit]);
 
   useEffect(() => {
     let isMounted = true;
@@ -14,8 +24,39 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', lim
       setLoading(true);
 
       try {
-        // Build the query dynamically so both filters work together
-        let query = supabase
+        const start = (currentPage - 1) * safeLimit;
+        const end = start + safeLimit - 1;
+        const startDateIso = startDate ? new Date(`${startDate}T00:00:00`).toISOString() : null;
+        const endDateIso = endDate ? new Date(`${endDate}T23:59:59.999`).toISOString() : null;
+
+        // Build the base query so count and rows use identical filters.
+        let baseQuery = supabase.from('admin_logs').select('*', { count: 'exact', head: true });
+
+        if (entityType && entityType !== 'all') {
+          baseQuery = baseQuery.eq('entity_type', entityType);
+        }
+
+        if (entityId && entityId.trim() !== '') {
+          baseQuery = baseQuery.eq('entity_id', entityId.trim());
+        }
+
+        if (startDateIso) {
+          baseQuery = baseQuery.gte('created_at', startDateIso);
+        }
+
+        if (endDateIso) {
+          baseQuery = baseQuery.lte('created_at', endDateIso);
+        }
+
+        const { count, error: countError } = await baseQuery;
+        if (countError) throw countError;
+
+        if (isMounted) {
+          setTotalCount(count || 0);
+        }
+
+        // Build row query dynamically so both filters work together
+        let rowQuery = supabase
           .from('admin_logs')
           .select(`
             *,
@@ -26,19 +67,25 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', lim
             )
           `)
           .order('created_at', { ascending: false })
-          .limit(limit);
+          .range(start, end);
 
-        // Apply Entity Type filter if it's not 'all'
         if (entityType && entityType !== 'all') {
-          query = query.eq('entity_type', entityType);
+          rowQuery = rowQuery.eq('entity_type', entityType);
         }
 
-        // Apply Entity ID filter if the user typed one
         if (entityId && entityId.trim() !== '') {
-          query = query.eq('entity_id', entityId.trim());
+          rowQuery = rowQuery.eq('entity_id', entityId.trim());
         }
 
-        const { data, error } = await query;
+        if (startDateIso) {
+          rowQuery = rowQuery.gte('created_at', startDateIso);
+        }
+
+        if (endDateIso) {
+          rowQuery = rowQuery.lte('created_at', endDateIso);
+        }
+
+        const { data, error } = await rowQuery;
         if (error) throw error;
 
         if (isMounted) {
@@ -65,7 +112,100 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', lim
       isMounted = false;
       channel.unsubscribe();
     };
-  }, [entityType, entityId, limit]);
+  }, [entityType, entityId, startDate, endDate, safeLimit, currentPage]);
+
+  const canGoPrev = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+
+  const handlePrevPage = () => {
+    if (canGoPrev) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (canGoNext) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  const exportFilteredLogs = async () => {
+    try {
+      setExporting(true);
+
+      const startDateIso = startDate ? new Date(`${startDate}T00:00:00`).toISOString() : null;
+      const endDateIso = endDate ? new Date(`${endDate}T23:59:59.999`).toISOString() : null;
+
+      let exportQuery = supabase
+        .from('admin_logs')
+        .select(`
+          id,
+          action,
+          entity_type,
+          entity_id,
+          admin_id,
+          details,
+          created_at
+        `)
+        .order('created_at', { ascending: false })
+        .range(0, 1999);
+
+      if (entityType && entityType !== 'all') {
+        exportQuery = exportQuery.eq('entity_type', entityType);
+      }
+
+      if (entityId && entityId.trim() !== '') {
+        exportQuery = exportQuery.eq('entity_id', entityId.trim());
+      }
+
+      if (startDateIso) {
+        exportQuery = exportQuery.gte('created_at', startDateIso);
+      }
+
+      if (endDateIso) {
+        exportQuery = exportQuery.lte('created_at', endDateIso);
+      }
+
+      const { data, error } = await exportQuery;
+      if (error) throw error;
+
+      const rows = data || [];
+      if (!rows.length) {
+        return;
+      }
+
+      const headers = ['id', 'created_at', 'action', 'entity_type', 'entity_id', 'admin_id', 'details'];
+      const csvBody = rows.map((row) => ([
+        row.id,
+        row.created_at,
+        row.action,
+        row.entity_type,
+        row.entity_id,
+        row.admin_id,
+        JSON.stringify(row.details || {})
+      ].map((value) => {
+        const text = String(value ?? '');
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      }).join(',')));
+
+      const csvContent = [headers.join(','), ...csvBody].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateLabel = new Date().toISOString().slice(0, 10);
+
+      link.href = url;
+      link.download = `audit-logs-${dateLabel}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting logs:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const formatAction = (action) => {
     return action.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
@@ -145,7 +285,7 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', lim
     <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky top-0 bg-white pb-2 z-10">
         <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-          Showing {logs.length} record{logs.length === 1 ? '' : 's'}
+          Showing {logs.length} of {totalCount} record{totalCount === 1 ? '' : 's'}
         </div>
         <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer hover:text-gray-900 transition-colors">
           <input
@@ -156,6 +296,34 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', lim
           />
           Show raw system metadata
         </label>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 text-xs">
+        <button
+          type="button"
+          onClick={exportFilteredLogs}
+          disabled={exporting || loading || logs.length === 0}
+          className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {exporting ? 'Exporting...' : 'Export CSV'}
+        </button>
+        <span className="text-gray-500">Page {currentPage} of {totalPages}</span>
+        <button
+          type="button"
+          onClick={handlePrevPage}
+          disabled={!canGoPrev}
+          className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          onClick={handleNextPage}
+          disabled={!canGoNext}
+          className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
       </div>
 
       <div className="space-y-4">
