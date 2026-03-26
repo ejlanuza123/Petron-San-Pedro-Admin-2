@@ -1,5 +1,5 @@
 // src/pages/Customers.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Users, Mail, Phone, MapPin, Calendar, Eye, Edit2, X, Package, DollarSign, Clock, Save } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Skeleton Components (keep as is)
 const TableRowSkeleton = () => (
@@ -369,6 +370,9 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
 CustomerDetailsModal.displayName = 'CustomerDetailsModal';
 
 export default function Customers() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledFocusNonceRef = useRef(null);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -378,6 +382,22 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  useEffect(() => {
+    const focusCustomerId = location.state?.focusCustomerId;
+    const focusNonce = location.state?.focusNonce;
+    if (!focusCustomerId || !customers?.length || !focusNonce) return;
+    if (handledFocusNonceRef.current === focusNonce) return;
+
+    const targetCustomer = customers.find((c) => c.id === focusCustomerId);
+    if (!targetCustomer) return;
+
+    handledFocusNonceRef.current = focusNonce;
+    setSelectedCustomer(targetCustomer);
+    setShowDetailsModal(true);
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state?.focusNonce, location.state?.focusCustomerId, customers, navigate]);
 
   // Fetch customers
   const fetchCustomers = useCallback(async (isSilent = false) => {

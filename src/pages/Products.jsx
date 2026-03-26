@@ -1,5 +1,5 @@
 // src/pages/Products.jsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Plus, Edit2, Trash2, Package, AlertTriangle, ImageOff } from 'lucide-react';
 import ProductModal from '../components/ProductModal';
 import ErrorAlert from '../components/common/ErrorAlert';
@@ -10,6 +10,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_CATEGORIES } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Default placeholder images based on category
 const getPlaceholderImage = (category) => {
@@ -58,6 +59,9 @@ const StatCardSkeleton = () => (
 );
 
 export default function Products() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledFocusNonceRef = useRef(null);
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -68,6 +72,22 @@ export default function Products() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+
+  React.useEffect(() => {
+    const focusProductId = Number(location.state?.focusProductId);
+    const focusNonce = location.state?.focusNonce;
+    if (!Number.isFinite(focusProductId) || !products?.length || !focusNonce) return;
+    if (handledFocusNonceRef.current === focusNonce) return;
+
+    const targetProduct = products.find((p) => p.id === focusProductId);
+    if (!targetProduct) return;
+
+    handledFocusNonceRef.current = focusNonce;
+    setEditingProduct(targetProduct);
+    setIsModalOpen(true);
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state?.focusNonce, location.state?.focusProductId, navigate, products]);
 
   // Handle image error
   const handleImageError = (productId) => {

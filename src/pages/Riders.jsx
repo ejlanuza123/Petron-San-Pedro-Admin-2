@@ -1,5 +1,5 @@
 // src/pages/Riders.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Skeleton Components (keep as is)
 const RiderCardSkeleton = () => (
@@ -987,6 +988,9 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive }) => {
 RiderDetailsModal.displayName = 'RiderDetailsModal';
 
 export default function Riders() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledFocusNonceRef = useRef(null);
   const { logRiderAction } = useAdminLog();
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1001,6 +1005,22 @@ export default function Riders() {
   const [selectedRiderForDetails, setSelectedRiderForDetails] = useState(null);
   const [selectedRiderForTracking, setSelectedRiderForTracking] = useState(null);
   const [statusUpdateInFlight, setStatusUpdateInFlight] = useState({});
+
+  useEffect(() => {
+    const focusRiderId = location.state?.focusRiderId;
+    const focusNonce = location.state?.focusNonce;
+    if (!focusRiderId || !riders?.length || !focusNonce) return;
+    if (handledFocusNonceRef.current === focusNonce) return;
+
+    const targetRider = riders.find((r) => r.id === focusRiderId);
+    if (!targetRider) return;
+
+    handledFocusNonceRef.current = focusNonce;
+    setSelectedRiderForDetails(targetRider);
+    setShowRiderDetailsModal(true);
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state?.focusNonce, location.state?.focusRiderId, navigate, riders]);
 
   const fetchRiders = useCallback(async (isSilent = false) => {
     try {

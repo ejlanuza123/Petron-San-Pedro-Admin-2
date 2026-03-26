@@ -101,12 +101,12 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
         throw err;
       }
 
-      // 2. Update order status AND set rider_id
+      // 2. Assign rider to order, but do not advance order status yet.
+      // Rider acceptance/pickup flow should drive status transitions.
       const { error: orderError } = await supabase
         .from('orders')
         .update({ 
-          status: 'Out for Delivery',
-          rider_id: selectedRider,  // ← ADD THIS LINE
+          rider_id: selectedRider,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id);
@@ -120,7 +120,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
           user_id: order.user_id,
           type: 'order_status',
           title: 'Rider Assigned',
-          message: `Your order #${order.id} has been assigned to a rider`
+          message: `Your order #${order.id} has been assigned to a rider and is awaiting acceptance`
         }, {
           user_id: selectedRider,
           type: 'order_status',
@@ -132,11 +132,11 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
       // Log the action
       const changes = diffObjects(
-        { status: order.status, rider_id: null },
-        { status: 'Out for Delivery', rider_id: selectedRider }
+        { status: order.status, rider_id: order.rider_id || null },
+        { status: order.status, rider_id: selectedRider }
       );
 
-      const description = `Assigned rider and changed status from ${order.status} to Out for Delivery`;
+      const description = `Assigned rider while keeping order status as ${order.status}`;
 
       await logOrderAction(
         order.id,

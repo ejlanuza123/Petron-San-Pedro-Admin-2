@@ -2,6 +2,7 @@
 export const ORDER_STATUS = {
   PENDING: 'Pending',
   PROCESSING: 'Processing',
+  RIDER_PICKED_UP: 'Rider Picked Up the Order',
   OUT_FOR_DELIVERY: 'Out for Delivery',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled'
@@ -10,6 +11,7 @@ export const ORDER_STATUS = {
 export const ORDER_STATUS_COLORS = {
   [ORDER_STATUS.PENDING]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   [ORDER_STATUS.PROCESSING]: 'bg-petron-light-blue text-petron-blue border-petron-light-blue',
+  [ORDER_STATUS.RIDER_PICKED_UP]: 'bg-sky-100 text-sky-800 border-sky-200',
   [ORDER_STATUS.OUT_FOR_DELIVERY]: 'bg-purple-100 text-purple-800 border-purple-200',
   [ORDER_STATUS.COMPLETED]: 'bg-green-100 text-green-800 border-green-200',
   [ORDER_STATUS.CANCELLED]: 'bg-red-100 text-petron-red border-red-200'

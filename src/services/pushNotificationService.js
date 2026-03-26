@@ -1,6 +1,14 @@
 import { supabase } from '../lib/supabase';
 
 export const pushNotificationService = {
+  getPermissionState() {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return 'unsupported';
+    }
+
+    return Notification.permission;
+  },
+
   /**
    * Request notification permission from user
    */
@@ -10,19 +18,19 @@ export const pushNotificationService = {
     }
 
     if (Notification.permission === 'granted') {
-      return { success: true };
+      return { success: true, permission: 'granted' };
     }
 
     if (Notification.permission !== 'denied') {
       try {
         const permission = await Notification.requestPermission();
-        return { success: permission === 'granted' };
+        return { success: permission === 'granted', permission };
       } catch (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, permission: this.getPermissionState() };
       }
     }
 
-    return { success: false, error: 'Notification permission denied' };
+    return { success: false, error: 'Notification permission denied', permission: 'denied' };
   },
 
   /**
@@ -80,7 +88,7 @@ export const pushNotificationService = {
   /**
    * Subscribe to real-time notifications
    */
-  subscribeToNotifications(userId, onNewNotification) {
+  subscribeToNotifications(userId, onNewNotification, onStatusChange) {
     const channel = supabase
       .channel(`notifications-${userId}`)
       .on(
@@ -101,7 +109,11 @@ export const pushNotificationService = {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (typeof onStatusChange === 'function') {
+          onStatusChange(status);
+        }
+      });
 
     return () => {
       channel.unsubscribe();
@@ -122,6 +134,43 @@ export const pushNotificationService = {
       return { success: true };
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Mark all notifications as read for user
+   */
+  async markAllAsRead(userId) {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Remove one notification
+   */
+  async removeNotification(notificationId) {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Error removing notification:', error);
       return { success: false, error: error.message };
     }
   },

@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import React, { useState, useCallback, memo, useRef } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../context/NotificationContext';
@@ -93,7 +93,7 @@ const formatNotificationTime = (timestamp) => {
   return createdAt.toLocaleDateString();
 };
 
-const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAll, className = '', placement = 'bottom-right', buttonClassName = '' }) => {
+const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, onNotificationClick, requestNotificationPermission, className = '', placement = 'bottom-right', buttonClassName = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const previewNotifications = notifications.slice(0, 8);
 
@@ -108,7 +108,12 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
       <motion.button
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={async () => {
+          if (typeof requestNotificationPermission === 'function') {
+            await requestNotificationPermission();
+          }
+          setIsOpen(prev => !prev);
+        }}
         className={`relative p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition ${buttonClassName}`}
         aria-label="Open notifications"
       >
@@ -135,7 +140,19 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
                 <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                 <p className="text-xs text-gray-500">{unreadCount} unread</p>
               </div>
-              {notifications.length > 0 && (
+            </div>
+
+            {notifications.length > 0 && (
+              <div className="px-4 py-2 border-b bg-gray-50 flex items-center justify-between gap-2">
+                <button
+                  onClick={async () => {
+                    await markAllAsRead();
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 font-medium"
+                >
+                  <CheckCheck size={14} />
+                  Mark all as read
+                </button>
                 <button
                   onClick={async () => {
                     await clearAll();
@@ -144,10 +161,10 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
                   className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-[#ED1C24]"
                 >
                   <Trash2 size={14} />
-                  Clear all
+                  Remove all
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="max-h-[340px] overflow-auto">
               {previewNotifications.length === 0 ? (
@@ -155,9 +172,18 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
               ) : (
                 <div className="divide-y">
                   {previewNotifications.map((notification) => (
-                    <div
+                    <button
                       key={notification.id}
-                      className={`px-4 py-3 transition ${notification.is_read ? 'bg-white' : 'bg-blue-50'}`}
+                      onClick={async () => {
+                        if (!notification.is_read) {
+                          await markAsRead(notification.id);
+                        }
+                        if (typeof onNotificationClick === 'function') {
+                          onNotificationClick(notification);
+                        }
+                        setIsOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 transition hover:bg-gray-50 ${notification.is_read ? 'bg-white' : 'bg-blue-50'}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -169,7 +195,10 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
                         </div>
                         {!notification.is_read ? (
                           <button
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await markAsRead(notification.id);
+                            }}
                             className="mt-0.5 p-1 rounded text-blue-600 hover:bg-blue-100"
                             title="Mark as read"
                             aria-label="Mark as read"
@@ -181,8 +210,19 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
                             <CheckCheck size={14} />
                           </span>
                         )}
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await removeNotification(notification.id);
+                          }}
+                          className="mt-0.5 p-1 rounded text-gray-500 hover:bg-red-100 hover:text-[#ED1C24]"
+                          title="Remove notification"
+                          aria-label="Remove notification"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -197,7 +237,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, clearAl
 NotificationMenu.displayName = 'NotificationMenu';
 
 // Sidebar component
-const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick, notifications, unreadCount, markAsRead, clearAll }) => {
+const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onNotificationClick }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Handle navigation with slide direction
@@ -266,7 +306,11 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
             notifications={notifications}
             unreadCount={unreadCount}
             markAsRead={markAsRead}
+            markAllAsRead={markAllAsRead}
+            removeNotification={removeNotification}
             clearAll={clearAll}
+            onNotificationClick={onNotificationClick}
+            requestNotificationPermission={requestNotificationPermission}
             placement="right-start"
             className="translate-x-2"
             buttonClassName="bg-white border-white/70 text-[#0033A0] hover:bg-[#E5EEFF]"
@@ -379,7 +423,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
 Sidebar.displayName = 'Sidebar';
 
 // Mobile header with animations
-const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, clearAll, onSettingsClick }) => {
+const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onSettingsClick, onNotificationClick }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileProfileMenuOpen, setIsMobileProfileMenuOpen] = useState(false);
 
@@ -426,7 +470,11 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
             notifications={notifications}
             unreadCount={unreadCount}
             markAsRead={markAsRead}
+            markAllAsRead={markAllAsRead}
+            removeNotification={removeNotification}
             clearAll={clearAll}
+            onNotificationClick={onNotificationClick}
+            requestNotificationPermission={requestNotificationPermission}
           />
           <motion.button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -556,7 +604,16 @@ MobileHeader.displayName = 'MobileHeader';
 
 export default function Layout() {
   const { profile, signOut } = useAuth();
-  const { notifications, unreadCount, markAsRead, clearAll } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
+    clearAll,
+    permissionStatus,
+    requestNotificationPermission
+  } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [slideDirection, setSlideDirection] = useState('right');
@@ -569,6 +626,60 @@ export default function Layout() {
 
   const handleNavigation = useCallback((to) => {
     navigate(to);
+  }, [navigate]);
+
+  const handleNotificationClick = useCallback((notification) => {
+    const type = notification?.type || '';
+    const data = notification?.data || {};
+    const event = data?.event || '';
+    const focusNonce = Date.now();
+
+    const orderId = data?.order_id ? Number(data.order_id) : null;
+    const productId = data?.product_id ? Number(data.product_id) : null;
+    const riderId = data?.rider_id || data?.assigned_rider_id || null;
+    const customerId = data?.user_id || data?.customer_id || null;
+
+    if (data?.order_id || type.includes('order') || event.includes('order')) {
+      navigate('/orders', {
+        state: {
+          focusOrderId: Number.isFinite(orderId) ? orderId : null,
+          focusNonce
+        }
+      });
+      return;
+    }
+
+    if (data?.product_id || event === 'low_stock') {
+      navigate('/products', {
+        state: {
+          focusProductId: Number.isFinite(productId) ? productId : null,
+          focusNonce
+        }
+      });
+      return;
+    }
+
+    if (type.includes('rider')) {
+      navigate('/riders', {
+        state: {
+          focusRiderId: riderId,
+          focusNonce
+        }
+      });
+      return;
+    }
+
+    if (type.includes('customer')) {
+      navigate('/customers', {
+        state: {
+          focusCustomerId: customerId,
+          focusNonce
+        }
+      });
+      return;
+    }
+
+    navigate('/');
   }, [navigate]);
 
   const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
@@ -585,7 +696,11 @@ export default function Layout() {
         notifications={notifications}
         unreadCount={unreadCount}
         markAsRead={markAsRead}
+        markAllAsRead={markAllAsRead}
+        removeNotification={removeNotification}
         clearAll={clearAll}
+        requestNotificationPermission={requestNotificationPermission}
+        onNotificationClick={handleNotificationClick}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -598,11 +713,34 @@ export default function Layout() {
           notifications={notifications}
           unreadCount={unreadCount}
           markAsRead={markAsRead}
+          markAllAsRead={markAllAsRead}
+          removeNotification={removeNotification}
           clearAll={clearAll}
+          requestNotificationPermission={requestNotificationPermission}
           onSettingsClick={() => setIsSettingsModalOpen(true)}
+          onNotificationClick={handleNotificationClick}
         />
 
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50">
+          {(permissionStatus === 'denied' || permissionStatus === 'unsupported') && (
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  {permissionStatus === 'denied'
+                    ? 'Browser notifications are blocked. Enable notifications in your browser settings to receive popup alerts.'
+                    : 'This browser does not support notification popups. You can still use the in-app notification bell.'}
+                </p>
+                {permissionStatus === 'denied' && (
+                  <button
+                    onClick={requestNotificationPermission}
+                    className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    Retry Permission
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <Outlet/>
         </main>
       </div>

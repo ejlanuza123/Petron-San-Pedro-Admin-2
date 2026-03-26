@@ -1,5 +1,5 @@
 // src/pages/Orders.jsx
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { 
   Eye, 
   ChevronDown, 
@@ -29,6 +29,7 @@ import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatte
 import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Skeleton Components
 const TableRowSkeleton = () => (
@@ -44,6 +45,9 @@ const TableRowSkeleton = () => (
 );
 
 export default function Orders() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledFocusNonceRef = useRef(null);
   const { user } = useAuth();
   const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, updateDeliveryFee, viewOrderDetails } = useOrders();
   const [filter, setFilter] = useState('All');
@@ -67,6 +71,18 @@ export default function Orders() {
   const [cancelReason, setCancelReason] = useState(CANCELLATION_REASONS[0]);
   const [cancelNote, setCancelNote] = useState('');
   const [statusActionError, setStatusActionError] = useState('');
+
+  useEffect(() => {
+    const focusOrderId = Number(location.state?.focusOrderId);
+    const focusNonce = location.state?.focusNonce;
+    if (!Number.isFinite(focusOrderId) || !focusNonce) return;
+    if (handledFocusNonceRef.current === focusNonce) return;
+
+    handledFocusNonceRef.current = focusNonce;
+    viewOrderDetails(focusOrderId);
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state?.focusNonce, location.state?.focusOrderId, navigate, viewOrderDetails]);
 
   // Fetch available riders
   useEffect(() => {
@@ -160,6 +176,7 @@ export default function Orders() {
       case 'assigned': return 'bg-yellow-100 text-yellow-800';
       case 'accepted': return 'bg-green-100 text-green-800';
       case 'picked_up': return 'bg-blue-100 text-blue-800';
+      case 'out_for_delivery': return 'bg-indigo-100 text-indigo-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'declined': return 'bg-red-100 text-red-800';
       case 'failed': return 'bg-red-100 text-red-800';
@@ -247,6 +264,7 @@ export default function Orders() {
     total: orders.length,
     pending: orders.filter(o => o.status === ORDER_STATUS.PENDING).length,
     processing: orders.filter(o => o.status === ORDER_STATUS.PROCESSING).length,
+    riderPickedUp: orders.filter(o => o.status === ORDER_STATUS.RIDER_PICKED_UP).length,
     outForDelivery: orders.filter(o => o.status === ORDER_STATUS.OUT_FOR_DELIVERY).length,
     completed: orders.filter(o => o.status === ORDER_STATUS.COMPLETED).length,
     cancelled: orders.filter(o => o.status === ORDER_STATUS.CANCELLED).length
@@ -433,7 +451,7 @@ export default function Orders() {
       {(error || statusActionError) && <ErrorAlert message={error || statusActionError} onDismiss={() => { clearError(); setStatusActionError(''); }} />}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-sm text-gray-500">Total Orders</p>
           <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
@@ -445,6 +463,10 @@ export default function Orders() {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-sm text-gray-500">Processing</p>
           <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-500">Rider Picked Up</p>
+          <p className="text-2xl font-bold text-sky-600">{stats.riderPickedUp}</p>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-sm text-gray-500">Out for Delivery</p>
@@ -558,7 +580,8 @@ export default function Orders() {
                             <span className={`text-xs px-2 py-1 rounded-full ${getDeliveryStatusColor(deliveryInfo.status)}`}>
                               {deliveryInfo.status === 'assigned' ? 'Ready to Pick Up' :
                                deliveryInfo.status === 'accepted' ? 'Accepted' :
-                               deliveryInfo.status === 'picked_up' ? 'On Delivery' :
+                               deliveryInfo.status === 'picked_up' ? 'Picked Up' :
+                               deliveryInfo.status === 'out_for_delivery' ? 'Out for Delivery' :
                                deliveryInfo.status === 'delivered' ? 'Delivered' :
                                deliveryInfo.status === 'declined' ? 'Declined' :
                                deliveryInfo.status === 'failed' ? 'Failed' :
@@ -583,8 +606,12 @@ export default function Orders() {
                             <Eye size={18} />
                           </button>
                           
-                          {/* ASSIGNED RIDER BUTTON - Always shown when in processing status */}
+                          {/* Assign rider when processing and rider is not yet assigned, or reassignment is needed */}
                           {order.status === 'Processing' && (
+                            !deliveryInfo ||
+                            !deliveryInfo.rider_id ||
+                            ['declined', 'failed'].includes(deliveryInfo.status)
+                          ) && (
                             <button
                               onClick={() => handleAssignRider(order)}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
