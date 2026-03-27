@@ -13,7 +13,7 @@ export function useAuth() {
         console.warn('Auth loading timeout reached - forcing completion');
         setTimeoutReached(true);
       }
-    }, 5000); // 5 second timeout
+    }, 15000); // 15 second timeout - increased to handle slow networks
     
     return () => clearTimeout(timer);
   }, [context?.loading]);

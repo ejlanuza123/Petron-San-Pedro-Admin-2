@@ -46,7 +46,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-export default function App() {
+function App() {
   return (
     <ErrorBoundary>
       <ErrorProvider>
@@ -87,3 +87,5 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+export default App;
