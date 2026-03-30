@@ -12,6 +12,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/hooks/**/*.js', 'src/services/**/*.js'],
+      lines: 85,
+      functions: 85,
+      branches: 75,
+      statements: 85,
     },
   },
 });

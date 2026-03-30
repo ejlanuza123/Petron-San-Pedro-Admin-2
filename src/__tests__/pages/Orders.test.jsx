@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import Orders from '../../pages/Orders';
 import { ORDER_STATUS } from '../../utils/constants';
 
@@ -178,7 +178,9 @@ describe('Orders page', () => {
       viewOrderDetails: vi.fn(),
     });
 
-    render(<Orders />);
+    await act(async () => {
+      render(<Orders />);
+    });
 
     expect(screen.getByText('Order Management')).toBeTruthy();
     expect(screen.getByText('#101')).toBeTruthy();
@@ -199,7 +201,9 @@ describe('Orders page', () => {
       viewOrderDetails: vi.fn(),
     });
 
-    render(<Orders />);
+    await act(async () => {
+      render(<Orders />);
+    });
 
     expect(screen.getByText('No orders found')).toBeTruthy();
   });
@@ -219,12 +223,19 @@ describe('Orders page', () => {
       viewOrderDetails: vi.fn(),
     });
 
-    render(<Orders />);
+    await act(async () => {
+      render(<Orders />);
+    });
 
-    fireEvent.click(screen.getByTitle('Process Order'));
+    await act(async () => {
+      fireEvent.click(screen.getByTitle('Process Order'));
+    });
 
     expect(screen.getByRole('dialog')).toBeTruthy();
-    fireEvent.click(screen.getByText('Confirm'));
+    
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirm'));
+    });
 
     await waitFor(() => {
       expect(updateStatus).toHaveBeenCalledWith(202, ORDER_STATUS.PROCESSING);

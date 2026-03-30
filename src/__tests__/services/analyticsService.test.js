@@ -179,4 +179,138 @@ describe('analyticsService', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('PDF export not configured');
   });
+
+  it('getProductPerformance aggregates sales by product', async () => {
+    const orderItemsSelect = vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue({
+          data: [
+            {
+              product_id: 'p1',
+              quantity: 5,
+              price_at_order: '100',
+              products: { name: 'Widget A', category: 'Electronics' },
+            },
+            {
+              product_id: 'p1',
+              quantity: 3,
+              price_at_order: '100',
+              products: { name: 'Widget A', category: 'Electronics' },
+            },
+            {
+              product_id: 'p2',
+              quantity: 2,
+              price_at_order: '50',
+              products: { name: 'Widget B', category: 'Electronics' },
+            },
+          ],
+          error: null,
+        }),
+      }),
+    });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'order_items') return { select: orderItemsSelect };
+      return {};
+    });
+
+    const result = await analyticsService.getProductPerformance();
+
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(2);
+    expect(result.data).toContainEqual(
+      expect.objectContaining({
+        name: 'Widget A',
+        quantity: 8,
+        revenue: 800,
+      })
+    );
+    expect(result.data).toContainEqual(
+      expect.objectContaining({
+        name: 'Widget B',
+        quantity: 2,
+        revenue: 100,
+      })
+    );
+  });
+
+  it('getSalesMetrics returns error when query fails', async () => {
+    const ordersSelect = vi.fn().mockReturnValue({
+      gte: vi.fn().mockReturnValue({
+        lte: vi.fn().mockResolvedValue({
+          data: null,
+          error: new Error('query failed'),
+        }),
+      }),
+    });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { select: ordersSelect };
+      return {};
+    });
+
+    const start = new Date('2026-01-01T00:00:00.000Z');
+    const end = new Date('2026-01-31T23:59:59.000Z');
+    const result = await analyticsService.getSalesMetrics(start, end);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('query failed');
+  });
+
+  it('getProductPerformance returns error when query fails', async () => {
+    const orderItemsSelect = vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue({
+          data: null,
+          error: new Error('db error'),
+        }),
+      }),
+    });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'order_items') return { select: orderItemsSelect };
+      return {};
+    });
+
+    const result = await analyticsService.getProductPerformance();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('db error');
+  });
+
+  it('getOrderStatusDistribution returns error when query fails', async () => {
+    const ordersSelect = vi.fn().mockResolvedValue({
+      data: null,
+      error: new Error('distribution query failed'),
+    });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { select: ordersSelect };
+      return {};
+    });
+
+    const result = await analyticsService.getOrderStatusDistribution();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('distribution query failed');
+  });
+
+  it('getDailySalesData returns empty when no orders found', async () => {
+    const ordersOrder = vi.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const ordersGte = vi.fn().mockReturnValue({ order: ordersOrder });
+    const ordersSelect = vi.fn().mockReturnValue({ gte: ordersGte });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { select: ordersSelect };
+      return {};
+    });
+
+    const result = await analyticsService.getDailySalesData(7);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(0);
+  });
 });
