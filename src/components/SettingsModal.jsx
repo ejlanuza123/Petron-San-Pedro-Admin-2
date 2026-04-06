@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings as SettingsIcon, Save, AlertCircle } from 'lucide-react';
+import { X, Settings as SettingsIcon, Bell, BellOff, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../lib/supabase';
 import { notifySuccess } from '../utils/successNotifier';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 export default function SettingsModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [defaultDeliveryFee, setDefaultDeliveryFee] = useState('');
-  const [tempFeeInput, setTempFeeInput] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [permissionState, setPermissionState] = useState('default');
+  const [requestingPermission, setRequestingPermission] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -22,24 +20,8 @@ export default function SettingsModal({ isOpen, onClose }) {
     try {
       setLoading(true);
       setError(null);
-      
-      const { data, error: fetchError } = await supabase
-        .from('app_settings')
-        .select('*')
-        .eq('key', 'default_delivery_fee')
-        .single();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
-
-      if (data) {
-        setDefaultDeliveryFee(data.value);
-        setTempFeeInput(data.value);
-      } else {
-        setDefaultDeliveryFee('50');
-        setTempFeeInput('50');
-      }
+      setPermissionState(pushNotificationService.getPermissionState());
     } catch (err) {
       console.error('Error fetching settings:', err);
       setError(err.message || 'Failed to load settings');
@@ -48,62 +30,45 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
   };
 
-  const handleSave = async () => {
+  const handleEnableNotifications = async () => {
     try {
-      setSaving(true);
+      setRequestingPermission(true);
       setError(null);
 
-      const feeValue = parseFloat(tempFeeInput);
-      if (isNaN(feeValue) || feeValue < 0) {
-        setError('Please enter a valid delivery fee amount');
-        setSaving(false);
-        return;
-      }
+      const result = await pushNotificationService.requestPermission();
+      const newState = result.permission || pushNotificationService.getPermissionState();
+      setPermissionState(newState);
 
-      const { data: existingSetting } = await supabase
-        .from('app_settings')
-        .select('*')
-        .eq('key', 'default_delivery_fee')
-        .single();
-
-      if (existingSetting) {
-        const { error: updateError } = await supabase
-          .from('app_settings')
-          .update({
-            value: feeValue.toString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('key', 'default_delivery_fee');
-
-        if (updateError) throw updateError;
+      if (result.success) {
+        notifySuccess('Push notifications enabled.');
+      } else if (result.error) {
+        setError(result.error);
       } else {
-        const { error: insertError } = await supabase
-          .from('app_settings')
-          .insert({
-            key: 'default_delivery_fee',
-            value: feeValue.toString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (insertError) throw insertError;
+        setError('Unable to enable push notifications.');
       }
-
-      setDefaultDeliveryFee(feeValue.toString());
-      setIsEditing(false);
-      notifySuccess(`Default delivery fee updated to ₱${feeValue}`);
     } catch (err) {
-      console.error('Error saving settings:', err);
-      setError(err.message || 'Failed to save settings');
+      console.error('Error requesting notification permission:', err);
+      setError(err.message || 'Failed to request notification permission');
     } finally {
-      setSaving(false);
+      setRequestingPermission(false);
     }
   };
 
-  const handleCancel = () => {
-    setTempFeeInput(defaultDeliveryFee);
-    setIsEditing(false);
+  const handleTestNotification = () => {
+    const sent = pushNotificationService.sendNotification('Petron Admin Notification', {
+      body: 'Push notifications are enabled for this admin panel.',
+      tag: 'admin-settings-test',
+    });
+
+    if (sent) {
+      notifySuccess('Test notification sent.');
+      return;
+    }
+
+    setError('Could not send test notification. Enable notifications first.');
   };
+
+  const isNotificationsEnabled = permissionState === 'granted';
 
   return (
     <AnimatePresence>
@@ -152,82 +117,50 @@ export default function SettingsModal({ isOpen, onClose }) {
                   )}
 
                   <div className="border-b pb-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">Default Delivery Fee</h3>
+                    <h3 className="font-semibold text-gray-900 mb-3">Push Notifications</h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      This fee applies to all new orders. Riders earn this amount per delivery.
+                      Manage browser notification permission for admin alerts and updates.
                     </p>
 
-                    {!isEditing ? (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-3xl font-bold text-blue-600">
-                            ₱{parseFloat(defaultDeliveryFee || 0).toFixed(2)}
-                          </p>
-                        </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Current Permission</p>
+                        <p className={`text-xl font-bold ${isNotificationsEnabled ? 'text-green-600' : 'text-gray-700'}`}>
+                          {isNotificationsEnabled ? 'Enabled' : permissionState === 'denied' ? 'Blocked' : permissionState === 'unsupported' ? 'Unsupported' : 'Not Enabled'}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => {
-                            setIsEditing(true);
-                            setTempFeeInput(defaultDeliveryFee);
-                          }}
+                          onClick={handleEnableNotifications}
+                          disabled={requestingPermission || permissionState === 'unsupported' || isNotificationsEnabled}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
                         >
-                          Edit
+                          <span className="inline-flex items-center gap-2">
+                            <Bell size={16} />
+                            {requestingPermission ? 'Requesting...' : 'Enable'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={handleTestNotification}
+                          disabled={!isNotificationsEnabled}
+                          className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <BellOff size={16} />
+                            Test
+                          </span>
                         </button>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Delivery Fee (₱)
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-semibold text-gray-700">₱</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={tempFeeInput}
-                              onChange={(e) => setTempFeeInput(e.target.value)}
-                              placeholder="Enter delivery fee"
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
-                          <AlertCircle size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-blue-800">
-                            Applies to new orders only. Existing orders keep their current fees.
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Save size={16} />
-                            {saving ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            onClick={handleCancel}
-                            disabled={saving}
-                            className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium text-sm disabled:opacity-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   <div className="text-xs text-gray-500 space-y-1 pt-2">
                     <p><span className="font-semibold">How it works:</span></p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Default fee applies to new orders</li>
-                      <li>Customize per-order fees in order details</li>
-                      <li>Riders earn the delivery fee amount</li>
+                      <li>Click Enable to request browser permission</li>
+                      <li>When granted, admin alerts can appear in-browser</li>
+                      <li>Use Test to verify notifications are working</li>
                     </ul>
                   </div>
                 </div>

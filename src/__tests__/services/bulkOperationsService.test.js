@@ -46,6 +46,41 @@ describe('bulkOperationsService', () => {
     );
   });
 
+  it('bulkUpdateOrderStatus succeeds when actor resolution fails and skips empty audit logs', async () => {
+    mocks.authGetUser.mockResolvedValue({ data: null, error: new Error('auth down') });
+
+    const inSpy = vi.fn().mockResolvedValue({ error: null });
+    const updateSpy = vi.fn().mockReturnValue({ in: inSpy });
+    const insertSpy = vi.fn().mockResolvedValue({ error: null });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { update: updateSpy };
+      if (table === 'admin_logs') return { insert: insertSpy };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkUpdateOrderStatus(['o1'], 'Processing');
+
+    expect(result.success).toBe(true);
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it('bulkUpdateOrderStatus still succeeds when audit log insert fails', async () => {
+    const inSpy = vi.fn().mockResolvedValue({ error: null });
+    const updateSpy = vi.fn().mockReturnValue({ in: inSpy });
+    const insertSpy = vi.fn().mockResolvedValue({ error: new Error('audit write failed') });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { update: updateSpy };
+      if (table === 'admin_logs') return { insert: insertSpy };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkUpdateOrderStatus(['o1'], 'Processing', 'admin-1');
+
+    expect(result.success).toBe(true);
+  });
+
   it('bulkAssignRiders resolves actor from auth when adminId missing', async () => {
     const inDeliveries = vi.fn().mockResolvedValue({ error: null });
     const updateDeliveries = vi.fn().mockReturnValue({ in: inDeliveries });
@@ -68,6 +103,23 @@ describe('bulkOperationsService', () => {
         expect.objectContaining({ admin_id: 'admin-fallback', entity_type: 'delivery' }),
       ])
     );
+  });
+
+  it('bulkAssignRiders returns failure when deliveries update errors', async () => {
+    const inDeliveries = vi.fn().mockResolvedValue({ error: new Error('delivery write failed') });
+    const updateDeliveries = vi.fn().mockReturnValue({ in: inDeliveries });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'deliveries') return { update: updateDeliveries };
+      if (table === 'notifications') return { insert: vi.fn() };
+      if (table === 'admin_logs') return { insert: vi.fn() };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkAssignRiders(['d1'], 'rider-7', 'admin-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('delivery write failed');
   });
 
   it('bulkApplyDiscount updates computed discount prices', async () => {
@@ -146,6 +198,23 @@ describe('bulkOperationsService', () => {
     expect(insertNotifications).toHaveBeenCalledTimes(1);
   });
 
+  it('bulkCancelOrders returns failure when order update errors', async () => {
+    const inSpy = vi.fn().mockResolvedValue({ error: new Error('cancel failed') });
+    const updateSpy = vi.fn().mockReturnValue({ in: inSpy });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'orders') return { update: updateSpy, select: vi.fn() };
+      if (table === 'notifications') return { insert: vi.fn() };
+      if (table === 'admin_logs') return { insert: vi.fn() };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkCancelOrders(['o1'], 'Out of stock', 'user-1', 'admin-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('cancel failed');
+  });
+
   it('bulkDeactivateProducts delegates to product status update with inactive state', async () => {
     const inSpy = vi.fn().mockResolvedValue({ error: null });
     const updateSpy = vi.fn().mockReturnValue({ in: inSpy });
@@ -161,6 +230,22 @@ describe('bulkOperationsService', () => {
 
     expect(result.success).toBe(true);
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ is_active: false }));
+  });
+
+  it('bulkDeactivateProducts returns failure when update errors', async () => {
+    const inSpy = vi.fn().mockResolvedValue({ error: new Error('deactivate failed') });
+    const updateSpy = vi.fn().mockReturnValue({ in: inSpy });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'products') return { update: updateSpy };
+      if (table === 'admin_logs') return { insert: vi.fn() };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkDeactivateProducts(['p1'], 'admin-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('deactivate failed');
   });
 
   it('bulkUpdateStock updates all selected products', async () => {
@@ -211,5 +296,53 @@ describe('bulkOperationsService', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('Failed to update 1 products');
+  });
+
+  it('bulkApplyDiscount returns failure when product fetch errors', async () => {
+    const inProducts = vi.fn().mockResolvedValue({ data: null, error: new Error('fetch failed') });
+    const selectProducts = vi.fn().mockReturnValue({ in: inProducts });
+    const updateProducts = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'products') return { select: selectProducts, update: updateProducts };
+      if (table === 'admin_logs') return { insert: vi.fn() };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkApplyDiscount(['p1'], 10, 'admin-9');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('fetch failed');
+  });
+
+  it('bulkApplyDiscount returns failure when updating discount errors', async () => {
+    const inProducts = vi.fn().mockResolvedValue({ data: [{ id: 'p1', current_price: 100 }], error: null });
+    const selectProducts = vi.fn().mockReturnValue({ in: inProducts });
+    const eqUpdate = vi.fn().mockResolvedValue({ error: new Error('discount write failed') });
+    const updateProducts = vi.fn().mockReturnValue({ eq: eqUpdate });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'products') return { select: selectProducts, update: updateProducts };
+      if (table === 'admin_logs') return { insert: vi.fn() };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkApplyDiscount(['p1'], 10, 'admin-9');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('discount write failed');
+  });
+
+  it('exportToCsv returns failure when DOM operations throw', async () => {
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      throw new Error('blob failed');
+    });
+
+    const result = await bulkOperationsService.exportToCsv([{ id: 1, name: 'A' }], 'orders');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('blob failed');
+
+    createObjectURLSpy.mockRestore();
   });
 });

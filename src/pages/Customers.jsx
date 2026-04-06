@@ -227,7 +227,7 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 EditCustomerModal.displayName = 'EditCustomerModal';
 
 // Customer Details Modal Component
-const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
+const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) => {
   const stats = useMemo(() => {
     const orders = customer.orders || [];
     const totalSpent = orders.reduce((sum, order) => 
@@ -264,11 +264,18 @@ const CustomerDetailsModal = React.memo(({ customer, onClose }) => {
             {/* Customer Profile */}
             <div className="flex items-center">
               {customer.avatar_url ? (
-                <img
-                  src={customer.avatar_url}
-                  alt={customer.full_name}
-                  className="w-16 h-16 rounded-xl object-cover mr-4 border-2 border-gray-200 shadow-lg"
-                />
+                <button
+                  type="button"
+                  onClick={() => onAvatarClick?.(customer.avatar_url)}
+                  className="mr-4 rounded-xl"
+                  title="View full image"
+                >
+                  <img
+                    src={customer.avatar_url}
+                    alt={customer.full_name}
+                    className="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 shadow-lg hover:opacity-90 transition"
+                  />
+                </button>
               ) : (
                 <div className="w-16 h-16 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-2xl mr-4 shadow-lg">
                   {customer.full_name?.charAt(0)?.toUpperCase()}
@@ -380,8 +387,22 @@ export default function Customers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  useEffect(() => {
+    if (!previewImageUrl) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setPreviewImageUrl(null);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previewImageUrl]);
 
   useEffect(() => {
     const focusCustomerId = location.state?.focusCustomerId;
@@ -651,11 +672,18 @@ export default function Customers() {
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           {customer.avatar_url ? (
-                            <img
-                              src={customer.avatar_url}
-                              alt={customer.full_name}
-                              className="w-10 h-10 rounded-lg object-cover mr-3 border border-gray-200"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImageUrl(customer.avatar_url)}
+                              className="mr-3 rounded-lg"
+                              title="View full image"
+                            >
+                              <img
+                                src={customer.avatar_url}
+                                alt={customer.full_name}
+                                className="w-10 h-10 rounded-lg object-cover border border-gray-200 hover:opacity-90 transition"
+                              />
+                            </button>
                           ) : (
                             <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 shadow-sm">
                               {customer.full_name?.charAt(0)?.toUpperCase() || '?'}
@@ -747,6 +775,7 @@ export default function Customers() {
         <CustomerDetailsModal
           customer={selectedCustomer}
           onClose={handleCloseModal}
+          onAvatarClick={setPreviewImageUrl}
         />
       )}
 
@@ -758,6 +787,31 @@ export default function Customers() {
           customer={selectedCustomer}
           onUpdate={handleUpdateSuccess}
         />
+      )}
+
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImageUrl(null)}
+              className="absolute top-2 right-2 bg-black/70 text-white px-3 py-1 rounded-md hover:bg-black"
+            >
+              Close
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Customer avatar full view"
+              className="w-full max-h-[85vh] object-contain rounded-lg bg-black"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

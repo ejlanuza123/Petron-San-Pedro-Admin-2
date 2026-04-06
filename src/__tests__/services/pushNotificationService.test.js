@@ -86,6 +86,35 @@ describe('pushNotificationService', () => {
     window.Notification = original;
   });
 
+  it('requestPermission returns unsupported when Notification API is unavailable', async () => {
+    const original = window.Notification;
+    delete window.Notification;
+
+    const result = await pushNotificationService.requestPermission();
+
+    expect(result).toEqual({ success: false, error: 'Browser does not support notifications' });
+    Object.defineProperty(window, 'Notification', {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it('requestPermission returns catch payload when request throws', async () => {
+    const original = window.Notification;
+    window.Notification = {
+      permission: 'default',
+      requestPermission: vi.fn().mockRejectedValue(new Error('permission flow failed')),
+    };
+
+    const result = await pushNotificationService.requestPermission();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('permission flow failed');
+    expect(result.permission).toBe('default');
+    window.Notification = original;
+  });
+
   it('requestPermission requests browser permission when not denied/granted', async () => {
     const original = window.Notification;
     window.Notification = {
@@ -123,6 +152,20 @@ describe('pushNotificationService', () => {
     window.Notification = { permission: 'denied' };
 
     const result = pushNotificationService.sendNotification('Blocked');
+
+    expect(result).toBe(false);
+    window.Notification = original;
+  });
+
+  it('sendNotification returns false when Notification constructor throws', () => {
+    const original = window.Notification;
+    function NotificationCtor() {
+      throw new Error('cannot show');
+    }
+    NotificationCtor.permission = 'granted';
+    window.Notification = NotificationCtor;
+
+    const result = pushNotificationService.sendNotification('Will Fail');
 
     expect(result).toBe(false);
     window.Notification = original;
@@ -174,6 +217,18 @@ describe('pushNotificationService', () => {
     expect(secondEq).toHaveBeenCalledWith('is_read', false);
   });
 
+  it('markAllAsRead returns failure when update chain returns error', async () => {
+    const secondEq = vi.fn().mockResolvedValue({ error: new Error('bulk update failed') });
+    const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
+    const localUpdate = vi.fn().mockReturnValue({ eq: firstEq });
+    mockFrom.mockReturnValue({ update: localUpdate });
+
+    const result = await pushNotificationService.markAllAsRead('user-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('bulk update failed');
+  });
+
   it('removeNotification and clearNotifications return success', async () => {
     const localEq = vi.fn().mockResolvedValue({ error: null });
     const localDelete = vi.fn().mockReturnValue({ eq: localEq });
@@ -184,6 +239,28 @@ describe('pushNotificationService', () => {
 
     expect(removeRes).toEqual({ success: true });
     expect(clearRes).toEqual({ success: true });
+  });
+
+  it('removeNotification returns failure when delete query errors', async () => {
+    const localEq = vi.fn().mockResolvedValue({ error: new Error('remove failed') });
+    const localDelete = vi.fn().mockReturnValue({ eq: localEq });
+    mockFrom.mockReturnValue({ delete: localDelete });
+
+    const result = await pushNotificationService.removeNotification('n-9');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('remove failed');
+  });
+
+  it('clearNotifications returns failure when delete query errors', async () => {
+    const localEq = vi.fn().mockResolvedValue({ error: new Error('clear failed') });
+    const localDelete = vi.fn().mockReturnValue({ eq: localEq });
+    mockFrom.mockReturnValue({ delete: localDelete });
+
+    const result = await pushNotificationService.clearNotifications('user-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('clear failed');
   });
 
   it('createNotification returns failure when insert throws error', async () => {
@@ -231,5 +308,33 @@ describe('pushNotificationService', () => {
     expect(typeof unsubscribe).toBe('function');
     unsubscribe();
     sendSpy.mockRestore();
+  });
+
+  it('subscribeToNotifications works when status callback is omitted', () => {
+    const original = window.Notification;
+    const notificationCtor = vi.fn();
+    notificationCtor.permission = 'granted';
+    window.Notification = notificationCtor;
+
+    const onNewNotification = vi.fn();
+
+    const unsubscribe = pushNotificationService.subscribeToNotifications('user-2', onNewNotification);
+
+    onInsertCallback({
+      new: {
+        id: 'n-22',
+        title: 'Silent Status',
+        message: 'No status callback',
+        type: 'order',
+        data: {},
+      },
+    });
+
+    expect(onNewNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n-22', title: 'Silent Status' })
+    );
+    unsubscribe();
+
+    window.Notification = original;
   });
 });

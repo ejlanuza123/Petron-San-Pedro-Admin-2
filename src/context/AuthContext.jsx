@@ -175,6 +175,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (updates) => {
+    if (!user?.id) {
+      throw new Error('No authenticated user');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    setProfile(data);
+    return data;
+  };
+
   const value = {
     user,
     profile,
@@ -182,6 +205,7 @@ export const AuthProvider = ({ children }) => {
     error,
     signIn,
     signOut,
+    updateProfile,
     isAuthenticated: !!user,
   };
 

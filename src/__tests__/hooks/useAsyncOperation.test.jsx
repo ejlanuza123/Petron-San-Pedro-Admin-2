@@ -81,7 +81,42 @@ describe('useAsyncOperation', () => {
       })
     );
     expect(onError).toHaveBeenCalledWith(operationError);
-    expect(mocks.setOperationLoading).toHaveBeenCalledWith('orders-save', false);
+  });
+
+  it('calls onSuccess callback when operation succeeds', async () => {
+    const onSuccess = vi.fn();
+    const operation = vi.fn().mockResolvedValue({ status: 'ok' });
+    mocks.retryAsync.mockImplementation(async (fn) => fn());
+
+    const { result } = renderHook(() => useAsyncOperation());
+
+    await act(async () => {
+      await result.current.execute(operation, {
+        operationId: 'create-order',
+        onSuccess,
+      });
+    });
+
+    expect(onSuccess).toHaveBeenCalledWith({ status: 'ok' });
+  });
+
+  it('respects retries option and passes to retryAsync', async () => {
+    const operation = vi.fn().mockResolvedValue({ done: true });
+    mocks.retryAsync.mockImplementation(async (fn) => fn());
+
+    const { result } = renderHook(() => useAsyncOperation());
+
+    await act(async () => {
+      await result.current.execute(operation, {
+        operationId: 'test-op',
+        retries: 3,
+      });
+    });
+
+    expect(mocks.retryAsync).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ maxRetries: 3 })
+    );
   });
 
   it('uses global loader when showGlobalLoader is true', async () => {

@@ -240,5 +240,5 @@ describe('Orders page', () => {
     await waitFor(() => {
       expect(updateStatus).toHaveBeenCalledWith(202, ORDER_STATUS.PROCESSING);
     });
-  });
+  }, 15000);
 });

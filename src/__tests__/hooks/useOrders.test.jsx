@@ -191,4 +191,108 @@ describe('useOrders', () => {
 
     expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it('catches and stores error when getAll fails during fetch', async () => {
+    mocks.orderService.getAll.mockRejectedValue(new Error('fetch failed'));
+
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBe('fetch failed');
+    expect(result.current.orders).toEqual([]);
+  });
+
+  it('handles updateStatus failure and sets error state', async () => {
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.orderService.updateStatus.mockRejectedValue(new Error('status update failed'));
+
+    await expect(result.current.updateStatus('o-1', 'Processing')).rejects.toThrow('status update failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('status update failed');
+    });
+  });
+
+  it('handles updateDeliveryFee failure and sets error state', async () => {
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.orderService.updateDeliveryFee.mockRejectedValue(new Error('fee update failed'));
+
+    await expect(result.current.updateDeliveryFee('o-1', 150)).rejects.toThrow('fee update failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('fee update failed');
+    });
+  });
+
+  it('handles viewOrderDetails failure and sets error state', async () => {
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.orderService.getById.mockRejectedValue(new Error('details fetch failed'));
+
+    await act(async () => {
+      await result.current.viewOrderDetails('o-missing');
+    });
+
+    expect(result.current.error).toBe('details fetch failed');
+    expect(result.current.selectedOrder).toBe(null);
+  });
+
+  it('clears selected order on realtime DELETE when order id matches', async () => {
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(typeof realtimeCallback).toBe('function');
+    });
+
+    await act(async () => {
+      await result.current.viewOrderDetails('o-1');
+    });
+
+    expect(result.current.selectedOrder).not.toBeNull();
+
+    act(() => {
+      realtimeCallback({
+        eventType: 'DELETE',
+        old: { id: 'o-1' },
+      });
+    });
+
+    expect(result.current.selectedOrder).toBeNull();
+  });
+
+  it('handles realtime INSERT event and prepends new order', async () => {
+    const { result } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(typeof realtimeCallback).toBe('function');
+    });
+
+    act(() => {
+      realtimeCallback({
+        eventType: 'INSERT',
+        new: { id: 'o-new', status: 'Pending' },
+      });
+    });
+
+    expect(result.current.orders[0]).toEqual({ id: 'o-new', status: 'Pending' });
+  });
 });

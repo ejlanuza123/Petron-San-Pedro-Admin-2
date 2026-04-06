@@ -45,6 +45,22 @@ describe('settingsService', () => {
     expect(fee).toBe(50);
   });
 
+  it('getDefaultDeliveryFee falls back to 50 when value is not numeric', async () => {
+    mockSingle.mockResolvedValue({ data: { value: 'abc' }, error: null });
+
+    const fee = await settingsService.getDefaultDeliveryFee();
+
+    expect(fee).toBe(50);
+  });
+
+  it('getDefaultDeliveryFee falls back to 50 when query throws', async () => {
+    mockSingle.mockRejectedValue(new Error('connection down'));
+
+    const fee = await settingsService.getDefaultDeliveryFee();
+
+    expect(fee).toBe(50);
+  });
+
   it('updateDefaultDeliveryFee returns true on successful upsert', async () => {
     const ok = await settingsService.updateDefaultDeliveryFee(65);
 
@@ -65,6 +81,30 @@ describe('settingsService', () => {
 
   it('getSetting returns default when value missing', async () => {
     mockSingle.mockResolvedValue({ data: { value: null }, error: null });
+
+    const value = await settingsService.getSetting('missing_key', 'fallback');
+
+    expect(value).toBe('fallback');
+  });
+
+  it('getSetting returns fetched value when present', async () => {
+    mockSingle.mockResolvedValue({ data: { value: 'enabled' }, error: null });
+
+    const value = await settingsService.getSetting('feature_flag', 'fallback');
+
+    expect(value).toBe('enabled');
+  });
+
+  it('getSetting returns default when query returns error', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: new Error('not found') });
+
+    const value = await settingsService.getSetting('missing_key', 'fallback');
+
+    expect(value).toBe('fallback');
+  });
+
+  it('getSetting returns default when query throws', async () => {
+    mockSingle.mockRejectedValue(new Error('timeout'));
 
     const value = await settingsService.getSetting('missing_key', 'fallback');
 

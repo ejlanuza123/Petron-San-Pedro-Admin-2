@@ -47,6 +47,33 @@ describe('orderService.updateStatus', () => {
     expect(mockEq).toHaveBeenCalledWith('id', 'order-123');
   });
 
+  it('uses explicit cancellation reason when not Other', async () => {
+    await orderService.updateStatus('order-234', ORDER_STATUS.CANCELLED, {
+      cancellationReason: 'Out of stock',
+      cancelledBy: 'admin-2',
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancellation_reason: 'Out of stock',
+        cancelled_by: 'admin-2',
+      })
+    );
+  });
+
+  it('falls back to Unspecified when cancellation reason is missing', async () => {
+    await orderService.updateStatus('order-345', ORDER_STATUS.CANCELLED, {
+      cancelledBy: 'admin-3',
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancellation_reason: 'Unspecified',
+        cancelled_by: 'admin-3',
+      })
+    );
+  });
+
   it('throws when Supabase update returns error', async () => {
     mockEq.mockResolvedValue({ error: new Error('db failed') });
 
@@ -86,6 +113,31 @@ describe('orderService retrieval methods', () => {
     expect(mockFrom).toHaveBeenCalledWith('orders');
     expect(mockEqLocal).toHaveBeenCalledWith('id', 'order-123');
     expect(result).toEqual({ id: 'order-123', status: ORDER_STATUS.PENDING });
+  });
+
+  it('throws when getById query fails', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: new Error('not found'),
+    });
+    const mockEqLocal = vi.fn().mockReturnValue({ single: mockSingle });
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqLocal });
+
+    mockFrom.mockReturnValue({ select: mockSelect });
+
+    await expect(orderService.getById('order-missing')).rejects.toThrow('not found');
+  });
+
+  it('returns all orders from getAll on success', async () => {
+    const rows = [{ id: 'o-1' }, { id: 'o-2' }];
+    const localOrder = vi.fn().mockResolvedValue({ data: rows, error: null });
+    const mockSelect = vi.fn().mockReturnValue({ order: localOrder });
+
+    mockFrom.mockReturnValue({ select: mockSelect });
+
+    const result = await orderService.getAll();
+
+    expect(result).toEqual(rows);
   });
 
   it('throws when getAll query fails', async () => {

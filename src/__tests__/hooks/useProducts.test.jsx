@@ -171,4 +171,101 @@ describe('useProducts', () => {
 
     expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it('catches and stores error when getAll fails during fetch', async () => {
+    mocks.productService.getAll.mockRejectedValue(new Error('fetch failed'));
+
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBe('fetch failed');
+    expect(result.current.products).toEqual([]);
+  });
+
+  it('handles addProduct failure and sets error state', async () => {
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.productService.create.mockRejectedValue(new Error('create failed'));
+
+    await expect(result.current.addProduct({ name: 'Will Fail' })).rejects.toThrow('create failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('create failed');
+    });
+  });
+
+  it('handles updateProduct failure and sets error state', async () => {
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.productService.update.mockRejectedValue(new Error('update failed'));
+
+    await expect(result.current.updateProduct('p-1', { name: 'Updated' })).rejects.toThrow('update failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('update failed');
+    });
+  });
+
+  it('handles deleteProduct failure and sets error state', async () => {
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.productService.delete.mockRejectedValue(new Error('delete failed'));
+
+    await expect(result.current.deleteProduct('p-1')).rejects.toThrow('delete failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('delete failed');
+    });
+  });
+
+  it('returns empty array and sets error when getLowStock fails', async () => {
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mocks.productService.getLowStock.mockRejectedValue(new Error('stock check failed'));
+
+    let lowStock;
+    await act(async () => {
+      lowStock = await result.current.getLowStock();
+    });
+
+    expect(lowStock).toEqual([]);
+    expect(result.current.error).toBe('stock check failed');
+  });
+
+  it('handles realtime INSERT event and prepends new product', async () => {
+    const { result } = renderHook(() => useProducts());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(typeof realtimeCallback).toBe('function');
+    });
+
+    act(() => {
+      realtimeCallback({
+        eventType: 'INSERT',
+        new: { id: 'p-new', name: 'New Product' },
+      });
+    });
+
+    expect(result.current.products[0]).toEqual({ id: 'p-new', name: 'New Product' });
+  });
 });

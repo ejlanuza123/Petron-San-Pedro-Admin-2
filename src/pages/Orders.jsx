@@ -30,6 +30,8 @@ import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { settingsService } from '../services/settingsService';
+import { notifySuccess } from '../utils/successNotifier';
 
 // Skeleton Components
 const TableRowSkeleton = () => (
@@ -49,7 +51,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const handledFocusNonceRef = useRef(null);
   const { user } = useAuth();
-  const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, updateDeliveryFee, viewOrderDetails } = useOrders();
+  const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, viewOrderDetails } = useOrders();
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +73,10 @@ export default function Orders() {
   const [cancelReason, setCancelReason] = useState(CANCELLATION_REASONS[0]);
   const [cancelNote, setCancelNote] = useState('');
   const [statusActionError, setStatusActionError] = useState('');
+  const [showDefaultFeeDialog, setShowDefaultFeeDialog] = useState(false);
+  const [defaultDeliveryFee, setDefaultDeliveryFee] = useState(50);
+  const [defaultFeeInput, setDefaultFeeInput] = useState('50');
+  const [savingDefaultFee, setSavingDefaultFee] = useState(false);
 
   useEffect(() => {
     const focusOrderId = Number(location.state?.focusOrderId);
@@ -87,6 +93,16 @@ export default function Orders() {
   // Fetch available riders
   useEffect(() => {
     fetchAvailableRiders();
+  }, []);
+
+  useEffect(() => {
+    const fetchDefaultFee = async () => {
+      const fee = await settingsService.getDefaultDeliveryFee();
+      setDefaultDeliveryFee(fee);
+      setDefaultFeeInput(String(fee));
+    };
+
+    fetchDefaultFee();
   }, []);
 
   const handleOpenTrackingMap = (order) => {
@@ -302,17 +318,40 @@ export default function Orders() {
     return (count || 0) > 0;
   }, []);
 
-  const handleDeliveryFeeChange = useCallback(async (orderId, newFee) => {
-    try {
-      await updateDeliveryFee(orderId, newFee);
-      // Refresh selected order details if currently viewed
-      if (selectedOrder?.id === orderId) {
-        viewOrderDetails(orderId);
-      }
-    } catch {
-      // Error is handled by hook
+  const openDefaultFeeDialog = useCallback(() => {
+    setStatusActionError('');
+    setDefaultFeeInput(String(defaultDeliveryFee));
+    setShowDefaultFeeDialog(true);
+  }, [defaultDeliveryFee]);
+
+  const closeDefaultFeeDialog = useCallback(() => {
+    setShowDefaultFeeDialog(false);
+    setDefaultFeeInput(String(defaultDeliveryFee));
+  }, [defaultDeliveryFee]);
+
+  const saveDefaultFee = useCallback(async () => {
+    const parsedFee = Number.parseFloat(defaultFeeInput);
+
+    if (Number.isNaN(parsedFee) || parsedFee < 0) {
+      setStatusActionError('Delivery fee must be a valid non-negative number.');
+      return;
     }
-  }, [updateDeliveryFee, selectedOrder, viewOrderDetails]);
+
+    try {
+      setSavingDefaultFee(true);
+      const success = await settingsService.updateDefaultDeliveryFee(parsedFee);
+      if (!success) {
+        setStatusActionError('Failed to update default delivery fee. Please try again.');
+        return;
+      }
+
+      setDefaultDeliveryFee(parsedFee);
+      setShowDefaultFeeDialog(false);
+      notifySuccess(`Default delivery fee updated to ${formatCurrency(parsedFee)}`);
+    } finally {
+      setSavingDefaultFee(false);
+    }
+  }, [defaultFeeInput]);
 
   const confirmStatusUpdate = useCallback(async () => {
     if (pendingStatusUpdate) {
@@ -438,14 +477,23 @@ export default function Orders() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Order Management</h2>
-        
-        <button
-          onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          <RefreshCw size={18} />
-          Refresh
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openDefaultFeeDialog}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0033A0] text-white rounded-lg hover:bg-[#00297d] transition-colors"
+          >
+            Delivery Fee: {formatCurrency(defaultDeliveryFee)}
+          </button>
+
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {(error || statusActionError) && <ErrorAlert message={error || statusActionError} onDismiss={() => { clearError(); setStatusActionError(''); }} />}
@@ -566,7 +614,10 @@ export default function Orders() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-bold text-[#0033A0]">{formatCurrency(order.total_amount)}</span>
+                        <div className="space-y-1">
+                          <span className="font-bold text-[#0033A0] block">{formatCurrency(order.total_amount)}</span>
+                          <span className="text-xs text-gray-500 block">Delivery: {formatCurrency(order.delivery_fee || 0)}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status]}`}>
@@ -700,7 +751,6 @@ export default function Orders() {
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
         onStatusChange={handleStatusUpdate}
-        onDeliveryFeeChange={handleDeliveryFeeChange}
       />
 
       <AssignRiderModal
@@ -743,6 +793,48 @@ export default function Orders() {
         message={`Are you sure you want to change this order status to "${pendingStatusUpdate?.newStatus}"?`}
         confirmText="Update"
       />
+
+      {showDefaultFeeDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            <div className="p-6 border-b bg-[#0033A0] text-white">
+              <h3 className="text-lg font-bold">Update Default Delivery Fee</h3>
+              <p className="text-sm text-blue-100 mt-1">This will apply to new orders.</p>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Delivery Fee</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={defaultFeeInput}
+                onChange={(e) => setDefaultFeeInput(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none"
+                placeholder="Enter default fee"
+              />
+              <p className="text-xs text-gray-500">Current: {formatCurrency(defaultDeliveryFee)}</p>
+            </div>
+
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={closeDefaultFeeDialog}
+                disabled={savingDefaultFee}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDefaultFee}
+                disabled={savingDefaultFee}
+                className="px-4 py-2 bg-[#0033A0] text-white rounded-lg hover:bg-[#00297d] disabled:opacity-50"
+              >
+                {savingDefaultFee ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCancellationDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">

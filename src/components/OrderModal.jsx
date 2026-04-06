@@ -1,13 +1,11 @@
 // src/components/OrderModal.jsx
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Edit3, Check, Image as ImageIcon, Truck } from 'lucide-react';
+import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Image as ImageIcon, Truck } from 'lucide-react';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 
-export default function OrderModal({ isOpen, onClose, order, onStatusChange, onDeliveryFeeChange }) {
-  const [isEditingFee, setIsEditingFee] = useState(false);
-  const [feeInput, setFeeInput] = useState('');
+export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const [deliveryProofs, setDeliveryProofs] = useState([]);
   const [loadingProofs, setLoadingProofs] = useState(false);
   const [selectedProofImage, setSelectedProofImage] = useState(null);
@@ -90,26 +88,12 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
 
   useEffect(() => {
     if (order) {
-      setFeeInput(order.delivery_fee != null ? String(order.delivery_fee) : '');
-      setIsEditingFee(false);
       fetchDeliveryProofs();
       fetchRiderInfo();
     }
   }, [order, fetchDeliveryProofs, fetchRiderInfo]);
 
   if (!isOpen || !order) return null;
-
-  const saveDeliveryFee = async () => {
-    const parsed = parseFloat(feeInput);
-    if (Number.isNaN(parsed)) return;
-    await onDeliveryFeeChange?.(order.id, parsed);
-    setIsEditingFee(false);
-  };
-
-  const cancelDeliveryFeeEdit = () => {
-    setFeeInput(order.delivery_fee != null ? String(order.delivery_fee) : '');
-    setIsEditingFee(false);
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
@@ -307,45 +291,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange, onD
 
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <span>Delivery Fee</span>
-                  <div className="flex items-center gap-2">
-                    {isEditingFee ? (
-                      <>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={feeInput}
-                          onChange={(e) => setFeeInput(e.target.value)}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded"
-                        />
-                        <button
-                          onClick={saveDeliveryFee}
-                          className="p-1 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                          title="Save fee"
-                        >
-                          <Check size={16} />
-                        </button>
-                        <button
-                          onClick={cancelDeliveryFeeEdit}
-                          className="p-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                          title="Cancel"
-                        >
-                          <X size={16} />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium text-gray-900">{formatCurrency(order.delivery_fee || 0)}</span>
-                        <button
-                          onClick={() => setIsEditingFee(true)}
-                          className="p-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                          title="Edit delivery fee"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <span className="font-medium text-gray-900">{formatCurrency(order.delivery_fee || 0)}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-lg font-bold">

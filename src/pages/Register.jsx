@@ -104,7 +104,9 @@ export default function Register() {
       <div className="min-h-screen bg-petron-blue flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 text-center">
           <div className="flex justify-center mb-4">
-            <img src={petronLogo} alt="Petron Logo" className="h-16 w-auto" />
+            <div className="w-20 h-20 bg-white rounded-xl overflow-hidden shadow-lg flex items-center justify-center mx-auto">
+              <img src={petronLogo} alt="Petron Logo" className="w-full h-full object-contain p-2 rounded-xl" />
+            </div>
           </div>
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="text-green-600" size={40} />
@@ -132,11 +134,13 @@ export default function Register() {
             <ArrowLeft size={24} />
           </Link>
           <div className="flex justify-center mb-4">
-            <img 
-              src={petronLogo} 
-              alt="Petron Logo" 
-              className="h-20 w-auto object-contain"
-            />
+            <div className="w-24 h-24 bg-white rounded-xl overflow-hidden shadow-lg flex items-center justify-center">
+              <img 
+                src={petronLogo} 
+                alt="Petron Logo" 
+                className="w-full h-full object-contain p-2 rounded-xl"
+              />
+            </div>
           </div>
           <h2 className="text-2xl font-bold text-white">Create Admin Account</h2>
           <p className="text-white/80 mt-2">Admin Dashboard - Admins Only</p>

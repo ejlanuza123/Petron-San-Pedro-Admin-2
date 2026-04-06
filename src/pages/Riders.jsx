@@ -815,7 +815,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 ResetPasswordModal.displayName = 'ResetPasswordModal';
 
 // Rider Details Modal Component
-const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive }) => {
+const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onAvatarClick }) => {
   const stats = useMemo(() => {
     const deliveries = rider?.deliveries || [];
     const completed = deliveries.filter(d => d.status === 'delivered').length;
@@ -850,11 +850,18 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive }) => {
             {/* Rider Profile */}
             <div className="flex items-center">
               {rider.avatar_url ? (
-                <img
-                  src={rider.avatar_url}
-                  alt={rider.full_name}
-                  className="w-20 h-20 rounded-xl object-cover mr-4 border-2 border-gray-200 shadow-lg"
-                />
+                <button
+                  type="button"
+                  onClick={() => onAvatarClick?.(rider.avatar_url)}
+                  className="mr-4 rounded-xl"
+                  title="View full image"
+                >
+                  <img
+                    src={rider.avatar_url}
+                    alt={rider.full_name}
+                    className="w-20 h-20 rounded-xl object-cover border-2 border-gray-200 shadow-lg hover:opacity-90 transition"
+                  />
+                </button>
               ) : (
                 <div className="w-20 h-20 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-3xl mr-4 shadow-lg">
                   {rider.full_name?.charAt(0)?.toUpperCase()}
@@ -1001,10 +1008,24 @@ export default function Riders() {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showRiderDetailsModal, setShowRiderDetailsModal] = useState(false);
   const [showRiderLiveTrackingModal, setShowRiderLiveTrackingModal] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [selectedRider, setSelectedRider] = useState(null);
   const [selectedRiderForDetails, setSelectedRiderForDetails] = useState(null);
   const [selectedRiderForTracking, setSelectedRiderForTracking] = useState(null);
   const [statusUpdateInFlight, setStatusUpdateInFlight] = useState({});
+
+  useEffect(() => {
+    if (!previewImageUrl) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setPreviewImageUrl(null);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previewImageUrl]);
 
   useEffect(() => {
     const focusRiderId = location.state?.focusRiderId;
@@ -1312,11 +1333,18 @@ export default function Riders() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
                     {rider.avatar_url ? (
-                      <img
-                        src={rider.avatar_url}
-                        alt={rider.full_name}
-                        className="w-12 h-12 rounded-xl object-cover mr-3 shadow-md border-2 border-gray-100"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImageUrl(rider.avatar_url)}
+                        className="mr-3 rounded-xl"
+                        title="View full image"
+                      >
+                        <img
+                          src={rider.avatar_url}
+                          alt={rider.full_name}
+                          className="w-12 h-12 rounded-xl object-cover shadow-md border-2 border-gray-100 hover:opacity-90 transition"
+                        />
+                      </button>
                     ) : (
                       <div className="w-12 h-12 bg-petron-blue rounded-xl flex items-center justify-center text-white font-bold text-xl mr-3 shadow-md">
                         {rider.full_name?.charAt(0)?.toUpperCase() || '?'}
@@ -1463,6 +1491,7 @@ export default function Riders() {
             setSelectedRiderForDetails(null);
           }}
           onTrackLive={handleTrackRiderLive}
+          onAvatarClick={setPreviewImageUrl}
         />
       )}
 
@@ -1474,6 +1503,31 @@ export default function Riders() {
         }}
         rider={selectedRiderForTracking}
       />
+
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImageUrl(null)}
+              className="absolute top-2 right-2 bg-black/70 text-white px-3 py-1 rounded-md hover:bg-black"
+            >
+              Close
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Rider avatar full view"
+              className="w-full max-h-[85vh] object-contain rounded-lg bg-black"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

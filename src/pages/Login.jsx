@@ -34,11 +34,11 @@ export default function Login() {
         {/* Header with Petron colors */}
         <div className="bg-petron-red p-8 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-24 h-24 bg-white rounded-xl overflow-hidden flex items-center justify-center shadow-lg">
               <img 
                 src={petronLogo} 
                 alt="Petron Logo" 
-                className="h-16 w-auto object-contain"
+                className="w-full h-full object-contain p-2 rounded-xl"
               />
             </div>
           </div>

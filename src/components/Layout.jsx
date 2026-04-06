@@ -237,7 +237,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
 NotificationMenu.displayName = 'NotificationMenu';
 
 // Sidebar component
-const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onNotificationClick }) => {
+const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick, onProfileClick, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onNotificationClick }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Handle navigation with slide direction
@@ -352,13 +352,17 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
             whileTap={{ scale: 0.98 }}
             className="flex items-center w-full px-4 py-3 rounded-lg hover:bg-[#E5EEFF] transition-all duration-300"
           >
-            <motion.div 
-              className="w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 flex-shrink-0"
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            >
-              {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
-            </motion.div>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile?.full_name || 'Admin'}
+                className="w-8 h-8 rounded-lg object-cover mr-3 flex-shrink-0 border border-gray-200"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3 flex-shrink-0">
+                {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+              </div>
+            )}
             <div className="flex-1 text-left min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {profile?.full_name || 'Admin'}
@@ -386,7 +390,10 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
                 <motion.button 
                   whileHover={{ x: 5 }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] flex items-center"
-                  onClick={() => setIsProfileMenuOpen(false)}
+                  onClick={() => {
+                    onProfileClick();
+                    setIsProfileMenuOpen(false);
+                  }}
                 >
                   <User size={16} className="mr-2" />
                   Profile
@@ -423,7 +430,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
 Sidebar.displayName = 'Sidebar';
 
 // Mobile header with animations
-const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onSettingsClick, onNotificationClick }) => {
+const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onSettingsClick, onProfileClick, onNotificationClick }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileProfileMenuOpen, setIsMobileProfileMenuOpen] = useState(false);
 
@@ -535,9 +542,17 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                   onClick={() => setIsMobileProfileMenuOpen(prev => !prev)}
                   className="w-full flex items-center mb-2 p-2 rounded-lg hover:bg-gray-100 transition"
                 >
-                  <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3">
-                    {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
-                  </div>
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile?.full_name || 'Admin'}
+                      className="w-10 h-10 rounded-lg object-cover mr-3 border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                      {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                    </div>
+                  )}
                   <div className="min-w-0 text-left flex-1">
                     <p className="font-medium text-gray-900 truncate">{profile?.full_name || 'Admin'}</p>
                     <p className="text-sm text-gray-500 truncate">{profile?.email || 'admin@petron.com'}</p>
@@ -561,7 +576,11 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                       className="mb-3 bg-gray-50 border border-gray-200 rounded-lg p-2"
                     >
                       <button
-                        onClick={() => setIsMobileProfileMenuOpen(false)}
+                        onClick={() => {
+                          onProfileClick();
+                          setIsMobileProfileMenuOpen(false);
+                          setIsMobileMenuOpen(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] rounded-md flex items-center"
                       >
                         <User size={16} className="mr-2" />
@@ -626,6 +645,10 @@ export default function Layout() {
 
   const handleNavigation = useCallback((to) => {
     navigate(to);
+  }, [navigate]);
+
+  const handleProfileClick = useCallback(() => {
+    navigate('/settings');
   }, [navigate]);
 
   const handleNotificationClick = useCallback((notification) => {
@@ -693,6 +716,7 @@ export default function Layout() {
         handleNavigation={handleNavigation}
         setSlideDirection={setSlideDirection}
         onSettingsClick={() => setIsSettingsModalOpen(true)}
+        onProfileClick={handleProfileClick}
         notifications={notifications}
         unreadCount={unreadCount}
         markAsRead={markAsRead}
@@ -718,6 +742,7 @@ export default function Layout() {
           clearAll={clearAll}
           requestNotificationPermission={requestNotificationPermission}
           onSettingsClick={() => setIsSettingsModalOpen(true)}
+          onProfileClick={handleProfileClick}
           onNotificationClick={handleNotificationClick}
         />
 
