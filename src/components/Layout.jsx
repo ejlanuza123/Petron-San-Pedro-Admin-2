@@ -99,6 +99,8 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
 
   const panelPositionClass = placement === 'top-right'
     ? 'absolute right-0 left-auto bottom-full mb-2 origin-bottom-right'
+    : placement === 'mobile-center'
+      ? 'fixed left-1/2 -translate-x-1/2 top-16 mt-2 origin-top'
     : placement === 'right-start'
       ? 'absolute left-full top-0 ml-2 origin-top-left'
       : 'absolute right-0 left-auto top-full mt-2 origin-top-right';
@@ -482,6 +484,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
             clearAll={clearAll}
             onNotificationClick={onNotificationClick}
             requestNotificationPermission={requestNotificationPermission}
+            placement="mobile-center"
           />
           <motion.button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
