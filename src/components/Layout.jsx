@@ -100,7 +100,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
   const panelPositionClass = placement === 'top-right'
     ? 'absolute right-0 left-auto bottom-full mb-2 origin-bottom-right'
     : placement === 'mobile-center'
-      ? 'fixed left-1/2 -translate-x-1/2 top-16 mt-2 origin-top'
+      ? 'fixed inset-x-0 top-16 mt-2 mx-auto origin-top w-[calc(100vw-1rem)] max-w-sm'
     : placement === 'right-start'
       ? 'absolute left-full top-0 ml-2 origin-top-left'
       : 'absolute right-0 left-auto top-full mt-2 origin-top-right';
@@ -134,7 +134,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
             animate={{ y: 0 }}
             exit={{ y: 8 }}
             transition={{ duration: 0.2 }}
-            className={`${panelPositionClass} w-[min(22rem,calc(100vw-1rem))] max-h-[420px] bg-white border border-gray-200 rounded-xl shadow-xl z-[120] overflow-hidden`}
+            className={`${panelPositionClass} ${placement === 'mobile-center' ? '' : 'w-[min(22rem,calc(100vw-1rem))]'} max-h-[420px] bg-white border border-gray-200 rounded-xl shadow-xl z-[120] overflow-hidden`}
             style={{ opacity: 1 }}
           >
             <div className="px-4 py-3 border-b flex items-center justify-between">
