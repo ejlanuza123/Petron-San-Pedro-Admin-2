@@ -25,6 +25,15 @@ export const validateProduct = (product) => {
   if (!product.unit?.trim()) {
     errors.unit = 'Unit is required';
   }
+
+  if (product.sku) {
+    const normalizedSku = String(product.sku).trim().toUpperCase();
+    if (normalizedSku.length < 3) {
+      errors.sku = 'SKU must be at least 3 characters';
+    } else if (!/^[A-Z0-9-]+$/.test(normalizedSku)) {
+      errors.sku = 'SKU can only contain letters, numbers, and hyphens';
+    }
+  }
   
   return {
     isValid: Object.keys(errors).length === 0,

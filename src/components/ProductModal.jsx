@@ -1,5 +1,6 @@
 // src/components/ProductModal.jsx (Enhanced)
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '../utils/constants';
 import { validateProduct } from '../utils/validation';
@@ -7,6 +8,7 @@ import { validateProduct } from '../utils/validation';
 export default function ProductModal({ isOpen, onClose, product, onSave }) {
   const [formData, setFormData] = useState({
     name: '',
+    sku: '',
     category: PRODUCT_CATEGORIES.MOTOR_OIL,
     current_price: '',
     stock_quantity: '',
@@ -25,6 +27,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
     if (product) {
       setFormData({
         name: product.name || '',
+        sku: product.sku || '',
         category: product.category || PRODUCT_CATEGORIES.MOTOR_OIL,
         current_price: product.current_price || '',
         stock_quantity: product.stock_quantity || '',
@@ -38,6 +41,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
     } else {
       setFormData({
         name: '',
+        sku: '',
         category: PRODUCT_CATEGORIES.MOTOR_OIL,
         current_price: '',
         stock_quantity: '',
@@ -55,7 +59,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+    const newValue = type === 'checkbox' ? checked : (name === 'sku' ? value.toUpperCase() : value);
     
     setFormData(prev => ({ ...prev, [name]: newValue }));
     
@@ -99,8 +103,8 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm w-screen h-screen">
       <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden">
         <div className="bg-petron-blue p-6">
           <h3 className="text-xl font-bold text-white">
@@ -108,7 +112,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
           </h3>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(90vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {/* Left Column */}
             <div className="space-y-4">
@@ -151,18 +155,39 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit
+                    SKU
                   </label>
                   <input
                     type="text"
-                    name="unit"
-                    className={`w-full border ${errors.unit ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
-                    value={formData.unit}
+                    name="sku"
+                    className={`w-full border ${errors.sku ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                    value={formData.sku}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder="pcs / liters"
+                    placeholder="e.g. PET-EO-001"
                   />
+                  {errors.sku && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle size={14} className="mr-1" />
+                      {errors.sku}
+                    </p>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Unit
+                </label>
+                <input
+                  type="text"
+                  name="unit"
+                  className={`w-full border ${errors.unit ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                  value={formData.unit}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="pcs / liters"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -299,6 +324,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,5 +1,6 @@
 // admin-web/src/components/common/AlertModal.jsx
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 const AlertModal = ({ 
@@ -66,11 +67,11 @@ const AlertModal = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto w-screen h-screen">
       {/* Backdrop with blur */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity w-screen h-screen"
         onClick={onClose}
       />
 
@@ -151,7 +152,8 @@ const AlertModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

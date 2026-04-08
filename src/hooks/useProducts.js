@@ -63,7 +63,23 @@ export function useProducts() {
   const addProduct = async (productData) => {
     try {
       setError(null);
-      const newProduct = await retryAsync(() => productService.create(productData), {
+      const normalizedSku = productData?.sku ? String(productData.sku).trim().toUpperCase() : null;
+
+      if (normalizedSku) {
+        const duplicateSku = products.find(
+          (p) => p.sku && String(p.sku).trim().toUpperCase() === normalizedSku
+        );
+        if (duplicateSku) {
+          throw new Error('SKU already exists. Please use a unique SKU.');
+        }
+      }
+
+      const payload = {
+        ...productData,
+        sku: normalizedSku,
+      };
+
+      const newProduct = await retryAsync(() => productService.create(payload), {
         maxRetries: 1,
         initialDelayMs: 300
       });
@@ -81,7 +97,23 @@ export function useProducts() {
     try {
       setError(null);
       const existingProduct = products.find((p) => p.id === id) || {};
-      const updatedProduct = await retryAsync(() => productService.update(id, productData), {
+      const normalizedSku = productData?.sku ? String(productData.sku).trim().toUpperCase() : null;
+
+      if (normalizedSku) {
+        const duplicateSku = products.find(
+          (p) => p.id !== id && p.sku && String(p.sku).trim().toUpperCase() === normalizedSku
+        );
+        if (duplicateSku) {
+          throw new Error('SKU already exists. Please use a unique SKU.');
+        }
+      }
+
+      const payload = {
+        ...productData,
+        sku: normalizedSku,
+      };
+
+      const updatedProduct = await retryAsync(() => productService.update(id, payload), {
         maxRetries: 1,
         initialDelayMs: 300
       });

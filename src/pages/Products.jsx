@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Plus, Edit2, Trash2, Package, AlertTriangle, ImageOff } from 'lucide-react';
 import ProductModal from '../components/ProductModal';
+import ProductDetailsModal from '../components/ProductDetailsModal';
 import ErrorAlert from '../components/common/ErrorAlert';
 import EmptyState from '../components/common/EmptyState';
 import SearchBar from '../components/common/SearchBar';
@@ -65,6 +66,7 @@ export default function Products() {
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -161,6 +163,10 @@ export default function Products() {
     setIsModalOpen(true);
   }, []);
 
+  const openDetails = useCallback((product) => {
+    setSelectedProduct(product);
+  }, []);
+
   const openAdd = useCallback(() => {
     setEditingProduct(null);
     setIsModalOpen(true);
@@ -184,6 +190,15 @@ export default function Products() {
     setIsModalOpen(false);
     setEditingProduct(null);
   }, []);
+
+  const closeDetails = useCallback(() => {
+    setSelectedProduct(null);
+  }, []);
+
+  const openEditFromDetails = useCallback((product) => {
+    setSelectedProduct(null);
+    openEdit(product);
+  }, [openEdit]);
 
   const closeDeleteDialog = useCallback(() => {
     setShowDeleteDialog(false);
@@ -298,7 +313,8 @@ export default function Products() {
             {paginatedProducts.map((product) => (
               <div 
                 key={product.id} 
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-150 group"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-150 group cursor-pointer"
+                onClick={() => openDetails(product)}
               >
                 {/* Product Image */}
                 <div className="h-48 bg-gray-100 relative overflow-hidden">
@@ -382,14 +398,20 @@ export default function Products() {
 
                   <div className="mt-4 pt-4 border-t flex gap-2">
                     <button 
-                      onClick={() => openEdit(product)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(product);
+                      }}
                       className="flex-1 bg-gray-50 text-gray-700 py-2 rounded-lg hover:bg-[#E5EEFF] hover:text-[#0033A0] text-sm font-medium flex items-center justify-center gap-2 transition-colors duration-150"
                     >
                       <Edit2 size={14} />
                       Edit
                     </button>
                     <button 
-                      onClick={() => handleDeleteClick(product)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(product);
+                      }}
                       className="bg-red-50 text-[#ED1C24] px-4 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors duration-150"
                     >
                       <Trash2 size={14} />
@@ -417,6 +439,13 @@ export default function Products() {
         onClose={closeModal}
         product={editingProduct}
         onSave={handleSaveProduct}
+      />
+
+      <ProductDetailsModal
+        isOpen={!!selectedProduct}
+        onClose={closeDetails}
+        product={selectedProduct}
+        onEdit={openEditFromDetails}
       />
 
       {/* Delete Confirmation */}
