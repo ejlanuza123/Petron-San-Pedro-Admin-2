@@ -1,10 +1,107 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Bell, BellOff, Save, User } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { Settings as SettingsIcon, Bell, BellOff, Save, User, BookOpen, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import { notifySuccess } from '../utils/successNotifier';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+
+const ADMIN_MANUAL_SECTIONS = [
+  {
+    id: 'access',
+    heading: '1. Access, Login, and Session Rules',
+    steps: [
+      'Open the admin web URL and sign in using your authorized admin account.',
+      'If registration is enabled in deployment, complete registration first and then sign in.',
+      'Use only role-approved accounts for admin operations and never share credentials.',
+      'If session times out due to inactivity, sign in again to continue securely.',
+      'Use trusted devices and sign out after shift handover.',
+    ],
+  },
+  {
+    id: 'dashboard',
+    heading: '2. Daily Dashboard Routine',
+    steps: [
+      'Start each shift by checking the dashboard totals and recent activity.',
+      'Review active deliveries, pending orders, and low-stock indicators first.',
+      'Open Orders immediately for new queue processing and assignment decisions.',
+      'Use this same dashboard check during end-of-shift handover.',
+    ],
+  },
+  {
+    id: 'orders',
+    heading: '3. Order Processing Workflow',
+    steps: [
+      'Open Orders and filter/search by order number, customer, status, or rider.',
+      'Validate customer address, items, payment method, and special instructions.',
+      'Assign an active rider to unassigned orders as quickly as possible.',
+      'Track status progression and intervene if flow is stalled.',
+      'For cancellation, select reason, add operational notes, and confirm action.',
+      'For completion, verify delivery proof exists before final close when required.',
+    ],
+  },
+  {
+    id: 'delivery',
+    heading: '4. Delivery and Rider Monitoring',
+    steps: [
+      'Use delivery tracking details in Orders to monitor assignment and movement.',
+      'Check rider availability and workload balance before assigning urgent jobs.',
+      'Validate rider issues and update dispatch actions with minimal delay.',
+      'Escalate missing proof, stuck statuses, or repeated failed updates quickly.',
+    ],
+  },
+  {
+    id: 'products',
+    heading: '5. Product and Inventory Management',
+    steps: [
+      'Open Products to add, edit, or remove catalog items.',
+      'Keep names, units, and prices consistent with live operations.',
+      'Act on low-stock alerts immediately to avoid invalid customer ordering.',
+      'Review product media quality and replace broken/outdated images.',
+    ],
+  },
+  {
+    id: 'customers',
+    heading: '6. Customer and Rider Records',
+    steps: [
+      'Use Customers page for profile review, account support, and order history checks.',
+      'Use Riders page for availability checks, operational review, and assignment context.',
+      'Edit profile records only when required and preserve data accuracy.',
+      'Use audit context for disputes and operational validation.',
+    ],
+  },
+  {
+    id: 'reports',
+    heading: '7. Reports, Audit Logs, and Compliance',
+    steps: [
+      'Use Reports for daily/weekly/monthly operational and sales review.',
+      'Use Audit Logs to verify who changed records and when changes occurred.',
+      'Filter logs by entity, date, and identifiers during incident checks.',
+      'Export or summarize reporting data for management handover.',
+    ],
+  },
+  {
+    id: 'settings',
+    heading: '8. Settings and Notification Controls',
+    steps: [
+      'Use Settings to update profile, avatar, and notification preferences.',
+      'Enable browser notifications and send a test notification to validate setup.',
+      'Apply configuration updates only when production-approved.',
+      'If browser permission is blocked, update browser settings and re-request.',
+    ],
+  },
+  {
+    id: 'troubleshoot',
+    heading: '9. Troubleshooting and Escalation',
+    steps: [
+      'Login issue: verify credentials, role, and network, then retry.',
+      'Data not updating: refresh page and verify realtime connectivity.',
+      'Order stuck: confirm assignment, status flow, proof requirements, and rider updates.',
+      'Notification issue: check browser permission and run a test notification.',
+      'Escalate repeated failures, inconsistent data, or blocked critical workflows to system admin.',
+    ],
+  },
+];
 
 export default function Settings() {
   const { profile, updateProfile } = useAuth();
@@ -15,6 +112,8 @@ export default function Settings() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
+  const [manualQuery, setManualQuery] = useState('');
+  const [openManualSections, setOpenManualSections] = useState({ access: true });
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     phone_number: '',
@@ -190,6 +289,32 @@ export default function Settings() {
   };
 
   const isNotificationsEnabled = permissionState === 'granted';
+
+  const filteredManualSections = useMemo(() => {
+    const query = manualQuery.trim().toLowerCase();
+    if (!query) return ADMIN_MANUAL_SECTIONS;
+
+    return ADMIN_MANUAL_SECTIONS
+      .map((section) => {
+        const headingMatch = section.heading.toLowerCase().includes(query);
+        const matchingSteps = headingMatch
+          ? section.steps
+          : section.steps.filter((step) => step.toLowerCase().includes(query));
+
+        return {
+          ...section,
+          steps: matchingSteps,
+        };
+      })
+      .filter((section) => section.steps.length > 0);
+  }, [manualQuery]);
+
+  const toggleManualSection = (id) => {
+    setOpenManualSections((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   if (loading) {
     return (
@@ -379,6 +504,70 @@ export default function Settings() {
                   <span>Use Test Notification to verify your browser can display alerts.</span>
                 </li>
               </ul>
+            </div>
+
+            {/* In-App Admin User Manual */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <BookOpen size={18} className="text-blue-600" />
+                    Admin User Manual
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Detailed in-app guide for daily operations, workflows, and troubleshooting.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4 relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={manualQuery}
+                  onChange={(e) => setManualQuery(e.target.value)}
+                  placeholder="Search manual topics or steps"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-3">
+                {filteredManualSections.length === 0 ? (
+                  <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    No manual sections matched your search.
+                  </div>
+                ) : (
+                  filteredManualSections.map((section) => {
+                    const isOpen = !!openManualSections[section.id];
+
+                    return (
+                      <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <button
+                          type="button"
+                          onClick={() => toggleManualSection(section.id)}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition"
+                        >
+                          <span className="text-left text-sm font-semibold text-gray-900">{section.heading}</span>
+                          {isOpen ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                        </button>
+
+                        {isOpen && (
+                          <div className="px-4 pb-4">
+                            <ol className="space-y-2 mt-1">
+                              {section.steps.map((step, index) => (
+                                <li key={`${section.id}-${index}`} className="flex items-start gap-2 text-sm text-gray-700">
+                                  <span className="mt-0.5 text-blue-600 font-semibold min-w-5">{index + 1}.</span>
+                                  <span>{step}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         </div>
