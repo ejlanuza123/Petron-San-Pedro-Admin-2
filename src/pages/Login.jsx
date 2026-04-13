@@ -15,6 +15,7 @@ export default function Login() {
   const [resetLoading, setResetLoading] = useState(false);
   const [updatePasswordLoading, setUpdatePasswordLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetError, setResetError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -72,44 +73,41 @@ export default function Login() {
 
   const handleSendResetLink = async (e) => {
     e.preventDefault();
-    setError('');
+    setResetError('');
     setSuccessMessage('');
 
     const normalizedEmail = resetEmail.trim().toLowerCase();
 
     if (!normalizedEmail) {
-      setError('Please enter your admin email.');
+      setResetError('Please enter your admin email.');
       return;
     }
 
     if (!normalizedEmail.includes('@')) {
-      setError('Please enter a valid email address.');
+      setResetError('Please enter a valid email address.');
       return;
     }
 
     setResetLoading(true);
     try {
-      let isConfirmedAdmin = false;
+      const { data: eligibilityRows, error: eligibilityError } = await supabase.rpc(
+        'get_admin_reset_eligibility',
+        { p_email: normalizedEmail }
+      );
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .ilike('email', normalizedEmail)
-        .maybeSingle();
-
-      // Anonymous clients may be blocked by RLS from reading profiles.
-      // In that case, continue with reset email and enforce role on recovery.
-      if (profileError && profileError.code !== '42501') {
-        throw profileError;
+      if (eligibilityError) {
+        if (eligibilityError.code === '42883') {
+          throw new Error('Reset eligibility function is missing. Please run the latest database migration.');
+        }
+        throw eligibilityError;
       }
 
-      if (profile?.role && profile.role !== ADMIN_ROLE) {
-        setError('This email is not registered as an admin account.');
+      const eligibility = Array.isArray(eligibilityRows) ? eligibilityRows[0] : eligibilityRows;
+      const isConfirmedAdmin = !!eligibility?.is_admin;
+
+      if (!isConfirmedAdmin) {
+        setResetError('This email is not registered as an admin account.');
         return;
-      }
-
-      if (profile?.role === ADMIN_ROLE) {
-        isConfirmedAdmin = true;
       }
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
@@ -120,13 +118,9 @@ export default function Login() {
 
       setShowForgotModal(false);
       setResetEmail('');
-      setSuccessMessage(
-        isConfirmedAdmin
-          ? 'Password reset link sent. Please check your email inbox.'
-          : 'If this email belongs to an admin account, a reset link has been sent.'
-      );
+      setSuccessMessage('Password reset link sent. Please check your email inbox.');
     } catch (err) {
-      setError(err.message || 'Unable to send reset link. Please try again.');
+      setResetError(err.message || 'Unable to send reset link. Please try again.');
     } finally {
       setResetLoading(false);
     }
@@ -318,6 +312,15 @@ export default function Login() {
               Enter your admin email to receive a password reset link.
             </p>
 
+            {resetError && (
+              <div className="bg-red-50 border-l-4 border-[#ED1C24] p-4 rounded mb-4">
+                <div className="flex items-center">
+                  <AlertCircle className="text-[#ED1C24] mr-2 flex-shrink-0" size={20} />
+                  <p className="text-sm text-red-700">{resetError}</p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSendResetLink} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
@@ -338,7 +341,10 @@ export default function Login() {
                 <button
                   type="button"
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  onClick={() => setShowForgotModal(false)}
+                  onClick={() => {
+                    setShowForgotModal(false);
+                    setResetError('');
+                  }}
                 >
                   Cancel
                 </button>
