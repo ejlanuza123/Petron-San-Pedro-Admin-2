@@ -25,7 +25,7 @@ import Pagination from '../components/common/Pagination';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useOrders } from '../hooks/useOrders';
 import { ORDER_STATUS, ORDER_STATUS_COLORS, CANCELLATION_REASONS } from '../utils/constants';
-import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
+import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
 import { useAuth } from '../hooks/useAuth';
@@ -604,7 +604,7 @@ export default function Orders() {
                   return (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="font-medium text-gray-900">#{order.id}</span>
+                        <span className="font-medium text-gray-900">{formatOrderNumber(order.order_number, order.id)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div>
@@ -629,8 +629,8 @@ export default function Orders() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Truck size={16} className="text-gray-400" />
                             <span className={`text-xs px-2 py-1 rounded-full ${getDeliveryStatusColor(deliveryInfo.status)}`}>
-                              {deliveryInfo.status === 'assigned' ? 'Ready to Pick Up' :
-                               deliveryInfo.status === 'accepted' ? 'Accepted' :
+                              {deliveryInfo.status === 'assigned' ? 'Waiting for Acceptance' :
+                               deliveryInfo.status === 'accepted' ? 'Accepted - Ready to Pick Up' :
                                deliveryInfo.status === 'picked_up' ? 'Picked Up' :
                                deliveryInfo.status === 'out_for_delivery' ? 'Out for Delivery' :
                                deliveryInfo.status === 'delivered' ? 'Delivered' :

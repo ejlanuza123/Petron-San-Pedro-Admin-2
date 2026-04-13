@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Phone, User, Truck, Clock, CheckCircle, AlertCircle, Navigation } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatDate, formatPhoneNumber } from '../utils/formatters';
+import { formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 
 export default function RiderTrackingModal({ isOpen, onClose, order, delivery }) {
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -79,7 +79,7 @@ export default function RiderTrackingModal({ isOpen, onClose, order, delivery })
       case 'assigned':
         return 'Assigned to rider';
       case 'accepted':
-        return 'Accepted by rider';
+        return 'Accepted - Ready to Pick Up';
       case 'picked_up':
         return 'Picked up by rider';
       case 'delivered':
@@ -101,7 +101,7 @@ export default function RiderTrackingModal({ isOpen, onClose, order, delivery })
         <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white flex items-center">
             <Navigation className="mr-2" size={24} />
-            Track Delivery - Order #{order?.id}
+            Track Delivery - Order {formatOrderNumber(order?.order_number, order?.id)}
           </h3>
           <button 
             onClick={onClose}

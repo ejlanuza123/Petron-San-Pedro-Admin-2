@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, MapPin, Phone, User, Truck, AlertCircle, Navigation, Route, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { retryAsync } from '../utils/retry';
+import { formatOrderNumber } from '../utils/formatters';
 
 export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
   const [riderLocation, setRiderLocation] = useState(null);
@@ -210,7 +211,7 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
       .map((d) => ({
         deliveryId: d.id,
         orderId: d.order.id,
-        orderNumber: d.order.order_number,
+        orderNumberShort: formatOrderNumber(d.order.order_number, d.order.id),
         lat: Number(d.order.delivery_lat),
         lng: Number(d.order.delivery_lng),
         address: d.order.delivery_address || 'Delivery Address',
@@ -301,12 +302,12 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
 
         const marker = L.marker([d.lat, d.lng], {
           icon: L.divIcon({
-            html: '<div style="position:relative"><div class="delivery-pin"></div><div class="delivery-label" style="position:absolute;left:10px;top:-6px">#' + (d.orderNumber || d.orderId || i + 1) + '</div></div>',
+            html: '<div style="position:relative"><div class="delivery-pin"></div><div class="delivery-label" style="position:absolute;left:10px;top:-6px">' + (d.orderNumberShort || ('#' + (d.orderId || i + 1))) + '</div></div>',
             className: '',
             iconSize: [30, 20],
             iconAnchor: [7, 7],
           }),
-        }).addTo(map).bindPopup('<b>Order #' + (d.orderNumber || d.orderId) + '</b><br>' + d.address + '<br>Status: ' + d.status);
+        }).addTo(map).bindPopup('<b>Order ' + (d.orderNumberShort || ('#' + d.orderId)) + '</b><br>' + d.address + '<br>Status: ' + d.status);
 
         deliveryMarkers.push(marker);
       });
@@ -573,7 +574,7 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isFocused ? 'border-[#0033A0] bg-blue-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <p className="font-medium text-gray-900">Order #{delivery.order?.order_number || delivery.order?.id}</p>
+                          <p className="font-medium text-gray-900">Order {formatOrderNumber(delivery.order?.order_number, delivery.order?.id)}</p>
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusBadgeColor(delivery.status)}`}>{delivery.status}</span>
                         </div>
                         <p className="text-sm text-gray-600 line-clamp-2 flex items-start">

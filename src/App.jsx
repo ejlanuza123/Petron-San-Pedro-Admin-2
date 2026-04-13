@@ -18,6 +18,8 @@ import Settings from './pages/Settings';
 import Products from './pages/Products';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PasswordResetSuccess from './pages/PasswordResetSuccess';
+import PasswordRecovery from './pages/PasswordRecovery';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GlobalLoader } from './components/common/GlobalLoader';
@@ -61,6 +63,8 @@ function App() {
                   <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/password-recovery" element={<PasswordRecovery />} />
+                    <Route path="/password-reset-success" element={<PasswordResetSuccess />} />
 
                     <Route path="/" element={
                       <ProtectedRoute>

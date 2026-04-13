@@ -1,6 +1,5 @@
 # Admin Web User Manual
-
-Simple step-by-step guide for the deployed Admin Web Dashboard.
+Welcome to the Admin Web User Manual! This guide will help you navigate and utilize the features of the admin web application effectively. Whether you're managing orders, products, customers, or riders, this manual provides step-by-step instructions to ensure a smooth experience.
 
 ## 1. Before You Start
 
@@ -9,8 +8,6 @@ Simple step-by-step guide for the deployed Admin Web Dashboard.
 - Prepare an admin email and password.
 
 ## 2. Register an Admin Account
-
-Use this only if registration is enabled for your deployment.
 
 1. Open the admin web app.
 2. Click Register.

@@ -28,12 +28,15 @@ export const formatPhoneNumber = (phone) => {
 };
 
 export const formatOrderNumber = (orderNumber, orderId) => {
-  if (orderNumber) return orderNumber;
-  
-  // Format like mobile app: ORD-000010 -> ORD-10
-  if (orderId) {
-    const padded = orderId.toString().padStart(6, '0');
-    return `ORD-${padded.replace(/^0+/, '')}`;
+  const rawValue = orderNumber ?? orderId;
+  if (rawValue == null || rawValue === '') return '#-';
+
+  const str = String(rawValue).trim();
+  const match = str.match(/(\d+)$/);
+
+  if (match) {
+    return `#${parseInt(match[1], 10)}`;
   }
-  return `#${orderId}`;
+
+  return `#${str}`;
 };

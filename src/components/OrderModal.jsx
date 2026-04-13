@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Image as ImageIcon, Truck } from 'lucide-react';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
-import { formatCurrency, formatDate, formatPhoneNumber } from '../utils/formatters';
+import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 
 export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
@@ -11,6 +11,28 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const [selectedProofImage, setSelectedProofImage] = useState(null);
   const [riderInfo, setRiderInfo] = useState(null);
   const [loadingRider, setLoadingRider] = useState(false);
+  const [cancellerName, setCancellerName] = useState(null);
+
+  const fetchCancellerName = useCallback(async () => {
+    if (!order?.cancelled_by) {
+      setCancellerName(null);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', order.cancelled_by)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      setCancellerName(data?.full_name || null);
+    } catch (error) {
+      console.error('Error fetching canceller name:', error);
+      setCancellerName(null);
+    }
+  }, [order?.cancelled_by]);
 
   const fetchRiderInfo = useCallback(async () => {
     if (!order?.id) return;
@@ -90,8 +112,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
     if (order) {
       fetchDeliveryProofs();
       fetchRiderInfo();
+      fetchCancellerName();
     }
-  }, [order, fetchDeliveryProofs, fetchRiderInfo]);
+  }, [order, fetchDeliveryProofs, fetchRiderInfo, fetchCancellerName]);
 
   if (!isOpen || !order) return null;
 
@@ -103,7 +126,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           <div>
             <h2 className="text-xl font-bold text-white flex items-center">
               <Hash className="mr-2" size={20} />
-              Order #{order.id}
+              Order {formatOrderNumber(order.order_number, order.id)}
             </h2>
             <p className="text-sm text-blue-100 mt-1">
               <Calendar className="inline mr-1" size={14} />
@@ -148,7 +171,10 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                     <p><span className="text-gray-500">Reason:</span> <span className="font-medium text-gray-900">{order.cancellation_reason}</span></p>
                   )}
                   {order.cancelled_by && (
-                    <p><span className="text-gray-500">Cancelled By:</span> <span className="font-medium text-gray-900">{order.cancelled_by}</span></p>
+                    <p>
+                      <span className="text-gray-500">Cancelled By:</span>{' '}
+                      <span className="font-medium text-gray-900">{cancellerName || order.cancelled_by}</span>
+                    </p>
                   )}
                   {order.cancelled_at && (
                     <p><span className="text-gray-500">Cancelled At:</span> <span className="font-medium text-gray-900">{formatDate(order.cancelled_at)}</span></p>

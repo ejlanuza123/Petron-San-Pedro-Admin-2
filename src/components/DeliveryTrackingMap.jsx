@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Navigation, Phone, MapPin, User, Clock, Route } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatOrderNumber } from '../utils/formatters';
 
 export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
   const [loading, setLoading] = useState(true);
@@ -360,7 +360,7 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
             <div>
               <h3 className="text-lg font-bold text-white">Live Delivery Tracking</h3>
               {delivery?.order?.order_number && (
-                <p className="text-sm text-white/80">Order #{delivery.order.order_number}</p>
+                <p className="text-sm text-white/80">Order {formatOrderNumber(delivery.order.order_number, delivery.order.id)}</p>
               )}
             </div>
           </div>
