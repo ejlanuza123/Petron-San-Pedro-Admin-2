@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Users,
   Truck,
+  CalendarDays,
   FileText,
   Bell,
   Check,
@@ -263,6 +264,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+    { to: '/reservations', icon: CalendarDays, label: 'Reservations' },
     { to: '/products', icon: Package, label: 'Inventory' },
     { to: '/customers', icon: Users, label: 'Customers' },
     { to: '/riders', icon: Truck, label: 'Riders' },
@@ -438,7 +440,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
 
   const onNavigate = (to) => {
     const currentPath = location.pathname;
-    const navItems = ['/', '/orders', '/products', '/customers', '/riders', '/reports'];
+    const navItems = ['/', '/orders', '/reservations', '/products', '/customers', '/riders', '/reports'];
     const currentIndex = navItems.indexOf(currentPath);
     const newIndex = navItems.indexOf(to);
     
@@ -455,6 +457,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
   };
 
   return (
+                  { to: '/reservations', icon: CalendarDays, label: 'Reservations' },
     <>
       <header className="md:hidden bg-petron-blue border-b border-white/20 px-4 py-3 flex justify-between items-center z-20">
         <motion.div 

@@ -13,6 +13,7 @@ import Orders from './pages/Orders';
 import Customers from './pages/Customers';
 import Riders from './pages/Riders';
 import Reports from './pages/Reports';
+import Reservations from './pages/Reservations';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Products from './pages/Products';
@@ -78,6 +79,7 @@ function App() {
                       <Route path="customers" element={<Customers />} />
                       <Route path="riders" element={<Riders />} />
                       <Route path="reports" element={<Reports />} />
+                      <Route path="reservations" element={<Reservations />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="audit-logs" element={<AuditLogs />} />
                     </Route>
