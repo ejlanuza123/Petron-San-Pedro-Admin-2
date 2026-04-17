@@ -1,263 +1,173 @@
 # Admin Web Dashboard
 
-A comprehensive React-based admin dashboard for managing orders, deliveries, products, and riders for the Petron San Pedro delivery application.
+React + Vite admin dashboard for managing orders, riders, products, reports, audit logs, and operational settings for the Petron San Pedro delivery system.
 
-## Overview
+## Documentation
 
-The Admin Web Dashboard provides real-time order management, delivery tracking, inventory management, and comprehensive analytics for the San Pedro delivery system. It's built with React 19, Vite, and Supabase for a fast, responsive user experience.
+- Developer setup: [docs/ADMIN_WEB_DEVELOPER_SETUP_GUIDE.md](docs/ADMIN_WEB_DEVELOPER_SETUP_GUIDE.md)
+- User manual: [docs/ADMIN_WEB_USER_MANUAL.md](docs/ADMIN_WEB_USER_MANUAL.md)
+- Database backup guide: [docs/DATABASE_BACKUP_GUIDE.md](docs/DATABASE_BACKUP_GUIDE.md)
 
-**Key Features:**
-- 📋 Real-time order management (create, update, cancel, track status)
-- 🚴 Rider assignment and live GPS tracking
-- 📦 Product inventory management with low-stock alerts
-- 📊 Comprehensive analytics and reporting
-- 🔐 Role-based access control (RBAC) with Row-Level Security (RLS)
-- 🔔 Real-time notifications and updates via Supabase subscriptions
-- 💳 Bulk operations (batch updates, discount application, status changes)
-- 📱 Responsive design with Tailwind CSS
-- ✅ Full test coverage with Vitest
+## What This App Does
 
-## Quick Start
+- Manages live orders, delivery statuses, and cancellations.
+- Assigns riders and tracks delivery activity.
+- Handles product inventory, pricing, and low-stock monitoring.
+- Shows reports, analytics, and audit logs for admin operations.
+- Uses Supabase for auth, realtime updates, and PostgreSQL-backed data.
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Supabase account with project configured
+## Project Layout
 
-### Installation
+- `src/` - application source code
+- `public/` - static files
+- `docs/` - user manuals and developer guides
+- `db/migrations/` - SQL migrations for the database
+- `database_schema.sql` - schema reference file
+- `coverage/` - test coverage output
+
+## Requirements
+
+- Node.js 20.x recommended
+- npm
+- A Supabase project configured for this app
+- A modern browser for development
+
+## Environment Setup
+
+Create `.env.local` from `.env.example` and fill in the values.
+
+Required variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Do not commit `.env.local`.
+
+## Install
 
 ```bash
-# Clone and navigate to project
 cd admin-web
-
-# Install dependencies
 npm install
-
-# Create environment file
-cp .env.example .env.local
-
-# Update .env.local with your Supabase credentials
-# VITE_SUPABASE_URL=your-supabase-url
-# VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### Development
+## Common Commands
+
+### Start development server
 
 ```bash
-# Start development server (runs on http://localhost:5173)
 npm run dev
+```
 
-# Run tests in watch mode
+### Run tests once
+
+```bash
+npm run test
+```
+
+### Run tests in watch mode
+
+```bash
 npm run test:watch
+```
 
-# Run tests with UI
+### Run tests with UI
+
+```bash
 npm run test:ui
+```
 
-# Check code quality
+### Run coverage
+
+```bash
+npm run test:coverage
+```
+
+### Lint the app
+
+```bash
 npm run lint
 ```
 
-### Build & Deployment
+### Lint only tests
 
 ```bash
-# Build for production (outputs to dist/)
-npm run build
-
-# Preview production build locally
-npm run preview
-
-# Deploy to Vercel (requires VERCEL_TOKEN)
-# Automatic deployment on main branch push
-```
-
-## Architecture
-
-### Directory Structure
-
-```
-src/
-├── components/        # Reusable UI components
-│   ├── common/       # Shared components (SearchBar, Pagination, etc.)
-│   └── *.jsx         # Page-specific components
-├── context/          # React context providers (Auth, Error, Notifications)
-├── hooks/            # Custom hooks (useOrders, useProducts, useAuth, etc.)
-├── pages/            # Page components (Orders, Products, Dashboard, etc.)
-├── services/         # API layer (Supabase queries, business logic)
-├── utils/            # Helpers (formatters, constants, validators)
-├── lib/              # External library configuration (supabase.js)
-├── __tests__/        # Test files (mirror src directory structure)
-└── App.jsx           # Root component
-```
-
-### Key Technologies
-
-- **Frontend Framework**: React 19 with Hooks
-- **Build Tool**: Vite for fast HMR and builds
-- **Styling**: Tailwind CSS with PostCSS
-- **Database**: Supabase (PostgreSQL with RLS)
-- **Authentication**: Supabase Auth with JWT tokens
-- **Real-time**: Supabase Realtime (PostgreSQL_changes)
-- **Testing**: Vitest + @testing-library/react
-- **Deployment**: Vercel (auto-deploy on main push)
-
-### State Management
-
-Uses React Context API for:
-- **AuthContext**: User session, role-based access, token management
-- **ErrorContext**: Application-wide error handling
-- **LoadingContext**: Global loading indicators
-- **NotificationContext**: Push notifications, real-time updates
-- **SuccessModalContext**: Success message display
-
-Custom hooks abstract complex state logic:
-- `useOrders`: Order CRUD, real-time updates, admin logging
-- `useProducts`: Product management, subscriptions
-- `useAsyncOperation`: Async operation orchestration with loading/error states
-- `useSessionManagement`: Inactivity tracking and auto-logout (30min)
-
-### Security
-
-- **Row-Level Security (RLS)**: Enforced at database layer with FORCE RLS enabled
-- **Role-Based Access Control**: Admin routes protected, riders have limited access
-- **Session Timeout**: 30-minute inactivity timeout with 15-second auth load timeout
-- **Environment Variables**: Sensitive data stored in .env.local (never in source)
-- **Audit Logging**: Admin actions logged to audit_logs table for compliance
-
-## Testing
-
-Comprehensive test coverage across all services, hooks, and context providers.
-
-### Run Tests
-
-```bash
-# Run all tests once
-npm run test
-
-# Run tests in watch mode (auto-rerun on file changes)
-npm run test:watch
-
-# Run tests with UI dashboard
-npm run test:ui
-
-# Generate coverage report (outputs to coverage/)
-npm run test:coverage
-
-# Lint test files
 npm run lint:tests
 ```
 
-### Test Organization
+### Build for production
 
-```
-src/__tests__/
-├── services/          # Service layer tests (API calls, business logic)
-├── hooks/             # Custom hook tests
-├── context/           # Context provider tests
-└── pages/             # Page component tests
+```bash
+npm run build
 ```
 
-### Current Coverage
+### Preview production build
 
-- **Overall**: 82.94% statements, 66.75% branches, 93.03% functions, 84.01% lines
-- **Services**: 81.34% (analyticsService, bulkOperationsService, orderService, etc.)
-- **Hooks**: 85.76% (useOrders, useProducts, useAuth, useAsyncOperation, etc.)
-- **Target**: 85%+ for launch readiness
+```bash
+npm run preview
+```
 
-## API Layer
+## Architecture Overview
 
-### Service Modules
+- `src/pages/` contains page-level screens like Orders, Products, Dashboard, and Reports.
+- `src/components/` contains reusable UI blocks and common elements.
+- `src/context/` contains shared app state providers.
+- `src/hooks/` contains reusable business and data hooks.
+- `src/services/` contains Supabase queries and business logic.
+- `src/utils/` contains shared utilities and formatters.
 
-Each service module encapsulates API calls and business logic:
+## Key Technologies
 
-- **orderService.js**: Order CRUD, status updates, delivery fee management, stats aggregation
-- **productService.js**: Product inventory, stock management, real-time subscriptions
-- **bulkOperationsService.js**: Batch operations, discount application, CSV export
-- **analyticsService.js**: Sales metrics, order distribution, customer retention
-- **filteringService.js**: Query filtering, pagination, search functionality
-- **settingsService.js**: Application settings (delivery fee, config values)
-- **pushNotificationService.js**: Browser notifications, Supabase subscriptions
+- React 19
+- Vite
+- Tailwind CSS and PostCSS
+- Supabase (PostgreSQL, Auth, Realtime)
+- Vitest and Testing Library
+- Vercel deployment
 
-### Error Handling
+## Security Notes
 
-- **Try-catch blocks**: Wrap all async operations
-- **ErrorContext**: Centralized error state with auto-clearing on navigation
-- **Error Boundary**: Catches React rendering errors
-- **Fallback values**: Graceful degradation when services fail (e.g., stats default to 0)
-- **User feedback**: Error alerts with dismiss buttons
+- Authentication and role checks are enforced in the app and database.
+- RLS is used at the Supabase layer.
+- Sensitive values must stay in environment files.
+- Admin actions are logged for auditability.
 
-## Key Features in Detail
+## Testing Notes
 
-### Real-time Order Management
-- View all orders with status filters and search
-- Update order status with confirmation dialogs
-- Cancel orders with cancellation notes
-- Track delivery progress with GPS map
-- Assign riders and view live tracking
-
-### Rider Management
-- View available riders (active only)
-- Assign riders to orders
-- Track rider location in real-time
-- Monitor rider performance metrics
-
-### Product Management
-- Create, edit, delete products
-- Track inventory with low-stock alerts
-- Manage product prices and delivery fees
-- View product sales metrics
-
-### Analytics & Reporting
-- Sales metrics (daily, weekly, monthly)
-- Order status distribution
-- Customer metrics (retention, repeat orders)
-- CSV export for analysis
-- Interactive charts and dashboards
-
-### Bulk Operations
-- Bulk update order status
-- Apply discounts to products
-- Update rider assignments
-- Update delivery fees
-- CSV upload/export
-
-## Known Issues & Limitations
-
-1. **Real-time Lag**: Supabase subscriptions may have 1-2s latency
-2. **Session Timeout**: 30-minute inactivity timeout - users must re-authenticate
-3. **Offline Support**: Not available (requires online connectivity)
-4. **Browser Support**: Modern browsers only (Chrome 90+, Firefox 88+, Safari 14+)
-5. **Performance**: Large datasets (1000+ orders) may have UI lag - pagination recommended
-
-## Performance Tips
-
-1. **Pagination**: Always use pagination for large lists (default: 10 items/page)
-2. **Search Before Filter**: Use search to reduce dataset before filtering
-3. **Batch Operations**: Use bulk operations instead of individual updates
-4. **Caching**: Browser caches responses - hard refresh (Ctrl+Shift+R) to clear
-5. **Network**: Test on slow networks (DevTools throttling) - auth timeout helps
+- Tests are organized under `src/__tests__/`.
+- Use `npm run test` for a single pass.
+- Use `npm run test:coverage` for coverage output.
 
 ## Deployment
 
-### Vercel (Recommended)
+- The app is configured for Vercel.
+- `npm run vercel-build` is the production build entry.
+- Set Supabase environment variables in your hosting platform before deploy.
 
-```bash
-# 1. Connect repository to Vercel
-# 2. Set environment variables in Vercel dashboard:
-#    - VITE_SUPABASE_URL
-#    - VITE_SUPABASE_ANON_KEY
-# 3. Auto-deploys on push to main branch
-```
+## Database and Migrations
 
-### Operations Docs
+- Apply SQL files from `db/migrations/` in order.
+- Use `database_schema.sql` as a schema reference when provisioning or reviewing changes.
+- Use [docs/DATABASE_BACKUP_GUIDE.md](docs/DATABASE_BACKUP_GUIDE.md) for manual backup and restore steps.
 
-- Deployment runbook: `DEPLOYMENT_RUNBOOK.md`
-- Operations guide: `../OPERATIONS.md`
+## Troubleshooting
 
-### Manual Deployment
+### App does not start
 
-```bash
-# Build locally
-npm run build
+- Check Node version.
+- Confirm `.env.local` values are correct.
+- Reinstall dependencies if needed.
+
+### Supabase requests fail
+
+- Verify the project URL and anon key.
+- Confirm migrations have been applied.
+- Check that the user role is allowed by RLS.
+
+### Tests or lint fail unexpectedly
+
+- Run `npm install` again.
+- Check for local environment drift.
+- Review the failed test or lint output for the exact file and line.
 
 # Deploy dist/ folder to your hosting (Netlify, AWS, Azure, etc.)
 ```
