@@ -5,6 +5,7 @@ React + Vite admin dashboard for managing orders, riders, products, reports, aud
 ## Documentation
 
 - Developer setup: [docs/ADMIN_WEB_DEVELOPER_SETUP_GUIDE.md](docs/ADMIN_WEB_DEVELOPER_SETUP_GUIDE.md)
+- Local infra + DB tools setup: [docs/LOCAL_INFRA_AND_DB_TOOLS_SETUP_GUIDE.md](docs/LOCAL_INFRA_AND_DB_TOOLS_SETUP_GUIDE.md)
 - User manual: [docs/ADMIN_WEB_USER_MANUAL.md](docs/ADMIN_WEB_USER_MANUAL.md)
 - Database backup guide: [docs/DATABASE_BACKUP_GUIDE.md](docs/DATABASE_BACKUP_GUIDE.md)
 
