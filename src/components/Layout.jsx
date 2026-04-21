@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import petronLogo from '../assets/images/petron-logo.png';
 import PageTransition from './PageTransition';
 import SettingsModal from './SettingsModal';
+import FloatingChatBubble from './common/FloatingChatBubble';
 
 
 // Animated NavItem with scale and slide effects
@@ -514,6 +515,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                 {[
                   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
                   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+
                   { to: '/products', icon: Package, label: 'Inventory' },
                   { to: '/customers', icon: Users, label: 'Customers' },
                   { to: '/riders', icon: Truck, label: 'Riders' },
@@ -628,7 +630,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
 MobileHeader.displayName = 'MobileHeader';
 
 export default function Layout() {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const {
     notifications,
     unreadCount,
@@ -780,6 +782,8 @@ export default function Layout() {
         isOpen={isSettingsModalOpen} 
         onClose={() => setIsSettingsModalOpen(false)} 
       />
+
+      <FloatingChatBubble userId={user?.id} />
     </div>
   );
 }

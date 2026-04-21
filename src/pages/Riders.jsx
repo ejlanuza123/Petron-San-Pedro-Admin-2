@@ -1,13 +1,15 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation, MessageCircle } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import RiderLiveTrackingModal from '../components/RiderLiveTrackingModal';
 import { supabase } from '../lib/supabase';
+import { chatService } from '../services/chatService';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
+import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // Skeleton Components (keep as is)
@@ -815,7 +817,7 @@ const ResetPasswordModal = React.memo(({ isOpen, onClose, rider, onReset }) => {
 ResetPasswordModal.displayName = 'ResetPasswordModal';
 
 // Rider Details Modal Component
-const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onAvatarClick }) => {
+const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider, onAvatarClick, chatInFlight }) => {
   const stats = useMemo(() => {
     const deliveries = rider?.deliveries || [];
     const completed = deliveries.filter(d => d.status === 'delivered').length;
@@ -965,13 +967,23 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onAvatarCli
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-6 border-t mt-6">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t mt-6">
               <button
                 onClick={onClose}
                 className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
               </button>
+              {onChatRider && (
+                <button
+                  onClick={() => onChatRider(rider)}
+                  disabled={Boolean(chatInFlight)}
+                  className="flex-1 py-2.5 bg-[#0033A0] text-white rounded-lg hover:bg-[#0A3DB6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <MessageCircle size={18} />
+                  {chatInFlight ? 'Opening...' : 'Chat Rider'}
+                </button>
+              )}
               {onTrackLive && (
                 <button
                   onClick={() => {
@@ -997,6 +1009,7 @@ RiderDetailsModal.displayName = 'RiderDetailsModal';
 export default function Riders() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const handledFocusNonceRef = useRef(null);
   const { logRiderAction } = useAdminLog();
   const [riders, setRiders] = useState([]);
@@ -1013,6 +1026,7 @@ export default function Riders() {
   const [selectedRiderForDetails, setSelectedRiderForDetails] = useState(null);
   const [selectedRiderForTracking, setSelectedRiderForTracking] = useState(null);
   const [statusUpdateInFlight, setStatusUpdateInFlight] = useState({});
+  const [chatInFlightRiderId, setChatInFlightRiderId] = useState(null);
 
   useEffect(() => {
     if (!previewImageUrl) return;
@@ -1209,6 +1223,33 @@ export default function Riders() {
     setSelectedRiderForTracking(rider);
     setShowRiderLiveTrackingModal(true);
   }, []);
+
+  const handleChatRider = useCallback(async (rider) => {
+    if (!user?.id || !rider?.id) {
+      setError('Sign in again to start a chat.');
+      return;
+    }
+
+    try {
+      setChatInFlightRiderId(rider.id);
+      setError(null);
+
+      const result = await chatService.getOrCreateAdminRiderConversation(user.id, rider.id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to open chat');
+      }
+
+      navigate(`/chat/${result.conversation.id}`, {
+        state: {
+          backTo: '/riders'
+        }
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to open rider chat');
+    } finally {
+      setChatInFlightRiderId(null);
+    }
+  }, [navigate, user?.id]);
 
   const handleCloseEdit = useCallback(() => {
     setShowEditModal(false);
@@ -1449,6 +1490,14 @@ export default function Riders() {
                     <Eye size={18} className="text-gray-600" />
                   </button>
                   <button 
+                    onClick={() => handleChatRider(rider)}
+                    disabled={chatInFlightRiderId === rider.id}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-60"
+                    title="Chat Rider"
+                  >
+                    <MessageCircle size={18} className="text-[#0033A0]" />
+                  </button>
+                  <button 
                     onClick={() => handleTrackRiderLive(rider)}
                     className="p-2 border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
                     title="Track Live Location"
@@ -1491,6 +1540,12 @@ export default function Riders() {
             setSelectedRiderForDetails(null);
           }}
           onTrackLive={handleTrackRiderLive}
+          onChatRider={(rider) => {
+            setShowRiderDetailsModal(false);
+            setSelectedRiderForDetails(null);
+            handleChatRider(rider);
+          }}
+          chatInFlight={chatInFlightRiderId === selectedRiderForDetails?.id}
           onAvatarClick={setPreviewImageUrl}
         />
       )}

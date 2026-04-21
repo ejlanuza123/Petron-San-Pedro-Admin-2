@@ -1,0 +1,306 @@
+// src/pages/ChatThread.jsx
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { chatService } from '../services/chatService';
+import '../styles/ChatThread.css';
+import { formatDistanceToNow, format } from 'date-fns';
+import { ChevronLeft, Send, Sparkles, Circle } from 'lucide-react';
+
+const getInitials = (name) => {
+  if (!name) return 'R';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+};
+
+export default function ChatThread() {
+  const { conversationId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+
+  const [messages, setMessages] = useState([]);
+  const [conversation, setConversation] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const messagesEndRef = useRef(null);
+  const unsubscribeRef = useRef(null);
+  const riderPresenceUnsubscribeRef = useRef(null);
+
+  useEffect(() => {
+    loadThreadData();
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+      if (riderPresenceUnsubscribeRef.current) {
+        riderPresenceUnsubscribeRef.current();
+      }
+    };
+  }, [conversationId, user?.id]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const loadThreadData = async () => {
+    if (!conversationId || !user?.id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Load conversation
+      const convResult = await chatService.getConversation(conversationId);
+      if (convResult.success) {
+        setConversation(convResult.conversation);
+      } else {
+        throw new Error(convResult.error);
+      }
+
+      // Load messages
+      const msgResult = await chatService.getMessages(conversationId, 100);
+      if (msgResult.success) {
+        setMessages(msgResult.messages);
+      } else {
+        throw new Error(msgResult.error);
+      }
+
+      // Mark as seen
+      await chatService.markConversationAsSeen(conversationId, user.id);
+
+      // Subscribe to new messages
+      unsubscribeRef.current = chatService.subscribeToMessages(
+        conversationId,
+        (newMsg) => {
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === newMsg.id)) {
+              return prev;
+            }
+            return [...prev, newMsg];
+          });
+        }
+      );
+
+      // Subscribe to realtime rider presence updates while thread is open
+      riderPresenceUnsubscribeRef.current = chatService.subscribeToRiders((updatedRider) => {
+        if (!updatedRider?.id) return;
+
+        setConversation((prevConversation) => {
+          if (!prevConversation?.conversation_participants) return prevConversation;
+
+          const hasTarget = prevConversation.conversation_participants.some(
+            (participant) => participant.user_id === updatedRider.id
+          );
+          if (!hasTarget) return prevConversation;
+
+          return {
+            ...prevConversation,
+            conversation_participants: prevConversation.conversation_participants.map((participant) => {
+              if (participant.user_id !== updatedRider.id) return participant;
+
+              return {
+                ...participant,
+                profiles: {
+                  ...(participant.profiles || {}),
+                  id: updatedRider.id,
+                  full_name: updatedRider.full_name ?? participant.profiles?.full_name,
+                  avatar_url: updatedRider.avatar_url ?? participant.profiles?.avatar_url,
+                  role: updatedRider.role ?? participant.profiles?.role,
+                  is_online: updatedRider.is_online,
+                  last_seen: updatedRider.last_seen
+                }
+              };
+            })
+          };
+        });
+      });
+    } catch (err) {
+      console.error('Error loading thread:', err);
+      setError(err.message || 'Failed to load thread');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+
+    if (!newMessage.trim() || !user?.id) return;
+
+    setSending(true);
+    const messageText = newMessage.trim();
+    const tempMessageId = `temp-${Date.now()}`;
+
+    const optimisticMessage = {
+      id: tempMessageId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content: messageText,
+      created_at: new Date().toISOString()
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage('');
+
+    const result = await chatService.sendMessage(conversationId, user.id, messageText);
+    setSending(false);
+
+    if (!result.success) {
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
+      setNewMessage(messageText);
+      setError(result.error || 'Failed to send message');
+      return;
+    }
+
+    setMessages((prev) => {
+      const replaced = prev.map((msg) => (msg.id === tempMessageId ? result.message : msg));
+      const unique = [];
+      const seen = new Set();
+
+      for (const msg of replaced) {
+        if (!msg?.id || seen.has(msg.id)) continue;
+        seen.add(msg.id);
+        unique.push(msg);
+      }
+
+      return unique;
+    });
+  };
+
+  const getOtherParticipant = () => {
+    if (!conversation?.conversation_participants) return null;
+    return conversation.conversation_participants.find((p) => p.user_id !== user?.id);
+  };
+
+  const otherParticipant = getOtherParticipant();
+  const otherProfile = otherParticipant?.profiles || null;
+  const isOtherOnline = Boolean(otherProfile?.is_online);
+  const lastSeenText = useMemo(() => {
+    if (!otherProfile?.last_seen) return null;
+    return formatDistanceToNow(new Date(otherProfile.last_seen), { addSuffix: true });
+  }, [otherProfile?.last_seen]);
+
+  if (loading) {
+    return (
+      <div className="chat-thread-container">
+        <div className="chat-thread-loading">
+          <p>Loading conversation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chat-thread-container">
+      <div className="chat-thread-header">
+        <button className="btn-back" onClick={() => navigate(location.state?.backTo || '/chat')}>
+          <ChevronLeft size={18} />
+          Back
+        </button>
+
+        <div className="chat-thread-title">
+          <div className="thread-avatar-wrap">
+            {otherProfile?.avatar_url ? (
+              <img src={otherProfile.avatar_url} alt={otherProfile.full_name || 'Rider'} className="thread-avatar" />
+            ) : (
+              <div className="thread-avatar thread-avatar-fallback">
+                {getInitials(otherProfile?.full_name)}
+              </div>
+            )}
+            <span className={`thread-presence ${isOtherOnline ? 'online' : 'offline'}`} />
+          </div>
+
+          <div className="thread-title-copy">
+            <div className="thread-title-row">
+              <h2>{otherProfile?.full_name || 'Unknown rider'}</h2>
+              <span className={`thread-status-badge ${isOtherOnline ? 'online' : 'offline'}`}>
+                <Circle size={8} fill="currentColor" />
+                {isOtherOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
+
+            <p className="thread-subtitle">
+              {conversation?.type === 'admin_rider' ? 'Admin support chat' : 'Rider conversation'}
+            </p>
+
+            <div className="thread-meta-row">
+              {conversation?.type === 'customer_rider' && conversation?.orders && (
+                <span className="order-info">
+                  Order #{conversation.orders.id?.slice(0, 8)}
+                </span>
+              )}
+              {lastSeenText && (
+                <span className="thread-meta-note">Last seen {lastSeenText}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
+
+      <div className="chat-messages">
+        {messages.length === 0 ? (
+          <div className="chat-empty-messages">
+            <div className="empty-state-card">
+              <Sparkles size={18} />
+              <p>No messages yet. Start the conversation.</p>
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const isCurrentUser = msg.sender_id === user?.id;
+            return (
+              <div key={msg.id} className={`message ${isCurrentUser ? 'current-user' : ''}`}>
+                <div className="message-bubble">
+                  {!isCurrentUser && (
+                    <div className="message-sender">{msg.profiles?.full_name || 'Unknown'}</div>
+                  )}
+                  <p className="message-content">{msg.content}</p>
+                  <span className="message-time">
+                    {format(new Date(msg.created_at), 'HH:mm')}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form className="chat-input-form" onSubmit={handleSendMessage}>
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder={`Message ${otherProfile?.full_name || 'rider'}...`}
+          disabled={sending}
+          maxLength={1000}
+        />
+        <button
+          type="submit"
+          disabled={!newMessage.trim() || sending}
+          className="btn btn-send"
+        >
+          {sending ? '...' : <><Send size={16} /> Send</>}
+        </button>
+      </form>
+    </div>
+  );
+}

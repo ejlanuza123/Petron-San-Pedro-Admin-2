@@ -17,6 +17,8 @@ import Reservations from './pages/Reservations';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Products from './pages/Products';
+import ChatInbox from './pages/ChatInbox';
+import ChatThread from './pages/ChatThread';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PasswordResetSuccess from './pages/PasswordResetSuccess';
@@ -80,6 +82,8 @@ function App() {
                       <Route path="riders" element={<Riders />} />
                       <Route path="reports" element={<Reports />} />
                       <Route path="reservations" element={<Reservations />} />
+                      <Route path="chat" element={<ChatInbox />} />
+                      <Route path="chat/:conversationId" element={<ChatThread />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="audit-logs" element={<AuditLogs />} />
                     </Route>
