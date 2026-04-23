@@ -42,7 +42,7 @@ describe('chatService (admin-web)', () => {
         ]
       };
 
-      vi.spyOn(chatService, 'getConversations').mockResolvedValue({
+      vi.spyOn(chatService, 'getConversations').mockResolvedValueOnce({
         success: true,
         conversations: [mockConversation]
       });
@@ -62,7 +62,7 @@ describe('chatService (admin-web)', () => {
         created_at: '2026-04-20T00:00:00Z'
       };
 
-      vi.spyOn(chatService, 'getConversations').mockResolvedValue({
+      vi.spyOn(chatService, 'getConversations').mockResolvedValueOnce({
         success: true,
         conversations: []
       });
@@ -188,7 +188,7 @@ describe('chatService (admin-web)', () => {
           conversations: { updated_at: '2026-04-20T12:00:00Z' }
         },
         {
-          last_seen_at: '2026-04-20T00:00:00Z',
+          last_seen_at: '2026-04-20T13:00:00Z',
           conversations: { updated_at: '2026-04-20T12:00:00Z' }
         }
       ];
@@ -262,6 +262,62 @@ describe('chatService (admin-web)', () => {
 
       expect(supabase.channel).toHaveBeenCalledWith('unread-changes-user-1');
       expect(mockOn).toHaveBeenCalledTimes(3);
+      expect(typeof unsubscribe).toBe('function');
+    });
+  });
+
+  describe('subscribeToTyping', () => {
+    it('subscribes to typing presence and exposes controls', () => {
+      const mockUnsubscribe = vi.fn();
+      const mockTrack = vi.fn().mockResolvedValue(undefined);
+      const mockUntrack = vi.fn();
+
+      const channel = {
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockReturnValue({ unsubscribe: mockUnsubscribe }),
+        presenceState: vi.fn().mockReturnValue({}),
+        track: mockTrack,
+        untrack: mockUntrack,
+        unsubscribe: mockUnsubscribe
+      };
+
+      supabase.channel.mockReturnValue(channel);
+
+      const callback = vi.fn();
+      const typing = chatService.subscribeToTyping('conv-1', 'user-1', callback);
+
+      expect(supabase.channel).toHaveBeenCalledWith('typing-conv-1', {
+        config: { presence: { key: 'user-1' } }
+      });
+      expect(channel.on).toHaveBeenCalledTimes(3);
+      expect(typeof typing.setTyping).toBe('function');
+      expect(typeof typing.unsubscribe).toBe('function');
+
+      typing.setTyping(true);
+      typing.unsubscribe();
+
+      expect(mockUntrack).toHaveBeenCalled();
+      expect(mockUnsubscribe).toHaveBeenCalled();
+    });
+  });
+
+  describe('subscribeToConversationParticipantSeen', () => {
+    it('subscribes to participant seen updates', () => {
+      const mockUnsubscribe = vi.fn();
+      const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+      const mockOn = vi.fn().mockReturnThis();
+
+      supabase.channel.mockReturnValue({
+        on: mockOn,
+        subscribe: mockSubscribe,
+        unsubscribe: mockUnsubscribe
+      });
+
+      const callback = vi.fn();
+      const unsubscribe = chatService.subscribeToConversationParticipantSeen('conv-1', callback);
+
+      expect(supabase.channel).toHaveBeenCalledWith('conversation-seen-conv-1');
+      expect(mockOn).toHaveBeenCalledTimes(1);
       expect(typeof unsubscribe).toBe('function');
     });
   });

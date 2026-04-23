@@ -9,6 +9,19 @@ import '../styles/ChatInbox.css';
 import { formatDistanceToNow } from 'date-fns';
 
 const PRESENCE_FALLBACK_MINUTES = 2;
+const RECONCILE_INTERVAL_MS = 75000;
+
+const toMillis = (value) => {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+};
+
+const isConversationUnread = (conversation) => {
+  const lastSeenMs = toMillis(conversation?.lastSeenAt);
+  const updatedMs = toMillis(conversation?.updated_at);
+  if (lastSeenMs === null || updatedMs === null) return false;
+  return lastSeenMs < updatedMs;
+};
 
 const isRiderOnline = (rider) => {
   // Source of truth: backend-maintained realtime presence flag.
@@ -50,29 +63,59 @@ export default function ChatInbox() {
   const [chatInFlightRiderId, setChatInFlightRiderId] = useState(null);
   const [riderSearch, setRiderSearch] = useState('');
   const [selectedRiderId, setSelectedRiderId] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const conversationUnsubscribeRef = useRef(null);
   const riderUnsubscribeRef = useRef(null);
   const unreadUnsubscribeRef = useRef(null);
+  const syncTimerRef = useRef(null);
+  const bootstrapCompleteRef = useRef(false);
+  const stickyUnreadRef = useRef(new Set());
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (options = {}) => {
+    const { showLoader = true } = options;
     if (!user?.id) return;
 
-    setLoadingConversations(true);
+    if (showLoader) {
+      setLoadingConversations(true);
+    }
     setError(null);
 
     const result = await chatService.getConversations(user.id, 100);
     if (result.success) {
-      setConversations(result.conversations);
+      setConversations(() => {
+        const nextConversations = (result.conversations || []).map((conversation) => {
+          const conversationKey = String(conversation.conversationId);
+          const computedUnread = Boolean(conversation.isUnread || isConversationUnread(conversation));
+          const stickyUnread = stickyUnreadRef.current.has(conversationKey);
+          const nextUnread = computedUnread || stickyUnread;
+
+          if (nextUnread) {
+            stickyUnreadRef.current.add(conversationKey);
+          }
+
+          return {
+            ...conversation,
+            isUnread: nextUnread
+          };
+        });
+
+        return nextConversations;
+      });
     } else {
       setError(result.error || 'Failed to load conversations');
     }
 
-    setLoadingConversations(false);
+    if (showLoader) {
+      setLoadingConversations(false);
+    }
   }, [user?.id]);
 
-  const loadRiders = useCallback(async () => {
+  const loadRiders = useCallback(async (options = {}) => {
+    const { showLoader = true } = options;
     try {
-      setLoadingRiders(true);
+      if (showLoader) {
+        setLoadingRiders(true);
+      }
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, is_online, last_seen, phone_number, role, vehicle_type, vehicle_plate')
@@ -85,28 +128,163 @@ export default function ChatInbox() {
       console.error('Error loading riders:', err);
       setError(err.message || 'Failed to load riders');
     } finally {
-      setLoadingRiders(false);
+      if (showLoader) {
+        setLoadingRiders(false);
+      }
     }
   }, []);
+
+  const applyRealtimeConversationUpdate = useCallback((event) => {
+    const row = event?.payload?.new;
+    if (!row) return false;
+
+    if (event.source === 'participants') {
+      const conversationId = row.conversation_id;
+      if (!conversationId) return false;
+
+      let didChange = false;
+
+      setConversations((prev) => {
+        let changed = false;
+        const next = prev.map((conversation) => {
+          if (String(conversation.conversationId) !== String(conversationId)) {
+            return conversation;
+          }
+
+          const previousLastSeenAt = conversation.lastSeenAt;
+          const nextLastSeenAt = row.last_seen_at || conversation.lastSeenAt;
+          const nextUnread = isConversationUnread({
+            ...conversation,
+            lastSeenAt: nextLastSeenAt
+          });
+          const conversationKey = String(conversation.conversationId);
+
+          if (previousLastSeenAt === nextLastSeenAt) {
+            return conversation;
+          }
+
+          changed = true;
+
+          return {
+            ...conversation,
+            lastSeenAt: nextLastSeenAt,
+            isUnread: Boolean(conversation.isUnread || nextUnread || stickyUnreadRef.current.has(conversationKey))
+          };
+        });
+
+        didChange = changed;
+        return changed ? next : prev;
+      });
+
+      return didChange;
+    }
+
+    if (event.source === 'messages') {
+      const conversationId = row.conversation_id;
+      if (!conversationId) return false;
+
+      let didChange = false;
+
+      setConversations((prev) => {
+        const index = prev.findIndex(
+          (conversation) => String(conversation.conversationId) === String(conversationId)
+        );
+
+        if (index === -1) return prev;
+
+        const next = [...prev];
+        const existing = next[index];
+        const updatedAt = row.created_at || existing.updated_at;
+        const lastSeenAt = row.sender_id === user?.id ? updatedAt : existing.lastSeenAt;
+        const nextUnread = row.sender_id === user?.id ? false : true;
+        const conversationKey = String(existing.conversationId);
+
+        if (nextUnread) {
+          stickyUnreadRef.current.add(conversationKey);
+        }
+        const patched = {
+          ...existing,
+          updated_at: updatedAt,
+          last_message: row.content || existing.last_message,
+          lastSeenAt,
+          isUnread: nextUnread
+        };
+
+        next.splice(index, 1);
+        didChange = true;
+        return [patched, ...next];
+      });
+
+      return didChange;
+    }
+
+    return false;
+  }, [user?.id]);
+
+  const handleRealtimeResync = useCallback(() => {
+    if (!bootstrapCompleteRef.current) {
+      return;
+    }
+
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+    }
+
+    syncTimerRef.current = setTimeout(() => {
+      setIsSyncing(true);
+    }, 500);
+
+    Promise.all([
+      loadConversations({ showLoader: false }),
+      loadRiders({ showLoader: false })
+    ]).finally(() => {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      setIsSyncing(false);
+    });
+  }, [loadConversations, loadRiders]);
 
   useEffect(() => {
     if (!user?.id) return;
 
-    loadConversations();
-    loadRiders();
+    const bootstrap = async () => {
+      await Promise.all([loadConversations(), loadRiders()]);
+      bootstrapCompleteRef.current = true;
+    };
+
+    bootstrap();
 
     conversationUnsubscribeRef.current = chatService.subscribeToConversations(
       user.id,
       (newConversation) => {
         setConversations((prev) => {
-          const next = prev.filter((conversation) => conversation.conversationId !== newConversation.id);
-          return [newConversation, ...next];
+          const participants = newConversation.conversation_participants || newConversation.participants || [];
+          const ownParticipant = participants.find((participant) => participant.user_id === user.id);
+          const lastSeenAt = ownParticipant?.last_seen_at || newConversation.updated_at;
+          const normalizedConversation = {
+            conversationId: newConversation.id,
+            ...newConversation,
+            participants,
+            lastSeenAt,
+            isUnread: isConversationUnread({
+              ...newConversation,
+              lastSeenAt
+            })
+          };
+
+          const next = prev.filter((conversation) => conversation.conversationId !== normalizedConversation.conversationId);
+          return [normalizedConversation, ...next];
         });
       }
     );
 
-    unreadUnsubscribeRef.current = chatService.subscribeToUnreadChanges(user.id, () => {
-      loadConversations();
+    unreadUnsubscribeRef.current = chatService.subscribeToUnreadChanges(user.id, (event) => {
+      const handled = applyRealtimeConversationUpdate(event);
+      if (!handled) {
+        loadConversations({ showLoader: false });
+      }
     });
 
     riderUnsubscribeRef.current = chatService.subscribeToRiders((changedRider) => {
@@ -141,14 +319,59 @@ export default function ChatInbox() {
         unreadUnsubscribeRef.current();
         unreadUnsubscribeRef.current = null;
       }
+
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+
+      bootstrapCompleteRef.current = false;
     };
-  }, [user?.id, loadConversations, loadRiders]);
+  }, [user?.id, loadConversations, loadRiders, applyRealtimeConversationUpdate]);
 
   useEffect(() => {
     if (!selectedRiderId && riders.length > 0) {
       setSelectedRiderId(riders[0].id);
     }
   }, [riders, selectedRiderId]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleRealtimeResync();
+      }
+    };
+
+    const onOnline = () => {
+      handleRealtimeResync();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [handleRealtimeResync]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (!bootstrapCompleteRef.current) {
+        return;
+      }
+
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      handleRealtimeResync();
+    }, RECONCILE_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [handleRealtimeResync]);
 
   const filteredRiders = useMemo(() => {
     const query = riderSearch.trim().toLowerCase();
@@ -164,6 +387,11 @@ export default function ChatInbox() {
   const onlineRidersCount = useMemo(
     () => riders.filter((rider) => isRiderOnline(rider)).length,
     [riders]
+  );
+
+  const unreadConversationCount = useMemo(
+    () => conversations.filter((conversation) => Boolean(conversation.isUnread || isConversationUnread(conversation))).length,
+    [conversations]
   );
 
   const selectedRider = useMemo(
@@ -182,14 +410,33 @@ export default function ChatInbox() {
     setChatInFlightRiderId(null);
 
     if (result.success) {
+      if (result.conversation?.id) {
+        stickyUnreadRef.current.delete(String(result.conversation.id));
+      }
       navigate(`/chat/${result.conversation.id}`, { state: { backTo: '/chat' } });
     } else {
       setError(result.error || 'Failed to start chat with rider');
     }
   }, [user?.id, navigate]);
 
+  const handleOpenConversation = useCallback((conversationId) => {
+    const conversationKey = String(conversationId);
+    stickyUnreadRef.current.delete(conversationKey);
+
+    setConversations((prev) => prev.map((conversation) => (
+      String(conversation.conversationId) === conversationKey
+        ? { ...conversation, isUnread: false }
+        : conversation
+    )));
+
+    navigate(`/chat/${conversationId}`);
+  }, [navigate]);
+
   const handleRefresh = async () => {
-    await Promise.all([loadConversations(), loadRiders()]);
+    await Promise.all([
+      loadConversations({ showLoader: false }),
+      loadRiders({ showLoader: false })
+    ]);
   };
 
   const getOtherParticipant = (conversation) => {
@@ -227,6 +474,7 @@ export default function ChatInbox() {
           <button className="btn btn-refresh hero-refresh" onClick={handleRefresh} disabled={loadingConversations || loadingRiders}>
             Refresh now
           </button>
+          {isSyncing && <span className="hero-syncing-pill">Syncing...</span>}
         </div>
       </div>
 
@@ -335,6 +583,7 @@ export default function ChatInbox() {
               <h2>Conversations</h2>
               <p>Keep track of active rider support threads</p>
             </div>
+            <span className="panel-count panel-count-alert">{unreadConversationCount}</span>
           </div>
 
           <div className="conversation-list">
@@ -350,18 +599,19 @@ export default function ChatInbox() {
             ) : (
               conversations.map((conversation) => {
                 const other = getOtherParticipant(conversation);
+                const conversationTitle = conversation.custom_name || other?.full_name || 'Unknown';
                 const label = getConversationLabel(conversation);
                 const timeAgo = formatDistanceToNow(new Date(conversation.updated_at), {
                   addSuffix: true
                 });
-                const isUnread = conversation.isUnread;
+                const isUnread = Boolean(conversation.isUnread);
 
                 return (
                   <button
                     key={conversation.conversationId}
                     type="button"
                     className={`chat-item ${isUnread ? 'unread' : ''}`}
-                    onClick={() => navigate(`/chat/${conversation.conversationId}`)}
+                    onClick={() => handleOpenConversation(conversation.conversationId)}
                   >
                     <div className="chat-item-avatar">
                       {other?.avatar_url ? (
@@ -375,7 +625,7 @@ export default function ChatInbox() {
 
                     <div className="chat-item-content">
                       <div className="chat-item-header">
-                        <span className="chat-name">{other?.full_name || 'Unknown'}</span>
+                        <span className="chat-name">{conversationTitle}</span>
                         <span className="chat-time">{timeAgo}</span>
                       </div>
                       <div className="chat-item-meta">
