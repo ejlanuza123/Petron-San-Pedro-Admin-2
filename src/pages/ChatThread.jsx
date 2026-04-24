@@ -457,9 +457,15 @@ export default function ChatThread() {
   }, [otherParticipant?.last_seen_at]);
   const isOtherOnline = Boolean(otherProfile?.is_online);
   const lastSeenText = useMemo(() => {
+    if (otherLastSeenAt) {
+      return formatDistanceToNow(otherLastSeenAt, { addSuffix: true });
+    }
+
     if (!otherProfile?.last_seen) return null;
-    return formatDistanceToNow(new Date(otherProfile.last_seen), { addSuffix: true });
-  }, [otherProfile?.last_seen]);
+    const fallback = new Date(otherProfile.last_seen);
+    if (Number.isNaN(fallback.getTime())) return null;
+    return formatDistanceToNow(fallback, { addSuffix: true });
+  }, [otherLastSeenAt, otherProfile?.last_seen]);
 
   if (loading) {
     return (

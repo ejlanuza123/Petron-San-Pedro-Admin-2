@@ -69,6 +69,7 @@ export default function ChatInbox() {
   const unreadUnsubscribeRef = useRef(null);
   const syncTimerRef = useRef(null);
   const bootstrapCompleteRef = useRef(false);
+  const pendingRealtimeRefreshRef = useRef(false);
   const stickyUnreadRef = useRef(new Set());
 
   const loadConversations = useCallback(async (options = {}) => {
@@ -252,6 +253,11 @@ export default function ChatInbox() {
     const bootstrap = async () => {
       await Promise.all([loadConversations(), loadRiders()]);
       bootstrapCompleteRef.current = true;
+
+      if (pendingRealtimeRefreshRef.current) {
+        pendingRealtimeRefreshRef.current = false;
+        loadConversations({ showLoader: false });
+      }
     };
 
     bootstrap();
@@ -281,8 +287,13 @@ export default function ChatInbox() {
     );
 
     unreadUnsubscribeRef.current = chatService.subscribeToUnreadChanges(user.id, (event) => {
+      if (!bootstrapCompleteRef.current) {
+        pendingRealtimeRefreshRef.current = true;
+        return;
+      }
+
       const handled = applyRealtimeConversationUpdate(event);
-      if (!handled) {
+      if (!handled && event?.source === 'participants') {
         loadConversations({ showLoader: false });
       }
     });
@@ -325,6 +336,7 @@ export default function ChatInbox() {
         syncTimerRef.current = null;
       }
 
+      pendingRealtimeRefreshRef.current = false;
       bootstrapCompleteRef.current = false;
     };
   }, [user?.id, loadConversations, loadRiders, applyRealtimeConversationUpdate]);
