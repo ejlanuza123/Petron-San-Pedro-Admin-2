@@ -69,6 +69,35 @@ export default function FloatingChatBubble({ userId }) {
     };
   }, [userId, refreshUnreadCount]);
 
+  useEffect(() => {
+    if (!userId || hiddenOnChatRoute) return;
+    refreshUnreadCount();
+  }, [userId, hiddenOnChatRoute, location.pathname, refreshUnreadCount]);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !hiddenOnChatRoute) {
+        refreshUnreadCount();
+      }
+    };
+
+    const handleFocus = () => {
+      if (!hiddenOnChatRoute) {
+        refreshUnreadCount();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [userId, hiddenOnChatRoute, refreshUnreadCount]);
+
   const handlePointerDown = (event) => {
     dragStateRef.current = {
       active: true,
