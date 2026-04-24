@@ -6,6 +6,18 @@ import { chatService } from '../../services/chatService';
 const BASE_BOTTOM_PX = 24;
 const RIGHT_PX = 24;
 
+const toMillis = (value) => {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+};
+
+const isConversationUnread = (conversation) => {
+  const lastSeenMs = toMillis(conversation?.lastSeenAt);
+  const updatedMs = toMillis(conversation?.updated_at);
+  if (lastSeenMs === null || updatedMs === null) return false;
+  return lastSeenMs < updatedMs;
+};
+
 export default function FloatingChatBubble({ userId }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,9 +36,17 @@ export default function FloatingChatBubble({ userId }) {
   const refreshUnreadCount = useCallback(async () => {
     if (!userId) return;
 
-    const result = await chatService.getTotalUnreadCount(userId);
+    const result = await chatService.getConversations(userId, 100);
     if (result.success) {
-      setUnreadCount(result.totalUnreadCount || 0);
+      const unread = (result.conversations || []).filter((conversation) => {
+        if (typeof conversation?.isUnread === 'boolean') {
+          return conversation.isUnread;
+        }
+
+        return isConversationUnread(conversation);
+      }).length;
+
+      setUnreadCount(unread);
     }
   }, [userId]);
 
