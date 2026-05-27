@@ -12,6 +12,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const [riderInfo, setRiderInfo] = useState(null);
   const [loadingRider, setLoadingRider] = useState(false);
   const [cancellerName, setCancellerName] = useState(null);
+  const orderItems = order?.order_items || [];
+  const totalItemTypes = orderItems.length;
+  const totalQuantity = orderItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
   const fetchCancellerName = useCallback(async () => {
     if (!order?.cancelled_by) {
@@ -284,7 +287,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               </h3>
               
               {order.order_items && order.order_items.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-3 print:hidden">
                   {order.order_items.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
@@ -307,6 +310,16 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               ) : (
                 <p className="text-gray-500 text-center py-4">No items found</p>
               )}
+
+              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="text-gray-600">Item Types</div>
+                  <div className="font-medium text-gray-900 text-right">{totalItemTypes}</div>
+                  <div className="text-gray-600">Total Quantity</div>
+                  <div className="font-medium text-gray-900 text-right">{totalQuantity}</div>
+                </div>
+              </div>
 
               {/* Order Summary */}
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
