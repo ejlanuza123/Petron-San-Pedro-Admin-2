@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, Phone, User } from 'lucide-react';
 import { reservationService } from '../services/reservationService';
 
@@ -27,9 +28,40 @@ function formatTime(isoDateTime) {
   });
 }
 
+function parseDateKey(value) {
+  if (!value) return '';
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return '';
+
+  return toDateKey(parsedDate);
+}
+
 export default function Reservations() {
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
+  const location = useLocation();
+  const initialSelectedDateKey = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+
+    return parseDateKey(
+      searchParams.get('date')
+      || location.state?.focusDateKey
+      || location.state?.scheduled_at
+      || location.state?.reservationDate
+    );
+  }, [location.search, location.state?.focusDateKey, location.state?.reservationDate, location.state?.scheduled_at]);
+
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    if (initialSelectedDateKey) {
+      return new Date(`${initialSelectedDateKey}T00:00:00`);
+    }
+
+    return new Date();
+  });
+  const [selectedDateKey, setSelectedDateKey] = useState(() => initialSelectedDateKey || toDateKey(new Date()));
   const [monthRows, setMonthRows] = useState([]);
   const [dayReservations, setDayReservations] = useState([]);
   const [loadingMonth, setLoadingMonth] = useState(true);
@@ -100,6 +132,13 @@ export default function Reservations() {
   useEffect(() => {
     loadDay();
   }, [loadDay]);
+
+  useEffect(() => {
+    if (!initialSelectedDateKey) return;
+
+    setCurrentMonth(new Date(`${initialSelectedDateKey}T00:00:00`));
+    setSelectedDateKey(initialSelectedDateKey);
+  }, [initialSelectedDateKey]);
 
   useEffect(() => {
     const subscription = reservationService.subscribe(() => {

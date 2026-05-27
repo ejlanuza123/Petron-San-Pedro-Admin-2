@@ -95,6 +95,28 @@ const formatNotificationTime = (timestamp) => {
   return createdAt.toLocaleDateString();
 };
 
+const getReservationDateKey = (notificationData = {}) => {
+  const rawDate = notificationData.scheduled_at
+    || notificationData.reservation_date
+    || notificationData.reserved_date
+    || notificationData.date;
+
+  if (!rawDate) return '';
+
+  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    return rawDate;
+  }
+
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) return '';
+
+  const year = parsedDate.getFullYear();
+  const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0');
+  const day = `${parsedDate.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
 const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, onNotificationClick, requestNotificationPermission, className = '', placement = 'bottom-right', buttonClassName = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const previewNotifications = notifications.slice(0, 8);
@@ -664,11 +686,28 @@ export default function Layout() {
     const data = notification?.data || {};
     const event = data?.event || '';
     const focusNonce = Date.now();
+    const reservationDateKey = getReservationDateKey(data);
+    const reservationId = data?.reservation_id ? Number(data.reservation_id) : null;
 
     const orderId = data?.order_id ? Number(data.order_id) : null;
     const productId = data?.product_id ? Number(data.product_id) : null;
     const riderId = data?.rider_id || data?.assigned_rider_id || null;
     const customerId = data?.user_id || data?.customer_id || null;
+
+    if (event.startsWith('reservation') || type.includes('reservation') || reservationDateKey) {
+      const searchParams = new URLSearchParams();
+      if (reservationDateKey) searchParams.set('date', reservationDateKey);
+      if (Number.isFinite(reservationId)) searchParams.set('reservationId', String(reservationId));
+
+      navigate(`/reservations${searchParams.toString() ? `?${searchParams.toString()}` : ''}`, {
+        state: {
+          focusDateKey: reservationDateKey || null,
+          focusReservationId: Number.isFinite(reservationId) ? reservationId : null,
+          focusNonce
+        }
+      });
+      return;
+    }
 
     if (data?.order_id || type.includes('order') || event.includes('order')) {
       navigate('/orders', {

@@ -94,7 +94,14 @@ export function useOrders() {
           cancelled_at: newStatus === 'Cancelled' ? new Date().toISOString() : existingOrder?.cancelled_at
         }
       );
-      const description = formatChangesDescription(changes) || `Status updated to ${newStatus}`;
+      const orderLabel = existingOrder?.order_number ? `Order ${existingOrder.order_number}` : 'Order';
+      let description = formatChangesDescription(changes) || `${orderLabel} status updated to ${newStatus}`;
+
+      if (newStatus === 'Cancelled') {
+        const cancelledByLabel = options?.cancelledByName || 'Admin';
+        const reasonText = options?.cancellationReason || existingOrder?.cancellation_reason || 'Unspecified';
+        description = `${orderLabel} cancelled: status ${oldStatus || 'Unknown'} → Cancelled, cancellation reason ${reasonText}, cancelled by ${cancelledByLabel}`;
+      }
 
       await logOrderAction(orderId, 'update_status', changes, description);
       notifySuccess(description);

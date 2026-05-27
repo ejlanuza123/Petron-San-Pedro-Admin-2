@@ -1,5 +1,42 @@
 import { supabase } from '../lib/supabase';
 
+const getReservationDateKey = (notificationData = {}) => {
+  const rawDate = notificationData.scheduled_at
+    || notificationData.reservation_date
+    || notificationData.reserved_date
+    || notificationData.date;
+
+  if (!rawDate) return '';
+
+  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    return rawDate;
+  }
+
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) return '';
+
+  const year = parsedDate.getFullYear();
+  const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0');
+  const day = `${parsedDate.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const buildReservationClickUrl = (notificationData = {}) => {
+  const reservationDateKey = getReservationDateKey(notificationData);
+  const reservationId = notificationData.reservation_id ? Number(notificationData.reservation_id) : null;
+
+  if (!notificationData?.event?.startsWith('reservation') && !reservationDateKey) {
+    return '';
+  }
+
+  const searchParams = new URLSearchParams();
+  if (reservationDateKey) searchParams.set('date', reservationDateKey);
+  if (Number.isFinite(reservationId)) searchParams.set('reservationId', String(reservationId));
+
+  return `/reservations${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+};
+
 export const pushNotificationService = {
   getPermissionState() {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -40,11 +77,29 @@ export const pushNotificationService = {
     if (Notification.permission !== 'granted') return false;
 
     try {
-      new Notification(title, {
+      const notification = new Notification(title, {
         icon: '/petron-logo.png',
         badge: '/petron-logo.png',
         ...options
       });
+
+      const clickHandler = typeof options.onClick === 'function'
+        ? options.onClick
+        : options.clickUrl
+          ? () => {
+              window.focus();
+              window.location.assign(options.clickUrl);
+            }
+          : null;
+
+      if (clickHandler) {
+        notification.onclick = (event) => {
+          event?.preventDefault?.();
+          clickHandler();
+          notification.close();
+        };
+      }
+
       return true;
     } catch (error) {
       console.error('Failed to send notification:', error);
@@ -75,7 +130,8 @@ export const pushNotificationService = {
       this.sendNotification(notificationData.title, {
         body: notificationData.message,
         tag: notificationData.type,
-        data: { notificationId: data.id, ...notificationData.data }
+        data: { notificationId: data.id, ...notificationData.data },
+        clickUrl: buildReservationClickUrl(notificationData.data)
       });
 
       return { success: true, data };
@@ -105,7 +161,8 @@ export const pushNotificationService = {
           this.sendNotification(payload.new.title, {
             body: payload.new.message,
             tag: payload.new.type,
-            data: { notificationId: payload.new.id, ...payload.new.data }
+            data: { notificationId: payload.new.id, ...payload.new.data },
+            clickUrl: buildReservationClickUrl(payload.new.data)
           });
         }
       )

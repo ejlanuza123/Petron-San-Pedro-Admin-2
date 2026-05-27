@@ -378,11 +378,18 @@ export default function Orders() {
   const confirmCancellation = useCallback(async () => {
     if (!pendingStatusUpdate) return;
 
+    const cancelledByName =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email ||
+      'Admin';
+
     try {
       await updateStatus(pendingStatusUpdate.orderId, ORDER_STATUS.CANCELLED, {
         cancellationReason: cancelReason,
         cancellationNote: cancelNote,
-        cancelledBy: user?.id || null
+        cancelledBy: user?.id || null,
+        cancelledByName
       });
 
       setShowCancellationDialog(false);
@@ -392,7 +399,7 @@ export default function Orders() {
     } catch {
       // Error is handled by hook
     }
-  }, [pendingStatusUpdate, updateStatus, cancelReason, cancelNote, user?.id]);
+  }, [pendingStatusUpdate, updateStatus, cancelReason, cancelNote, user?.id, user?.email, user?.user_metadata]);
 
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
