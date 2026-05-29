@@ -15,6 +15,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const orderItems = order?.order_items || [];
   const totalItemTypes = orderItems.length;
   const totalQuantity = orderItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  const totalGrandAmount = (order?.total_amount || 0) + (order?.delivery_fee || 0);
 
   const fetchCancellerName = useCallback(async () => {
     if (!order?.cancelled_by) {
@@ -122,32 +123,45 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   if (!isOpen || !order) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm print:static print:inset-auto print:bg-white print:p-0 print:backdrop-blur-0">
+      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl print:rounded-none print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:w-full print:border-0">
+        <div className="hidden print:block px-8 pt-8 pb-4 border-b border-gray-300">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Order Document</h1>
+              <p className="text-sm text-gray-600 mt-1">{formatDate(order.created_at)}</p>
+            </div>
+            <div className="text-right text-sm text-gray-600">
+              <p className="font-semibold text-gray-900">Order {formatOrderNumber(order.order_number, order.id)}</p>
+              <p>{order.status}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b bg-blue-600">
+        <div className="flex justify-between items-center p-6 border-b bg-blue-600 print:bg-white print:text-gray-900 print:border-b print:px-8 print:pt-6 print:pb-4">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center">
-              <Hash className="mr-2" size={20} />
+            <h2 className="text-xl font-bold text-white flex items-center print:text-gray-900">
+              <Hash className="mr-2 print:hidden" size={20} />
               Order {formatOrderNumber(order.order_number, order.id)}
             </h2>
-            <p className="text-sm text-blue-100 mt-1">
+            <p className="text-sm text-blue-100 mt-1 print:text-gray-600">
               <Calendar className="inline mr-1" size={14} />
               {formatDate(order.created_at)}
             </p>
           </div>
           <button 
             onClick={onClose} 
-            className="p-2 hover:bg-blue-500 rounded-full transition text-white"
+            className="p-2 hover:bg-blue-500 rounded-full transition text-white print:hidden"
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] print:max-h-none print:overflow-visible print:px-8 print:py-6">
           <div className="space-y-6">
             {/* Status Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Current Status</p>
@@ -155,7 +169,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                     {order.status}
                   </span>
                 </div>
-                <div>
+                <div className="print:hidden">
                   <select
                     value={order.status}
                     onChange={(e) => onStatusChange(order.id, e.target.value)}
@@ -169,7 +183,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               </div>
 
               {(order.cancellation_reason || order.cancelled_at || order.cancelled_by) && (
-                <div className="mt-4 pt-4 border-t border-gray-200 space-y-1 text-sm">
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-1 text-sm print:break-inside-avoid">
                   {order.cancellation_reason && (
                     <p><span className="text-gray-500">Reason:</span> <span className="font-medium text-gray-900">{order.cancellation_reason}</span></p>
                   )}
@@ -187,8 +201,8 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
             </div>
 
             {/* Customer and Delivery Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-1 print:gap-4">
+              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <User size={18} className="mr-2 text-blue-600" />
                   Customer Information
@@ -207,7 +221,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 </div>
               </div>
 
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <MapPin size={18} className="mr-2 text-blue-600" />
                   Delivery Details
@@ -227,7 +241,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               </div>
 
               {/* Rider Information */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <Truck size={18} className="mr-2 text-blue-600" />
                   Rider Information
@@ -280,7 +294,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
             </div>
 
             {/* Order Items */}
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                 <Package size={18} className="mr-2 text-blue-600" />
                 Order Items
@@ -311,18 +325,20 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 <p className="text-gray-500 text-center py-4">No items found</p>
               )}
 
-              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white">
+              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white print:rounded-none print:break-inside-avoid">
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="text-gray-600">Item Types</div>
                   <div className="font-medium text-gray-900 text-right">{totalItemTypes}</div>
                   <div className="text-gray-600">Total Quantity</div>
                   <div className="font-medium text-gray-900 text-right">{totalQuantity}</div>
+                  <div className="text-gray-600">Grand Total</div>
+                  <div className="font-medium text-gray-900 text-right">{formatCurrency(totalGrandAmount)}</div>
                 </div>
               </div>
 
               {/* Order Summary */}
-              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3 print:break-inside-avoid">
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <span>Subtotal</span>
                   <span className="font-medium text-gray-900">{formatCurrency(order.total_amount)}</span>
@@ -336,7 +352,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span className="text-gray-700">Grand Total</span>
                   <span className="text-blue-600">
-                    {formatCurrency((order.total_amount || 0) + (order.delivery_fee || 0))}
+                    {formatCurrency(totalGrandAmount)}
                   </span>
                 </div>
               </div>
@@ -344,7 +360,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
 
             {/* Delivery Proof Section */}
             {order.status === 'Completed' && (
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <ImageIcon size={18} className="mr-2 text-blue-600" />
                   Proof of Delivery
@@ -436,7 +452,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         )}
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50">
+        <div className="p-6 border-t bg-gray-50 print:hidden">
           <div className="flex justify-end gap-3">
             <button 
               onClick={onClose}

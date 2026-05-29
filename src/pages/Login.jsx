@@ -47,12 +47,6 @@ export default function Login() {
 
       if (type === 'recovery') {
         setShowRecoveryModal(true);
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        setShowRecoveryModal(true);
       }
     };
 
