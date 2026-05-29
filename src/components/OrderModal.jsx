@@ -1,6 +1,8 @@
 // src/components/OrderModal.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Image as ImageIcon, Truck } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import petronLogo from '../assets/images/petron-logo.png';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
@@ -15,7 +17,161 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const orderItems = order?.order_items || [];
   const totalItemTypes = orderItems.length;
   const totalQuantity = orderItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const totalGrandAmount = (order?.total_amount || 0) + (order?.delivery_fee || 0);
+  const grandTotal = (Number(order?.total_amount) || 0) + (Number(order?.delivery_fee) || 0);
+
+  const formatPdfMoney = useCallback((value) => {
+    const numericValue = Number(value) || 0;
+    return `PHP ${numericValue.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }, []);
+
+  const handlePrintOrder = useCallback(async () => {
+    if (!order) return;
+
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 40;
+    const contentWidth = pageWidth - margin * 2;
+    let cursorY = 48;
+
+    const ensureSpace = (neededHeight = 24) => {
+      if (cursorY + neededHeight < pageHeight - 60) return;
+      pdf.addPage();
+      cursorY = 48;
+      drawHeader(false);
+    };
+
+    const writeLine = (text, x, y, options = {}) => {
+      pdf.text(String(text), x, y, options);
+    };
+
+    const loadImageData = async (imageSrc) => {
+      try {
+        const response = await fetch(imageSrc);
+        const blob = await response.blob();
+
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        return null;
+      }
+    };
+
+    const logoData = await loadImageData(petronLogo);
+
+    const drawHeader = (withTitle = true) => {
+      pdf.setFillColor(0, 51, 160);
+      pdf.rect(0, 0, pageWidth, 92, 'F');
+      if (logoData) {
+        pdf.addImage(logoData, 'PNG', margin, 14, 44, 44);
+      }
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(20);
+      if (withTitle) {
+        writeLine('Order Printout', margin + 58, 34);
+      }
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      writeLine(`Order ${formatOrderNumber(order.order_number, order.id)}`, margin + 58, 56);
+      writeLine(`Printed ${formatDate(new Date().toISOString())}`, margin + 58, 72);
+      pdf.setTextColor(34, 34, 34);
+      cursorY = 120;
+    };
+
+    const writeSectionTitle = (text) => {
+      ensureSpace(46);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 51, 160);
+      writeLine(text, margin, cursorY);
+      cursorY += 18;
+      pdf.setDrawColor(210);
+      pdf.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 18;
+      pdf.setTextColor(34, 34, 34);
+    };
+
+    const writeLabelValue = (label, value) => {
+      ensureSpace(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      writeLine(label, margin, cursorY);
+      pdf.setFont('helvetica', 'normal');
+      const valueText = Array.isArray(value) ? value.join(', ') : String(value ?? '-');
+      const wrapped = pdf.splitTextToSize(valueText, contentWidth * 0.68);
+      pdf.text(wrapped, margin + 150, cursorY);
+      cursorY += Math.max(wrapped.length * 12, 14);
+    };
+
+    const drawSummaryCard = (x, y, width, title, value, accent = [0, 51, 160]) => {
+      pdf.setFillColor(248, 250, 255);
+      pdf.roundedRect(x, y, width, 58, 10, 10, 'F');
+      pdf.setDrawColor(224, 232, 255);
+      pdf.roundedRect(x, y, width, 58, 10, 10, 'S');
+      pdf.setTextColor(...accent);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(title, x + 14, y + 20);
+      pdf.setTextColor(25, 28, 36);
+      pdf.setFontSize(13);
+      pdf.text(String(value), x + 14, y + 40);
+    };
+
+    drawHeader();
+
+    const summaryCardWidth = (contentWidth - 16) / 2;
+    drawSummaryCard(margin, cursorY, summaryCardWidth, 'Product Lines', totalItemTypes);
+    drawSummaryCard(margin + summaryCardWidth + 16, cursorY, summaryCardWidth, 'Total Items', totalQuantity, [16, 185, 129]);
+    cursorY += 78;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.setTextColor(25, 28, 36);
+    writeLine('Customer and Order Details', margin, cursorY);
+    cursorY += 14;
+
+    writeSectionTitle('Customer Information');
+    writeLabelValue('Name', order.profiles?.full_name || 'Guest');
+    writeLabelValue('Phone', formatPhoneNumber(order.profiles?.phone_number));
+    writeLabelValue('Address', order.delivery_address || '-');
+    writeLabelValue('Payment Method', order.payment_method || '-');
+    writeLabelValue('Status', order.status || '-');
+
+    cursorY += 10;
+    writeSectionTitle('Order Totals');
+    writeLabelValue('Product Lines', totalItemTypes);
+    writeLabelValue('Total Items', totalQuantity);
+    writeLabelValue('Subtotal', formatPdfMoney(order.total_amount || 0));
+    writeLabelValue('Delivery Fee', formatPdfMoney(order.delivery_fee || 0));
+    writeLabelValue('Grand Total', formatPdfMoney(grandTotal));
+
+    cursorY += 10;
+    writeSectionTitle('Notes');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    const notes = [
+      'This PDF is generated for printing.',
+      'Order item lines are summarized to keep the printout paper-friendly.',
+    ];
+    pdf.text(pdf.splitTextToSize(notes.join(' '), contentWidth), margin, cursorY);
+
+    pdf.setDrawColor(210);
+    pdf.line(margin, pageHeight - 48, pageWidth - margin, pageHeight - 48);
+    pdf.setFontSize(9);
+    pdf.setTextColor(90, 98, 110);
+    pdf.text('Generated by admin web print tool', margin, pageHeight - 28);
+
+    const fileName = `Order-${formatOrderNumber(order.order_number, order.id)}.pdf`;
+    pdf.save(fileName);
+  }, [order, totalItemTypes, totalQuantity, grandTotal, formatPdfMoney]);
 
   const fetchCancellerName = useCallback(async () => {
     if (!order?.cancelled_by) {
@@ -123,45 +279,32 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   if (!isOpen || !order) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm print:static print:inset-auto print:bg-white print:p-0 print:backdrop-blur-0">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl print:rounded-none print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:w-full print:border-0">
-        <div className="hidden print:block px-8 pt-8 pb-4 border-b border-gray-300">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Order Document</h1>
-              <p className="text-sm text-gray-600 mt-1">{formatDate(order.created_at)}</p>
-            </div>
-            <div className="text-right text-sm text-gray-600">
-              <p className="font-semibold text-gray-900">Order {formatOrderNumber(order.order_number, order.id)}</p>
-              <p>{order.status}</p>
-            </div>
-          </div>
-        </div>
-
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b bg-blue-600 print:bg-white print:text-gray-900 print:border-b print:px-8 print:pt-6 print:pb-4">
+        <div className="flex justify-between items-center p-6 border-b bg-blue-600">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center print:text-gray-900">
-              <Hash className="mr-2 print:hidden" size={20} />
+            <h2 className="text-xl font-bold text-white flex items-center">
+              <Hash className="mr-2" size={20} />
               Order {formatOrderNumber(order.order_number, order.id)}
             </h2>
-            <p className="text-sm text-blue-100 mt-1 print:text-gray-600">
+            <p className="text-sm text-blue-100 mt-1">
               <Calendar className="inline mr-1" size={14} />
               {formatDate(order.created_at)}
             </p>
           </div>
           <button 
             onClick={onClose} 
-            className="p-2 hover:bg-blue-500 rounded-full transition text-white print:hidden"
+            className="p-2 hover:bg-blue-500 rounded-full transition text-white"
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] print:max-h-none print:overflow-visible print:px-8 print:py-6">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
           <div className="space-y-6">
             {/* Status Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Current Status</p>
@@ -169,7 +312,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                     {order.status}
                   </span>
                 </div>
-                <div className="print:hidden">
+                <div>
                   <select
                     value={order.status}
                     onChange={(e) => onStatusChange(order.id, e.target.value)}
@@ -183,7 +326,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               </div>
 
               {(order.cancellation_reason || order.cancelled_at || order.cancelled_by) && (
-                <div className="mt-4 pt-4 border-t border-gray-200 space-y-1 text-sm print:break-inside-avoid">
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-1 text-sm">
                   {order.cancellation_reason && (
                     <p><span className="text-gray-500">Reason:</span> <span className="font-medium text-gray-900">{order.cancellation_reason}</span></p>
                   )}
@@ -201,8 +344,8 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
             </div>
 
             {/* Customer and Delivery Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-1 print:gap-4">
-              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <User size={18} className="mr-2 text-blue-600" />
                   Customer Information
@@ -221,7 +364,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 </div>
               </div>
 
-              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <MapPin size={18} className="mr-2 text-blue-600" />
                   Delivery Details
@@ -241,7 +384,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               </div>
 
               {/* Rider Information */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <Truck size={18} className="mr-2 text-blue-600" />
                   Rider Information
@@ -294,7 +437,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
             </div>
 
             {/* Order Items */}
-            <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                 <Package size={18} className="mr-2 text-blue-600" />
                 Order Items
@@ -325,20 +468,18 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 <p className="text-gray-500 text-center py-4">No items found</p>
               )}
 
-              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white print:rounded-none print:break-inside-avoid">
+              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white">
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="text-gray-600">Item Types</div>
                   <div className="font-medium text-gray-900 text-right">{totalItemTypes}</div>
                   <div className="text-gray-600">Total Quantity</div>
                   <div className="font-medium text-gray-900 text-right">{totalQuantity}</div>
-                  <div className="text-gray-600">Grand Total</div>
-                  <div className="font-medium text-gray-900 text-right">{formatCurrency(totalGrandAmount)}</div>
                 </div>
               </div>
 
               {/* Order Summary */}
-              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3 print:break-inside-avoid">
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <span>Subtotal</span>
                   <span className="font-medium text-gray-900">{formatCurrency(order.total_amount)}</span>
@@ -352,7 +493,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span className="text-gray-700">Grand Total</span>
                   <span className="text-blue-600">
-                    {formatCurrency(totalGrandAmount)}
+                    {formatCurrency((order.total_amount || 0) + (order.delivery_fee || 0))}
                   </span>
                 </div>
               </div>
@@ -360,7 +501,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
 
             {/* Delivery Proof Section */}
             {order.status === 'Completed' && (
-              <div className="bg-white p-4 rounded-lg border border-gray-200 print:rounded-none print:border print:border-gray-300 print:break-inside-avoid">
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <ImageIcon size={18} className="mr-2 text-blue-600" />
                   Proof of Delivery
@@ -452,7 +593,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         )}
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50 print:hidden">
+        <div className="p-6 border-t bg-gray-50">
           <div className="flex justify-end gap-3">
             <button 
               onClick={onClose}
@@ -461,7 +602,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               Close
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={handlePrintOrder}
               className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
             >
               Print Order
