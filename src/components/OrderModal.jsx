@@ -1,8 +1,8 @@
 // src/components/OrderModal.jsx
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Image as ImageIcon, Truck } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import petronLogo from '../assets/images/petron-logo.png';
+import html2canvas from 'html2canvas';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
@@ -17,161 +17,115 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const orderItems = order?.order_items || [];
   const totalItemTypes = orderItems.length;
   const totalQuantity = orderItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const grandTotal = (Number(order?.total_amount) || 0) + (Number(order?.delivery_fee) || 0);
-
-  const formatPdfMoney = useCallback((value) => {
-    const numericValue = Number(value) || 0;
-    return `PHP ${numericValue.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }, []);
+  const orderPanelRef = useRef(null);
 
   const handlePrintOrder = useCallback(async () => {
     if (!order) return;
 
+    const panel = orderPanelRef.current;
+    if (!panel) return;
+
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    const contentWidth = pageWidth - margin * 2;
-    let cursorY = 48;
+    const canvas = await html2canvas(panel, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      windowWidth: panel.scrollWidth,
+      windowHeight: panel.scrollHeight,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (clonedDoc) => {
+        const clonedPanel = clonedDoc.querySelector('[data-order-print-shell="true"]');
+        if (!clonedPanel) return;
 
-    const ensureSpace = (neededHeight = 24) => {
-      if (cursorY + neededHeight < pageHeight - 60) return;
-      pdf.addPage();
-      cursorY = 48;
-      drawHeader(false);
-    };
+        const backdrop = clonedDoc.querySelector('[data-order-print-backdrop="true"]');
+        if (backdrop) {
+          backdrop.style.background = 'transparent';
+        }
 
-    const writeLine = (text, x, y, options = {}) => {
-      pdf.text(String(text), x, y, options);
-    };
+        clonedPanel.style.maxHeight = 'none';
+        clonedPanel.style.height = 'auto';
+        clonedPanel.style.overflow = 'visible';
+        clonedPanel.style.boxShadow = 'none';
+        clonedPanel.style.width = '1120px';
 
-    const loadImageData = async (imageSrc) => {
-      try {
-        const response = await fetch(imageSrc);
-        const blob = await response.blob();
+        const scrollArea = clonedPanel.querySelector('[data-order-print-scroll="true"]');
+        if (scrollArea) {
+          scrollArea.style.maxHeight = 'none';
+          scrollArea.style.overflow = 'visible';
+          scrollArea.style.height = 'auto';
+        }
 
-        return await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      } catch {
-        return null;
+        const footer = clonedPanel.querySelector('[data-order-print-footer="true"]');
+        if (footer) footer.remove();
+
+        const closeButton = clonedPanel.querySelector('[data-order-print-close="true"]');
+        if (closeButton) closeButton.remove();
+
+        // Remove on-screen itemized rows that are hidden for print, keep a compact printed summary
+        const itemized = clonedPanel.querySelectorAll('[class*="print:hidden"]');
+        itemized.forEach(el => el.remove());
+
+        const summary = clonedPanel.querySelector('[data-order-print-summary="true"]');
+        if (summary) {
+          summary.innerHTML = `
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="text-gray-600">Subtotal</div>
+                  <div class="font-medium text-gray-900 text-right">${formatCurrency(order.total_amount)}</div>
+                  <div class="text-gray-600">Delivery Fee</div>
+                  <div class="font-medium text-gray-900 text-right">${formatCurrency(order.delivery_fee || 0)}</div>
+                  <div class="text-gray-600">Grand Total</div>
+                  <div class="font-medium text-blue-600 text-right">${formatCurrency((order.total_amount || 0) + (order.delivery_fee || 0))}</div>
+                </div>
+          `;
+          summary.classList.remove('hidden');
+          summary.style.display = 'block';
+        }
+      },
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = pageWidth - 40;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pageContentHeight = pageHeight - 40;
+    const pageHeightPx = pageContentHeight * (canvas.width / imgWidth);
+
+    let sourceY = 0;
+
+    while (sourceY < canvas.height) {
+      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - sourceY);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeightPx;
+
+      const ctx = pageCanvas.getContext('2d');
+      ctx?.drawImage(
+        canvas,
+        0,
+        sourceY,
+        canvas.width,
+        sliceHeightPx,
+        0,
+        0,
+        pageCanvas.width,
+        pageCanvas.height
+      );
+
+      const pageImg = pageCanvas.toDataURL('image/png');
+      if (sourceY > 0) {
+        pdf.addPage();
       }
-    };
+      pdf.addImage(pageImg, 'PNG', 20, 20, imgWidth, sliceHeightPx / (canvas.width / imgWidth), undefined, 'FAST');
 
-    const logoData = await loadImageData(petronLogo);
-
-    const drawHeader = (withTitle = true) => {
-      pdf.setFillColor(0, 51, 160);
-      pdf.rect(0, 0, pageWidth, 92, 'F');
-      if (logoData) {
-        pdf.addImage(logoData, 'PNG', margin, 14, 44, 44);
-      }
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(20);
-      if (withTitle) {
-        writeLine('Order Printout', margin + 58, 34);
-      }
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      writeLine(`Order ${formatOrderNumber(order.order_number, order.id)}`, margin + 58, 56);
-      writeLine(`Printed ${formatDate(new Date().toISOString())}`, margin + 58, 72);
-      pdf.setTextColor(34, 34, 34);
-      cursorY = 120;
-    };
-
-    const writeSectionTitle = (text) => {
-      ensureSpace(46);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 51, 160);
-      writeLine(text, margin, cursorY);
-      cursorY += 18;
-      pdf.setDrawColor(210);
-      pdf.line(margin, cursorY, pageWidth - margin, cursorY);
-      cursorY += 18;
-      pdf.setTextColor(34, 34, 34);
-    };
-
-    const writeLabelValue = (label, value) => {
-      ensureSpace(24);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      writeLine(label, margin, cursorY);
-      pdf.setFont('helvetica', 'normal');
-      const valueText = Array.isArray(value) ? value.join(', ') : String(value ?? '-');
-      const wrapped = pdf.splitTextToSize(valueText, contentWidth * 0.68);
-      pdf.text(wrapped, margin + 150, cursorY);
-      cursorY += Math.max(wrapped.length * 12, 14);
-    };
-
-    const drawSummaryCard = (x, y, width, title, value, accent = [0, 51, 160]) => {
-      pdf.setFillColor(248, 250, 255);
-      pdf.roundedRect(x, y, width, 58, 10, 10, 'F');
-      pdf.setDrawColor(224, 232, 255);
-      pdf.roundedRect(x, y, width, 58, 10, 10, 'S');
-      pdf.setTextColor(...accent);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text(title, x + 14, y + 20);
-      pdf.setTextColor(25, 28, 36);
-      pdf.setFontSize(13);
-      pdf.text(String(value), x + 14, y + 40);
-    };
-
-    drawHeader();
-
-    const summaryCardWidth = (contentWidth - 16) / 2;
-    drawSummaryCard(margin, cursorY, summaryCardWidth, 'Product Lines', totalItemTypes);
-    drawSummaryCard(margin + summaryCardWidth + 16, cursorY, summaryCardWidth, 'Total Items', totalQuantity, [16, 185, 129]);
-    cursorY += 78;
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(18);
-    pdf.setTextColor(25, 28, 36);
-    writeLine('Customer and Order Details', margin, cursorY);
-    cursorY += 14;
-
-    writeSectionTitle('Customer Information');
-    writeLabelValue('Name', order.profiles?.full_name || 'Guest');
-    writeLabelValue('Phone', formatPhoneNumber(order.profiles?.phone_number));
-    writeLabelValue('Address', order.delivery_address || '-');
-    writeLabelValue('Payment Method', order.payment_method || '-');
-    writeLabelValue('Status', order.status || '-');
-
-    cursorY += 10;
-    writeSectionTitle('Order Totals');
-    writeLabelValue('Product Lines', totalItemTypes);
-    writeLabelValue('Total Items', totalQuantity);
-    writeLabelValue('Subtotal', formatPdfMoney(order.total_amount || 0));
-    writeLabelValue('Delivery Fee', formatPdfMoney(order.delivery_fee || 0));
-    writeLabelValue('Grand Total', formatPdfMoney(grandTotal));
-
-    cursorY += 10;
-    writeSectionTitle('Notes');
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    const notes = [
-      'This PDF is generated for printing.',
-      'Order item lines are summarized to keep the printout paper-friendly.',
-    ];
-    pdf.text(pdf.splitTextToSize(notes.join(' '), contentWidth), margin, cursorY);
-
-    pdf.setDrawColor(210);
-    pdf.line(margin, pageHeight - 48, pageWidth - margin, pageHeight - 48);
-    pdf.setFontSize(9);
-    pdf.setTextColor(90, 98, 110);
-    pdf.text('Generated by admin web print tool', margin, pageHeight - 28);
+      sourceY += sliceHeightPx;
+    }
 
     const fileName = `Order-${formatOrderNumber(order.order_number, order.id)}.pdf`;
     pdf.save(fileName);
-  }, [order, totalItemTypes, totalQuantity, grandTotal, formatPdfMoney]);
+  }, [order]);
 
   const fetchCancellerName = useCallback(async () => {
     if (!order?.cancelled_by) {
@@ -279,8 +233,8 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   if (!isOpen || !order) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm" data-order-print-backdrop="true">
+      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl" data-order-print-shell="true" data-order-print-panel="true" ref={orderPanelRef}>
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b bg-blue-600">
           <div>
@@ -296,12 +250,13 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           <button 
             onClick={onClose} 
             className="p-2 hover:bg-blue-500 rounded-full transition text-white"
+            data-order-print-close="true"
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]" data-order-print-scroll="true">
           <div className="space-y-6">
             {/* Status Section */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -468,7 +423,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                 <p className="text-gray-500 text-center py-4">No items found</p>
               )}
 
-              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white">
+              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white" data-order-print-summary="true">
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="text-gray-600">Item Types</div>
@@ -593,7 +548,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         )}
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50">
+        <div className="p-6 border-t bg-gray-50" data-order-print-footer="true">
           <div className="flex justify-end gap-3">
             <button 
               onClick={onClose}
