@@ -1,6 +1,6 @@
 // src/components/OrderModal.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Hash, Store, Image as ImageIcon, Truck } from 'lucide-react';
+import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Store, Image as ImageIcon, Truck } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { ORDER_STATUS_COLORS } from '../utils/constants';
@@ -58,6 +58,46 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           scrollArea.style.height = 'auto';
         }
 
+        const statusSection = clonedPanel.querySelector('[data-order-print-status="true"]');
+        if (statusSection) {
+          const statusRow = statusSection.querySelector('.flex.justify-between.items-center');
+          if (statusRow) {
+            const leftBlock = statusRow.children[0];
+            const rightBlock = statusRow.children[1];
+
+            if (leftBlock) {
+              leftBlock.innerHTML = `
+                <p class="text-sm text-gray-500 mb-1">Current Status</p>
+                <span class="inline-flex items-center justify-center rounded-full text-sm font-bold border ${ORDER_STATUS_COLORS[order.status] || 'border-gray-300 text-gray-700 bg-gray-100'}" style="display:inline-flex;align-items:center;justify-content:center;align-self:center;margin:0 auto;min-width:90px;max-width:140px;padding:6px 14px;text-align:center;white-space:nowrap;font-weight:600;font-size:13px;line-height:1;">
+                  ${order.status || 'Unknown'}
+                </span>
+              `;
+            }
+
+            if (rightBlock) {
+              rightBlock.remove();
+            }
+
+            try {
+              const clonedBadge = leftBlock?.querySelector('span');
+              const origBadge = panel.querySelector('[data-order-print-status="true"] span');
+              if (clonedBadge && origBadge) {
+                const cs = window.getComputedStyle(origBadge);
+                clonedBadge.style.backgroundColor = cs.backgroundColor;
+                clonedBadge.style.color = cs.color;
+                clonedBadge.style.borderColor = cs.borderColor;
+                clonedBadge.style.fontFamily = cs.fontFamily;
+                clonedBadge.style.fontWeight = cs.fontWeight;
+                clonedBadge.style.fontSize = cs.fontSize;
+                clonedBadge.style.lineHeight = cs.lineHeight;
+                clonedBadge.style.boxSizing = 'border-box';
+              }
+            } catch (e) {
+              // ignore if computed style access fails
+            }
+          }
+        }
+
         const footer = clonedPanel.querySelector('[data-order-print-footer="true"]');
         if (footer) footer.remove();
 
@@ -70,19 +110,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
 
         const summary = clonedPanel.querySelector('[data-order-print-summary="true"]');
         if (summary) {
-          summary.innerHTML = `
-                <h4 class="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                  <div class="text-gray-600">Subtotal</div>
-                  <div class="font-medium text-gray-900 text-right">${formatCurrency(order.total_amount)}</div>
-                  <div class="text-gray-600">Delivery Fee</div>
-                  <div class="font-medium text-gray-900 text-right">${formatCurrency(order.delivery_fee || 0)}</div>
-                  <div class="text-gray-600">Grand Total</div>
-                  <div class="font-medium text-blue-600 text-right">${formatCurrency((order.total_amount || 0) + (order.delivery_fee || 0))}</div>
-                </div>
-          `;
-          summary.classList.remove('hidden');
-          summary.style.display = 'block';
+          summary.remove();
         }
       },
     });
@@ -239,7 +267,6 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         <div className="flex justify-between items-center p-6 border-b bg-blue-600">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center">
-              <Hash className="mr-2" size={20} />
               Order {formatOrderNumber(order.order_number, order.id)}
             </h2>
             <p className="text-sm text-blue-100 mt-1">
@@ -259,11 +286,11 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]" data-order-print-scroll="true">
           <div className="space-y-6">
             {/* Status Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200" data-order-print-status="true">
               <div className="flex justify-between items-center">
-                <div>
+                <div className="flex flex-col gap-1">
                   <p className="text-sm text-gray-500 mb-1">Current Status</p>
-                  <span className={`px-4 py-2 rounded-full text-sm font-bold border ${ORDER_STATUS_COLORS[order.status]}`}>
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold border ${ORDER_STATUS_COLORS[order.status]}`}>
                     {order.status}
                   </span>
                 </div>
@@ -422,16 +449,6 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               ) : (
                 <p className="text-gray-500 text-center py-4">No items found</p>
               )}
-
-              <div className="hidden print:block mt-4 p-4 rounded-lg border border-gray-300 bg-white" data-order-print-summary="true">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">Printed Order Summary</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="text-gray-600">Item Types</div>
-                  <div className="font-medium text-gray-900 text-right">{totalItemTypes}</div>
-                  <div className="text-gray-600">Total Quantity</div>
-                  <div className="font-medium text-gray-900 text-right">{totalQuantity}</div>
-                </div>
-              </div>
 
               {/* Order Summary */}
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
