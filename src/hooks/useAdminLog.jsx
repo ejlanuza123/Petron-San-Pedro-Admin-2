@@ -19,31 +19,43 @@ export const useAdminLog = () => {
     }
 
     try {
+      const payload = {
+        admin_id: user.id,
+        action,
+        entity_type: entityType,
+        entity_id: entityId?.toString(),
+        details: {
+          ...details,
+          description,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        },
+        created_at: new Date().toISOString()
+      };
+
       const { data, error } = await supabase
         .from('admin_logs')
-        .insert({
-          admin_id: user.id,
-          action,
-          entity_type: entityType,
-          entity_id: entityId?.toString(),
-          details: {
-            ...details,
-            description,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            url: window.location.href
-          },
-          created_at: new Date().toISOString()
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
-      
+      if (error) {
+        // Make failures visible; previously swallowed errors made it look like logs "aren't saving"
+        console.error('[Admin Log] INSERT failed', {
+          action,
+          entityType,
+          entityId,
+          supabaseError: error,
+          payload
+        });
+        throw error;
+      }
+
       console.log(`[Admin Log] ${action} - ${entityType}:${entityId}`);
       return data;
     } catch (error) {
-      console.error('Error logging admin action:', error);
+      console.error('Error logging admin action (swallowed)', error);
       // Don't throw - logging should not break the main action
       return null;
     }
@@ -177,22 +189,21 @@ export const useAdminLog = () => {
   };
 };
 
-// Create a component to display logs (optional)
 export const AdminLogsViewer = ({ entityType, entityId, limit = 50 }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const { getLogsForEntity } = useAdminLog();
 
   useEffect(() => {
-    loadLogs();
-  }, [entityType, entityId]);
+    const loadLogs = async () => {
+      setLoading(true);
+      const data = await getLogsForEntity(entityType, entityId, limit);
+      setLogs(data);
+      setLoading(false);
+    };
 
-  const loadLogs = async () => {
-    setLoading(true);
-    const data = await getLogsForEntity(entityType, entityId, limit);
-    setLogs(data);
-    setLoading(false);
-  };
+    loadLogs();
+  }, [entityType, entityId, limit, getLogsForEntity]);
 
   const formatAction = (action) => {
     return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -234,17 +245,17 @@ export const AdminLogsViewer = ({ entityType, entityId, limit = 50 }) => {
               {new Date(log.created_at).toLocaleString()}
             </span>
           </div>
-          
+
           <p className="text-sm text-gray-700 mb-2">
             {log.details?.description || `${formatAction(log.action)} performed on ${log.entity_type}`}
           </p>
-          
+
           {log.admin && (
             <p className="text-xs text-gray-500 flex items-center">
               <span className="font-medium mr-1">By:</span> {log.admin.full_name}
             </p>
           )}
-          
+
           {log.details && Object.keys(log.details).length > 0 && (
             <details className="mt-2">
               <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">

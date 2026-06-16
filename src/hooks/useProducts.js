@@ -84,7 +84,21 @@ export function useProducts() {
         initialDelayMs: 300
       });
       setProducts(prev => [...prev, newProduct]);
-      await logProductAction(newProduct.id, 'create_product', { name: newProduct.name });
+
+      await logProductAction(
+        newProduct.id,
+        'create_product',
+        {
+          name: newProduct.name,
+          category: newProduct.category,
+          unit: newProduct.unit,
+          current_price: newProduct.current_price,
+          stock_quantity: newProduct.stock_quantity,
+          is_active: newProduct.is_active
+        },
+        `Added product "${newProduct.name}" at ${newProduct.current_price} (${newProduct.stock_quantity} ${newProduct.unit})`
+      );
+
       notifySuccess(`Created product: ${newProduct.name}`);
       return newProduct;
     } catch (err) {
@@ -123,14 +137,30 @@ export function useProducts() {
         {
           name: existingProduct.name,
           description: existingProduct.description,
-          price: existingProduct.price,
-          stock: existingProduct.stock,
+          category: existingProduct.category,
+          unit: existingProduct.unit,
+          current_price: existingProduct.current_price,
+          stock_quantity: existingProduct.stock_quantity,
+          is_active: existingProduct.is_active,
+          discount_price: existingProduct.discount_price,
+          barcode: existingProduct.barcode,
+          sku: existingProduct.sku,
+          image_url: existingProduct.image_url,
+          is_featured: existingProduct.is_featured
         },
         {
           name: updatedProduct.name,
           description: updatedProduct.description,
-          price: updatedProduct.price,
-          stock: updatedProduct.stock,
+          category: updatedProduct.category,
+          unit: updatedProduct.unit,
+          current_price: updatedProduct.current_price,
+          stock_quantity: updatedProduct.stock_quantity,
+          is_active: updatedProduct.is_active,
+          discount_price: updatedProduct.discount_price,
+          barcode: updatedProduct.barcode,
+          sku: updatedProduct.sku,
+          image_url: updatedProduct.image_url,
+          is_featured: updatedProduct.is_featured
         }
       );
 
@@ -153,7 +183,23 @@ export function useProducts() {
         initialDelayMs: 300
       });
       setProducts(prev => prev.filter(p => p.id !== id));
-      await logProductAction(id, 'delete_product');
+
+      const existingProduct = products.find((p) => p.id === id) || {};
+
+      await logProductAction(
+        id,
+        'delete_product',
+        {
+          name: existingProduct.name,
+          category: existingProduct.category,
+          unit: existingProduct.unit,
+          current_price: existingProduct.current_price,
+          stock_quantity: existingProduct.stock_quantity,
+          is_active: existingProduct.is_active
+        },
+        `Deleted product "${existingProduct.name || id}"`
+      );
+
       notifySuccess('Deleted product successfully');
     } catch (err) {
       setError(err.message);
