@@ -11,7 +11,6 @@ import {
   Menu, 
   X,
   User,
-  Settings,
   ChevronDown,
   Users,
   Truck,
@@ -423,18 +422,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
                   }}
                 >
                   <User size={16} className="mr-2" />
-                  Profile
-                </motion.button>
-                <motion.button 
-                  whileHover={{ x: 5 }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] flex items-center"
-                  onClick={() => {
-                    onSettingsClick();
-                    setIsProfileMenuOpen(false);
-                  }}
-                >
-                  <Settings size={16} className="mr-2" />
-                  Settings
+                  Profile and settings
                 </motion.button>
                 <div className="border-t my-2"></div>
                 <motion.button 
@@ -614,18 +602,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                         className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] rounded-md flex items-center"
                       >
                         <User size={16} className="mr-2" />
-                        Profile
-                      </button>
-                      <button
-                        onClick={() => {
-                          onSettingsClick();
-                          setIsMobileProfileMenuOpen(false);
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] rounded-md flex items-center"
-                      >
-                        <Settings size={16} className="mr-2" />
-                        Settings
+                        Profile and settings
                       </button>
                     </motion.div>
                   )}
