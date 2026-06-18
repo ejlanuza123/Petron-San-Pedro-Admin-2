@@ -24,6 +24,8 @@ export default function FloatingChatBubble({ userId }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [verticalOffset, setVerticalOffset] = useState(0);
 
+  const wasDraggingRef = useRef(false);
+
   const dragStateRef = useRef({
     active: false,
     pointerId: null,
@@ -99,6 +101,8 @@ export default function FloatingChatBubble({ userId }) {
   }, [userId, hiddenOnChatRoute, refreshUnreadCount]);
 
   const handlePointerDown = (event) => {
+    wasDraggingRef.current = false;
+
     dragStateRef.current = {
       active: true,
       pointerId: event.pointerId,
@@ -113,12 +117,18 @@ export default function FloatingChatBubble({ userId }) {
     const dragState = dragStateRef.current;
     if (!dragState.active || dragState.pointerId !== event.pointerId) return;
 
-    const upwardDelta = Math.max(0, dragState.startY - event.clientY);
-    const maxOffset = Math.max(0, window.innerHeight - 140);
-    const nextOffset = Math.min(maxOffset, dragState.startOffset + upwardDelta);
+    // Signed delta: moving finger up increases offset, moving finger down decreases it.
+    const delta = dragState.startY - event.clientY;
 
-    // Upward-only movement: offset can only increase.
-    setVerticalOffset((prev) => Math.max(prev, nextOffset));
+    // Prevent click/open when user drags (small moves shouldn't count as a drag).
+    if (Math.abs(delta) > 4) {
+      wasDraggingRef.current = true;
+    }
+
+    const maxOffset = Math.max(0, window.innerHeight - 140);
+    const nextOffset = Math.min(maxOffset, Math.max(0, dragState.startOffset + delta));
+
+    setVerticalOffset(nextOffset);
   };
 
   const handlePointerUp = (event) => {
@@ -142,7 +152,13 @@ export default function FloatingChatBubble({ userId }) {
   return (
     <button
       type="button"
-      onClick={() => navigate('/chat')}
+      onClick={() => {
+        if (wasDraggingRef.current) {
+          wasDraggingRef.current = false;
+          return;
+        }
+        navigate('/chat');
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
