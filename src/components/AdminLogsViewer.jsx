@@ -10,6 +10,8 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [riderNameById, setRiderNameById] = useState({});
+
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 10), 100);
   const totalPages = Math.max(1, Math.ceil(totalCount / safeLimit));
 
@@ -113,6 +115,64 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
       channel.unsubscribe();
     };
   }, [entityType, entityId, startDate, endDate, safeLimit, currentPage]);
+
+  // Resolve rider names for logs that contain rider ids in `details`
+  useEffect(() => {
+    let isMounted = true;
+
+    const extractRiderIds = (log) => {
+      const ids = [];
+
+      const details = log?.details || {};
+      const riderId = details?.riderId;
+      if (typeof riderId === 'string' && riderId.trim()) ids.push(riderId.trim());
+
+      const riderIdObj = details?.rider_id;
+      if (riderIdObj && typeof riderIdObj === 'object') {
+        if (typeof riderIdObj?.to === 'string' && riderIdObj.to.trim()) ids.push(riderIdObj.to.trim());
+        if (typeof riderIdObj?.from === 'string' && riderIdObj.from.trim()) ids.push(riderIdObj.from.trim());
+      }
+
+      return ids;
+    };
+
+    const resolveRiderNames = async () => {
+      try {
+        const uniqueRiderIds = Array.from(
+          new Set((logs || []).flatMap(extractRiderIds).filter(Boolean))
+        );
+
+        if (uniqueRiderIds.length === 0) {
+          if (isMounted) setRiderNameById({});
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('role', 'rider')
+          .in('id', uniqueRiderIds);
+
+        if (error) throw error;
+
+        const map = {};
+        (data || []).forEach((p) => {
+          map[p.id] = p.full_name;
+        });
+
+        if (isMounted) setRiderNameById(map);
+      } catch (error) {
+        console.error('Error resolving rider names:', error);
+        if (isMounted) setRiderNameById({});
+      }
+    };
+
+    resolveRiderNames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logs]);
 
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
@@ -334,9 +394,9 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
                 <span className={`text-xs px-2.5 py-1 rounded-full border font-bold ${getActionColor(log.action)}`}>
                   {formatAction(log.action)}
                 </span>
-                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {log.entity_type.toUpperCase()} #{log.entity_id}
-                </span>
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {log.entity_type.toUpperCase()} #{log.entity_id}
+              </span>
               </div>
               <span className="text-xs text-gray-400 font-medium">
                 {new Date(log.created_at).toLocaleString(undefined, {
@@ -347,15 +407,53 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
             </div>
 
             <p className="text-sm text-gray-800 font-medium mb-1">
-              {log.details?.description || `Admin performed ${formatAction(log.action)}`}
+              {(() => {
+                const details = log.details || {};
+                const description = details?.description;
+
+                const riderNameFromDetails =
+                  details?.rider_name ||
+                  details?.riderName ||
+                  details?.rider_full_name ||
+                  details?.riderFullName ||
+                  (details?.rider && (details.rider.full_name || details.rider.name)) ||
+                  (details?.rider && details.rider.fullName) ||
+                  '';
+
+                const riderId =
+                  typeof details?.riderId === 'string' && details.riderId.trim()
+                    ? details.riderId.trim()
+                    : (typeof details?.rider_id?.to === 'string' && details.rider_id.to.trim()
+                      ? details.rider_id.to.trim()
+                      : '');
+
+                const riderNameFromDb = riderId ? (riderNameById?.[riderId] || '') : '';
+
+                const riderName = riderNameFromDetails || riderNameFromDb;
+
+                if (description) {
+                  if (riderName && !description.toLowerCase().includes(String(riderName).toLowerCase())) {
+                    return `${description} (Rider: ${riderName})`;
+                  }
+                  return description;
+                }
+
+                const riderSuffix = riderName ? ` (Rider: ${riderName})` : '';
+                return `Admin performed ${formatAction(log.action)}${riderSuffix}`;
+              })()}
             </p>
 
             {log.admin && (
               <p className="text-xs text-gray-500 flex items-center mb-3">
                 <span className="w-5 h-5 bg-[#0033A0] text-white rounded-full flex items-center justify-center text-[10px] mr-1.5">
-                  {log.admin.full_name?.charAt(0)}
+                  {(log.admin.full_name || log.admin.id || '?').charAt(0)}
                 </span>
-                {log.admin.full_name} ({log.admin.email})
+                {log.admin.full_name || log.admin.id} ({log.admin.email})
+              </p>
+            )}
+            {!log.admin && (
+              <p className="text-xs text-gray-500 mb-3">
+                Admin: {log.admin_id || 'Unknown'}
               </p>
             )}
 
