@@ -11,6 +11,7 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
   const [totalCount, setTotalCount] = useState(0);
 
   const [riderNameById, setRiderNameById] = useState({});
+  const [productNameById, setProductNameById] = useState({});
 
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 10), 100);
   const totalPages = Math.max(1, Math.ceil(totalCount / safeLimit));
@@ -116,13 +117,14 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     };
   }, [entityType, entityId, startDate, endDate, safeLimit, currentPage]);
 
-  // Resolve rider names for logs that contain rider ids in `details`
+  // Resolve rider names for logs that contain rider ids in `details` OR as the entity itself
   useEffect(() => {
     let isMounted = true;
 
     const extractRiderIds = (log) => {
       const ids = [];
 
+      // 1) Rider id stored inside details
       const details = log?.details || {};
       const riderId = details?.riderId;
       if (typeof riderId === 'string' && riderId.trim()) ids.push(riderId.trim());
@@ -131,6 +133,12 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
       if (riderIdObj && typeof riderIdObj === 'object') {
         if (typeof riderIdObj?.to === 'string' && riderIdObj.to.trim()) ids.push(riderIdObj.to.trim());
         if (typeof riderIdObj?.from === 'string' && riderIdObj.from.trim()) ids.push(riderIdObj.from.trim());
+      }
+
+      // 2) Rider id stored as the log entity_id
+      if (log?.entity_type === 'rider' && log?.entity_id) {
+        const entityId = String(log.entity_id).trim();
+        if (entityId) ids.push(entityId);
       }
 
       return ids;
@@ -150,14 +158,13 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name')
-          .eq('role', 'rider')
           .in('id', uniqueRiderIds);
 
         if (error) throw error;
 
         const map = {};
         (data || []).forEach((p) => {
-          map[p.id] = p.full_name;
+          map[p.id] = p.full_name || '';
         });
 
         if (isMounted) setRiderNameById(map);
@@ -168,6 +175,50 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     };
 
     resolveRiderNames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logs]);
+
+  // Resolve product names for logs where entity_type === 'product'
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveProductNames = async () => {
+      try {
+        const productIds = (logs || [])
+          .filter((l) => l?.entity_type === 'product' && l?.entity_id)
+          .map((l) => String(l.entity_id).trim())
+          .filter(Boolean);
+
+        const uniqueProductIds = Array.from(new Set(productIds));
+
+        if (uniqueProductIds.length === 0) {
+          if (isMounted) setProductNameById({});
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', uniqueProductIds);
+
+        if (error) throw error;
+
+        const map = {};
+        (data || []).forEach((p) => {
+          map[p.id] = p.name;
+        });
+
+        if (isMounted) setProductNameById(map);
+      } catch (error) {
+        console.error('Error resolving product names:', error);
+        if (isMounted) setProductNameById({});
+      }
+    };
+
+    resolveProductNames();
 
     return () => {
       isMounted = false;
@@ -282,7 +333,7 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
   const SYSTEM_DETAIL_KEYS = ['description', 'timestamp', 'userAgent', 'url', 'riderId', 'deliveryId'];
 
   // Helper to render the Before & After table
-  const renderChangesTable = (details) => {
+  const renderChangesTable = (details, riderNameByIdLocal = {}) => {
     if (!details) return null;
 
     // Filter out system keys and find keys that have a { from, to } structure
@@ -293,6 +344,13 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     );
 
     if (changes.length === 0) return null;
+
+    const decorateRiderIdValue = (rawValue) => {
+      const v = typeof rawValue === 'string' ? rawValue.trim() : '';
+      if (!v) return 'Empty/None';
+      const riderName = riderNameByIdLocal?.[v];
+      return riderName ? `${v} (${riderName})` : v;
+    };
 
     return (
       <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
@@ -305,19 +363,26 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {changes.map(([key, val]) => (
-              <tr key={key}>
-                <td className="px-3 py-2 font-medium text-gray-800 capitalize">
-                  {key.replace(/_/g, ' ')}
-                </td>
-                <td className="px-3 py-2 text-red-600 bg-red-50/50">
-                  {String(val.from || 'Empty/None')}
-                </td>
-                <td className="px-3 py-2 text-green-600 bg-green-50/50 font-medium">
-                  {String(val.to || 'Empty/None')}
-                </td>
-              </tr>
-            ))}
+            {changes.map(([key, val]) => {
+              const isRiderIdField =
+                key === 'rider id' ||
+                key === 'rider_id' ||
+                key === 'riderId';
+
+              return (
+                <tr key={key}>
+                  <td className="px-3 py-2 font-medium text-gray-800 capitalize">
+                    {key.replace(/_/g, ' ')}
+                  </td>
+                  <td className="px-3 py-2 text-red-600 bg-red-50/50">
+                    {isRiderIdField ? decorateRiderIdValue(val.from) : String(val.from || 'Empty/None')}
+                  </td>
+                  <td className="px-3 py-2 text-green-600 bg-green-50/50 font-medium">
+                    {isRiderIdField ? decorateRiderIdValue(val.to) : String(val.to || 'Empty/None')}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -394,9 +459,15 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
                 <span className={`text-xs px-2.5 py-1 rounded-full border font-bold ${getActionColor(log.action)}`}>
                   {formatAction(log.action)}
                 </span>
-              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {log.entity_type.toUpperCase()} #{log.entity_id}
-              </span>
+                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  {log.entity_type.toUpperCase()} #{log.entity_id}
+                  {log.entity_type === 'rider' && riderNameById?.[log.entity_id]
+                    ? ` (${riderNameById[log.entity_id]})`
+                    : ''}
+                  {log.entity_type === 'product' && productNameById?.[log.entity_id]
+                    ? ` (${productNameById[log.entity_id]})`
+                    : ''}
+                </span>
               </div>
               <span className="text-xs text-gray-400 font-medium">
                 {new Date(log.created_at).toLocaleString(undefined, {
@@ -416,30 +487,52 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
                   details?.riderName ||
                   details?.rider_full_name ||
                   details?.riderFullName ||
-                  (details?.rider && (details.rider.full_name || details.rider.name)) ||
-                  (details?.rider && details.rider.fullName) ||
+                  (details?.rider && (details?.rider.full_name || details?.rider.name)) ||
+                  (details?.rider && details?.rider.fullName) ||
                   '';
 
-                const riderId =
-                  typeof details?.riderId === 'string' && details.riderId.trim()
+                // Prefer rider id found in `details` so we can resolve from `profiles` cache
+                const riderIdFromDetails =
+                  (typeof details?.riderId === 'string' && details.riderId.trim())
                     ? details.riderId.trim()
-                    : (typeof details?.rider_id?.to === 'string' && details.rider_id.to.trim()
+                    : (typeof details?.rider_id?.to === 'string' && details.rider_id.to.trim())
                       ? details.rider_id.to.trim()
-                      : '');
+                      : (typeof details?.rider_id?.from === 'string' && details.rider_id.from.trim())
+                        ? details.rider_id.from.trim()
+                        : (
+                          // fallback for common alternate keys
+                          (typeof details?.rider_uuid === 'string' && details.rider_uuid.trim())
+                            ? details.rider_uuid.trim()
+                            : (
+                              (typeof details?.riderUuid === 'string' && details.riderUuid.trim())
+                                ? details.riderUuid.trim()
+                                : ''
+                            )
+                        );
+
+                // Also allow rider name when the rider UUID is the entity itself
+                const riderIdFromEntity =
+                  log?.entity_type === 'rider' && log?.entity_id
+                    ? String(log.entity_id).trim()
+                    : '';
+
+                const riderId = riderIdFromDetails || riderIdFromEntity;
 
                 const riderNameFromDb = riderId ? (riderNameById?.[riderId] || '') : '';
-
                 const riderName = riderNameFromDetails || riderNameFromDb;
 
+                const riderNameSuffix = riderName ? ` (${riderName})` : '';
+                const actionText = formatAction(log.action);
+
                 if (description) {
+                  // If backend already embedded the name in description, don't duplicate it.
                   if (riderName && !description.toLowerCase().includes(String(riderName).toLowerCase())) {
-                    return `${description} (Rider: ${riderName})`;
+                    return `${description}${riderNameSuffix}`;
                   }
                   return description;
                 }
 
-                const riderSuffix = riderName ? ` (Rider: ${riderName})` : '';
-                return `Admin performed ${formatAction(log.action)}${riderSuffix}`;
+                return `Admin performed ${actionText}${riderNameSuffix}`;
               })()}
             </p>
 
@@ -458,7 +551,7 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
             )}
 
             {/* Render the clear Before/After table */}
-            {renderChangesTable(log.details)}
+            {renderChangesTable(log.details, riderNameById)}
 
             {/* Raw Metadata Details Dropdown */}
             {showSystemDetails && log.details && (
