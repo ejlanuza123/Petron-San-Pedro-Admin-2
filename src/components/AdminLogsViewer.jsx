@@ -225,6 +225,77 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     };
   }, [logs]);
 
+  // Resolve "cancelled by" (cancelled_by) ids found inside the audit diff `details`
+  useEffect(() => {
+    let isMounted = true;
+
+    const extractCancelledByIds = (log) => {
+      const ids = [];
+      const details = log?.details || {};
+
+      // expected diff key for orders: cancelled_by and contains { from, to }
+      const cancelledBy = details?.cancelled_by;
+
+      const collectVal = (v) => {
+        if (typeof v !== 'string') return;
+        const t = v.trim();
+        if (t) ids.push(t);
+      };
+
+      if (cancelledBy && typeof cancelledBy === 'object') {
+        collectVal(cancelledBy?.from);
+        collectVal(cancelledBy?.to);
+      }
+
+      // safety for alternate keys (if backend used different label casing)
+      const cancelledByAlt = details?.cancelledBy || details?.cancelledById;
+      if (cancelledByAlt && typeof cancelledByAlt === 'object') {
+        collectVal(cancelledByAlt?.from);
+        collectVal(cancelledByAlt?.to);
+      } else {
+        collectVal(details?.cancelled_by);
+      }
+
+      return ids;
+    };
+
+    const resolveCancelledByNames = async () => {
+      try {
+        const uniqueIds = Array.from(
+          new Set((logs || []).flatMap(extractCancelledByIds).filter(Boolean))
+        );
+
+        if (uniqueIds.length === 0) return;
+
+        // `cancelled_by` can be any profile role (admin/customer/rider). Use profiles.
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', uniqueIds);
+
+        if (error) throw error;
+
+        // Merge into riderNameById cache so we can reuse decorateRiderIdValue
+        const map = {};
+        (data || []).forEach((p) => {
+          map[p.id] = p.full_name || '';
+        });
+
+        if (isMounted) {
+          setRiderNameById((prev) => ({ ...(prev || {}), ...(map || {}) }));
+        }
+      } catch (error) {
+        console.error('Error resolving cancelled_by names:', error);
+      }
+    };
+
+    resolveCancelledByNames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logs]);
+
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
 
@@ -337,10 +408,13 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     if (!details) return null;
 
     // Filter out system keys and find keys that have a { from, to } structure
-    const changes = Object.entries(details).filter(([key, value]) => 
-      !SYSTEM_DETAIL_KEYS.includes(key) && 
-      value && typeof value === 'object' && 
-      'from' in value && 'to' in value
+    const changes = Object.entries(details).filter(
+      ([key, value]) =>
+        !SYSTEM_DETAIL_KEYS.includes(key) &&
+        value &&
+        typeof value === 'object' &&
+        'from' in value &&
+        'to' in value
     );
 
     if (changes.length === 0) return null;
@@ -348,8 +422,8 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
     const decorateRiderIdValue = (rawValue) => {
       const v = typeof rawValue === 'string' ? rawValue.trim() : '';
       if (!v) return 'Empty/None';
-      const riderName = riderNameByIdLocal?.[v];
-      return riderName ? `${v} (${riderName})` : v;
+      const name = riderNameByIdLocal?.[v];
+      return name ? `${v} (${name})` : v;
     };
 
     return (
@@ -369,16 +443,28 @@ export default function AdminLogsViewer({ entityType = 'all', entityId = '', sta
                 key === 'rider_id' ||
                 key === 'riderId';
 
+              const isCancelledByField =
+                key === 'cancelled_by' ||
+                key === 'cancelled by' ||
+                key === 'cancelledBy' ||
+                key === 'cancelledById';
+
+              const shouldDecorateAsProfileId = isRiderIdField || isCancelledByField;
+
               return (
                 <tr key={key}>
                   <td className="px-3 py-2 font-medium text-gray-800 capitalize">
                     {key.replace(/_/g, ' ')}
                   </td>
                   <td className="px-3 py-2 text-red-600 bg-red-50/50">
-                    {isRiderIdField ? decorateRiderIdValue(val.from) : String(val.from || 'Empty/None')}
+                    {shouldDecorateAsProfileId
+                      ? decorateRiderIdValue(val.from)
+                      : String(val.from || 'Empty/None')}
                   </td>
                   <td className="px-3 py-2 text-green-600 bg-green-50/50 font-medium">
-                    {isRiderIdField ? decorateRiderIdValue(val.to) : String(val.to || 'Empty/None')}
+                    {shouldDecorateAsProfileId
+                      ? decorateRiderIdValue(val.to)
+                      : String(val.to || 'Empty/None')}
                   </td>
                 </tr>
               );
