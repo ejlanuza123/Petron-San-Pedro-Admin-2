@@ -1,11 +1,13 @@
 // src/pages/Register.jsx
 import React, { useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Lock, Mail, User, Phone, Loader2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 import petronLogo from '../assets/images/petron-logo.png';
 
 export default function Register() {
+  const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',

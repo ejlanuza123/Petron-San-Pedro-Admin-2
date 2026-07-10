@@ -15,37 +15,38 @@ import { productService } from '../services/productService';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/formatters';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 
 // Skeleton Components
-const StatsCardSkeleton = () => (
-  <div className="bg-white p-6 rounded-xl border border-gray-200 animate-pulse">
+const StatsCardSkeleton = ({ isDarkMode }) => (
+  <div className={`p-6 rounded-xl border animate-pulse transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
     <div className="flex justify-between items-start mb-4">
       <div className="space-y-2">
-        <div className="h-4 w-24 bg-gray-200 rounded"></div>
-        <div className="h-8 w-32 bg-gray-300 rounded"></div>
+        <div className={`h-4 w-24 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`h-8 w-32 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
       </div>
-      <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+      <div className={`w-12 h-12 rounded-lg ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
     </div>
   </div>
 );
 
-const RecentOrdersSkeleton = () => (
-  <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+const RecentOrdersSkeleton = ({ isDarkMode }) => (
+  <div className={`lg:col-span-2 rounded-xl border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
     <div className="flex justify-between items-center mb-4">
-      <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
-      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+      <div className={`h-6 w-32 rounded animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+      <div className={`h-4 w-16 rounded animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
     </div>
     <div className="space-y-3">
       {[1,2,3,4,5].map(i => (
-        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-pulse">
+        <div key={i} className={`flex items-center justify-between p-3 rounded-lg animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
           <div className="space-y-2">
-            <div className="h-4 w-20 bg-gray-200 rounded"></div>
-            <div className="h-3 w-32 bg-gray-200 rounded"></div>
+            <div className={`h-4 w-20 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
+            <div className={`h-3 w-32 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
           </div>
           <div className="text-right space-y-2">
-            <div className="h-4 w-24 bg-gray-200 rounded"></div>
-            <div className="h-3 w-16 bg-gray-200 rounded ml-auto"></div>
+            <div className={`h-4 w-24 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
+            <div className={`h-3 w-16 rounded ml-auto ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
           </div>
         </div>
       ))}
@@ -53,19 +54,19 @@ const RecentOrdersSkeleton = () => (
   </div>
 );
 
-const LowStockSkeleton = () => (
-  <div className="bg-white rounded-xl border border-gray-200 p-6">
-    <div className="h-6 w-32 bg-gray-200 rounded mb-4 animate-pulse"></div>
+const LowStockSkeleton = ({ isDarkMode }) => (
+  <div className={`rounded-xl border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+    <div className={`h-6 w-32 rounded mb-4 animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
     <div className="space-y-3">
       {[1,2,3].map(i => (
-        <div key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-lg animate-pulse">
+        <div key={i} className={`flex items-center justify-between p-3 rounded-lg animate-pulse ${isDarkMode ? 'bg-red-900/30' : 'bg-red-50'}`}>
           <div className="space-y-2">
-            <div className="h-4 w-24 bg-gray-200 rounded"></div>
-            <div className="h-3 w-20 bg-gray-200 rounded"></div>
+            <div className={`h-4 w-24 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
+            <div className={`h-3 w-20 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
           </div>
           <div className="text-right space-y-2">
-            <div className="h-4 w-16 bg-gray-200 rounded"></div>
-            <div className="h-3 w-12 bg-gray-200 rounded ml-auto"></div>
+            <div className={`h-4 w-16 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
+            <div className={`h-3 w-12 rounded ml-auto ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
           </div>
         </div>
       ))}
@@ -74,6 +75,7 @@ const LowStockSkeleton = () => (
 );
 
 export default function Dashboard() {
+  const { isDarkMode } = useTheme();
   const [stats, setStats] = useState({
     totalRevenue: 0,
     todayRevenue: 0,
@@ -141,13 +143,13 @@ export default function Dashboard() {
 
         {/* Stats Grid Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => <StatsCardSkeleton key={i} />)}
+          {[1,2,3,4].map(i => <StatsCardSkeleton key={i} isDarkMode={isDarkMode} />)}
         </div>
 
         {/* Charts and Tables Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <RecentOrdersSkeleton />
-          <LowStockSkeleton />
+          <RecentOrdersSkeleton isDarkMode={isDarkMode} />
+          <LowStockSkeleton isDarkMode={isDarkMode} />
         </div>
       </div>
     );
@@ -156,11 +158,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
+        <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Dashboard Overview</h2>
         <button
           onClick={fetchDashboardData}
           disabled={loading}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-150 disabled:opacity-50"
+          className={`px-4 py-2 rounded-lg transition-colors duration-150 disabled:opacity-50 ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
           Refresh
         </button>
@@ -203,9 +205,9 @@ export default function Dashboard() {
       {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className={`lg:col-span-2 rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Recent Orders</h3>
+            <h3 className={`text-lg font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Recent Orders</h3>
             <Link to="/orders" className="text-sm text-[#0033A0] hover:text-[#ED1C24] transition-colors duration-150">
               View All
             </Link>
@@ -213,18 +215,18 @@ export default function Dashboard() {
           
           <div className="space-y-3">
             {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-150">
+              <div key={order.id} className={`flex items-center justify-between p-3 rounded-lg transition-colors duration-150 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-gray-100'}`}>
                 <div>
-                  <p className="font-medium text-gray-900">#{order.id}</p>
-                  <p className="text-sm text-gray-500">{order.profiles?.full_name || 'Guest'}</p>
+                  <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>#{order.id}</p>
+                  <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{order.profiles?.full_name || 'Guest'}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-[#0033A0]">{formatCurrency(order.total_amount)}</p>
                   <span className={`text-xs px-2 py-1 rounded-full ${
-                    order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                    order.status === 'Processing' ? 'bg-blue-100 text-blue-800' :
-                    order.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
+                    order.status === 'Pending' ? (isDarkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-800') :
+                    order.status === 'Processing' ? (isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800') :
+                    order.status === 'Completed' ? (isDarkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800') :
+                    isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {order.status}
                   </span>
@@ -235,16 +237,16 @@ export default function Dashboard() {
         </div>
 
         {/* Low Stock Alert */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Low Stock Alert</h3>
+        <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Low Stock Alert</h3>
           
           {lowStockProducts.length > 0 ? (
             <div className="space-y-3">
               {lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors duration-150">
+                <div key={product.id} className={`flex items-center justify-between p-3 rounded-lg transition-colors duration-150 ${isDarkMode ? 'bg-red-900/30 hover:bg-red-900/50' : 'bg-red-50 hover:bg-red-100'}`}>
                   <div>
-                    <p className="font-medium text-gray-900">{product.name}</p>
-                    <p className="text-sm text-gray-500">{product.category}</p>
+                    <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</p>
+                    <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.category}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-red-600">{product.stock_quantity} {product.unit}</p>
@@ -257,8 +259,8 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <Package className="mx-auto text-gray-400 mb-2" size={48} />
-              <p className="text-gray-500">No low stock items</p>
+              <Package className={`mx-auto mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} size={48} />
+              <p className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No low stock items</p>
             </div>
           )}
         </div>

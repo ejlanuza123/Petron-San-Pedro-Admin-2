@@ -4,6 +4,7 @@ import ErrorAlert from '../components/common/ErrorAlert';
 import { notifySuccess } from '../utils/successNotifier';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabase';
 
 const ADMIN_MANUAL_SECTIONS = [
@@ -104,6 +105,7 @@ const ADMIN_MANUAL_SECTIONS = [
 ];
 
 export default function Settings() {
+  const { isDarkMode } = useTheme();
   const { profile, updateProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -330,26 +332,26 @@ export default function Settings() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <SettingsIcon size={28} className="text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+            <h1 className={`text-3xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Settings</h1>
           </div>
-          <p className="text-gray-600">Configure application-wide settings</p>
+          <p className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Configure application-wide settings</p>
         </div>
 
         {/* Error Alert */}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         {/* Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div className={`rounded-lg border shadow-sm p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="space-y-6">
             {/* Profile Section */}
-            <div className="border-b border-gray-200 pb-6">
+            <div className={`border-b pb-6 transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h2 className={`text-lg font-semibold flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     <User size={18} className="text-blue-600" />
                     Profile
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className={`text-sm mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Update your admin profile information.
                   </p>
                 </div>
@@ -357,41 +359,41 @@ export default function Settings() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Email</label>
                   <input
                     type="text"
                     value={profile?.email || ''}
                     disabled
-                    className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600"
+                    className={`w-full px-4 py-2 border rounded-lg transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Full Name</label>
                   <input
                     type="text"
                     name="full_name"
                     value={profileForm.full_name}
                     onChange={handleProfileInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     placeholder="Enter your full name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Phone Number</label>
                   <input
                     type="text"
                     name="phone_number"
                     value={profileForm.phone_number}
                     onChange={handleProfileInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     placeholder="09xxxxxxxxx"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                  <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Profile Photo</label>
                   <div className="flex items-center gap-4">
                     {profileForm.avatar_url ? (
                       <button
@@ -403,7 +405,7 @@ export default function Settings() {
                         <img
                           src={profileForm.avatar_url}
                           alt="Admin avatar"
-                          className="w-16 h-16 rounded-full object-cover border border-gray-300 hover:opacity-90 transition"
+                          className={`w-16 h-16 rounded-full object-cover border hover:opacity-90 transition ${isDarkMode ? 'border-slate-600' : 'border-gray-300'}`}
                         />
                       </button>
                     ) : (
@@ -424,11 +426,11 @@ export default function Settings() {
                         type="button"
                         onClick={handleChooseAvatar}
                         disabled={uploadingAvatar}
-                        className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                       >
                         {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
                       </button>
-                      <p className="text-xs text-gray-500">JPG, PNG, WEBP accepted</p>
+                      <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>JPG, PNG, WEBP accepted</p>
                     </div>
                   </div>
                 </div>
@@ -447,11 +449,11 @@ export default function Settings() {
             </div>
 
             {/* Push Notification Section */}
-            <div className="border-b border-gray-200 pb-6">
+            <div className={`border-b pb-6 transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Push Notifications</h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <h2 className={`text-lg font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Push Notifications</h2>
+                  <p className={`text-sm mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Manage browser notification permission for admin alerts and updates.
                   </p>
                 </div>
@@ -459,8 +461,8 @@ export default function Settings() {
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Current Permission</p>
-                  <p className={`text-xl font-bold ${isNotificationsEnabled ? 'text-green-600' : 'text-gray-700'}`}>
+                  <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Current Permission</p>
+                  <p className={`text-xl font-bold transition-colors duration-300 ${isNotificationsEnabled ? 'text-green-500' : isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     {isNotificationsEnabled ? 'Enabled' : permissionState === 'denied' ? 'Blocked' : permissionState === 'unsupported' ? 'Unsupported' : 'Not Enabled'}
                   </p>
                 </div>
@@ -478,7 +480,7 @@ export default function Settings() {
                   <button
                     onClick={handleTestNotification}
                     disabled={!isNotificationsEnabled}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-slate-600 text-white hover:bg-slate-500' : 'bg-gray-800 text-white hover:bg-gray-900'}`}
                   >
                     <BellOff size={18} />
                     Test Notification
@@ -488,52 +490,52 @@ export default function Settings() {
             </div>
 
             {/* Additional Settings Info */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">How It Works</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
+            <div className={`rounded-lg p-4 border transition-colors duration-300 ${isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+              <h3 className={`font-semibold mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>How It Works</h3>
+              <ul className={`space-y-2 text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold mt-0.5">1.</span>
+                  <span className="text-blue-500 font-bold mt-0.5">1.</span>
                   <span>Click Enable Notifications to request browser permission.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold mt-0.5">2.</span>
+                  <span className="text-blue-500 font-bold mt-0.5">2.</span>
                   <span>When permission is granted, you can receive admin alerts in-browser.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold mt-0.5">3.</span>
+                  <span className="text-blue-500 font-bold mt-0.5">3.</span>
                   <span>Use Test Notification to verify your browser can display alerts.</span>
                 </li>
               </ul>
             </div>
 
             {/* In-App Admin User Manual */}
-            <div className="border-t border-gray-200 pt-6">
+            <div className={`border-t pt-6 transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h2 className={`text-lg font-semibold flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     <BookOpen size={18} className="text-blue-600" />
                     Admin User Manual
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className={`text-sm mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Detailed in-app guide for daily operations, workflows, and troubleshooting.
                   </p>
                 </div>
               </div>
 
               <div className="mb-4 relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                 <input
                   type="text"
                   value={manualQuery}
                   onChange={(e) => setManualQuery(e.target.value)}
                   placeholder="Search manual topics or steps"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
                 />
               </div>
 
               <div className="space-y-3">
                 {filteredManualSections.length === 0 ? (
-                  <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className={`text-sm rounded-lg p-4 border transition-colors duration-300 ${isDarkMode ? 'text-gray-400 bg-slate-700/50 border-slate-600' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
                     No manual sections matched your search.
                   </div>
                 ) : (
@@ -541,22 +543,22 @@ export default function Settings() {
                     const isOpen = !!openManualSections[section.id];
 
                     return (
-                      <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                      <div key={section.id} className={`border rounded-lg overflow-hidden transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700/50' : 'border-gray-200 bg-white'}`}>
                         <button
                           type="button"
                           onClick={() => toggleManualSection(section.id)}
-                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition"
+                          className={`w-full px-4 py-3 flex items-center justify-between transition-colors duration-300 ${isDarkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}
                         >
-                          <span className="text-left text-sm font-semibold text-gray-900">{section.heading}</span>
-                          {isOpen ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                          <span className={`text-left text-sm font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{section.heading}</span>
+                          {isOpen ? <ChevronUp size={16} className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronDown size={16} className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />}
                         </button>
 
                         {isOpen && (
                           <div className="px-4 pb-4">
                             <ol className="space-y-2 mt-1">
                               {section.steps.map((step, index) => (
-                                <li key={`${section.id}-${index}`} className="flex items-start gap-2 text-sm text-gray-700">
-                                  <span className="mt-0.5 text-blue-600 font-semibold min-w-5">{index + 1}.</span>
+                                <li key={`${section.id}-${index}`} className={`flex items-start gap-2 text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  <span className="mt-0.5 text-blue-500 font-semibold min-w-5">{index + 1}.</span>
                                   <span>{step}</span>
                                 </li>
                               ))}

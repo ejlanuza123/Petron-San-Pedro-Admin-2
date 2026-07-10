@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, availableRiders }) {
   const { logOrderAction } = useAdminLog();
@@ -13,6 +14,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [riders, setRiders] = useState(availableRiders || []);
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     if (isOpen) {
@@ -174,7 +176,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+      <div className={`rounded-xl w-full max-w-md shadow-2xl transition-colors duration-300 ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
         <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white flex items-center">
             <Truck className="mr-2" size={24} />
@@ -194,20 +196,20 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="text-green-600" size={40} />
               </div>
-              <h4 className="text-lg font-bold text-gray-900 mb-2">Rider Assigned Successfully!</h4>
-              <p className="text-gray-500">
+              <h4 className={`text-lg font-bold mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Rider Assigned Successfully!</h4>
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                 Rider has been notified of the delivery assignment.
               </p>
             </div>
           ) : (
             <>
               {/* Order Summary */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <p className="text-sm text-gray-500 mb-1">Order #{order?.id}</p>
-                <p className="font-medium text-gray-900 mb-2">Delivery Address:</p>
-                <p className="text-sm text-gray-600">{order?.delivery_address}</p>
-                <div className="flex justify-between mt-3 pt-3 border-t">
-                  <span className="text-sm text-gray-500">Total Amount:</span>
+              <div className={`p-4 rounded-lg mb-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                <p className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Order #{order?.id}</p>
+                <p className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Delivery Address:</p>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{order?.delivery_address}</p>
+                <div className={`flex justify-between mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`}>
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Amount:</span>
                   <span className="font-bold text-[#0033A0]">
                     ₱{order?.total_amount?.toFixed(2)}
                   </span>
@@ -225,24 +227,24 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
               {/* Rider Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Select Rider
                 </label>
                 
                 {riders.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className={`text-center py-8 rounded-lg transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                     <User className="mx-auto text-gray-400 mb-2" size={32} />
-                    <p className="text-gray-500">No active riders available</p>
+                    <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>No active riders available</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                     {riders.map((rider) => (
                       <label
                         key={rider.id}
-                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors duration-300 ${
                           selectedRider === rider.id
                             ? 'border-[#0033A0] bg-[#E5EEFF]'
-                            : 'border-gray-200 hover:bg-gray-50'
+                            : (isDarkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-200 hover:bg-gray-50')
                         }`}
                       >
                         <input
@@ -251,21 +253,21 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
                           value={rider.id}
                           checked={selectedRider === rider.id}
                           onChange={(e) => setSelectedRider(e.target.value)}
-                          className="mt-1 mr-3"
+                          className={`mt-1 mr-3 transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-500' : ''}`}
                         />
                         <div className="flex-1">
                           <div className="flex justify-between">
-                            <p className="font-medium text-gray-900">{rider.full_name}</p>
-                            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                            <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{rider.full_name}</p>
+                            <span className={`text-xs px-2 py-1 rounded transition-colors duration-300 ${isDarkMode ? 'bg-green-900/50 text-green-300' : 'text-green-600 bg-green-50'}`}>
                               Active
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500 flex items-center mt-1">
+                          <p className={`text-sm flex items-center mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             <Phone size={14} className="mr-1" />
                             {rider.phone_number}
                           </p>
                           {rider.vehicle_type && (
-                            <p className="text-sm text-gray-500 flex items-center mt-1">
+                            <p className={`text-sm flex items-center mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               <Truck size={14} className="mr-1" />
                               {rider.vehicle_type} {rider.vehicle_plate && `(${rider.vehicle_plate})`}
                             </p>
@@ -281,7 +283,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
               <div className="flex gap-3">
                 <button
                   onClick={handleClose}  // Use handleClose instead of onClose directly
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className={`flex-1 py-2.5 border rounded-lg transition-colors duration-300 ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   Cancel
                 </button>

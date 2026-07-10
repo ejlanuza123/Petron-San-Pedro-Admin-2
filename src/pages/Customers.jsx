@@ -10,66 +10,67 @@ import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 // Skeleton Components (keep as is)
-const TableRowSkeleton = () => (
+const TableRowSkeleton = ({ isDarkMode }) => (
   <tr className="animate-pulse">
     <td className="px-6 py-4">
       <div className="flex items-center">
-        <div className="w-10 h-10 bg-gray-200 rounded-lg mr-3"></div>
+        <div className={`w-10 h-10 rounded-lg mr-3 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
         <div className="space-y-2">
-          <div className="h-4 w-32 bg-gray-200 rounded"></div>
-          <div className="h-3 w-24 bg-gray-200 rounded"></div>
+          <div className={`h-4 w-32 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+          <div className={`h-3 w-24 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
         </div>
       </div>
     </td>
     <td className="px-6 py-4">
       <div className="space-y-2">
-        <div className="h-4 w-28 bg-gray-200 rounded"></div>
-        <div className="h-3 w-36 bg-gray-200 rounded"></div>
+        <div className={`h-4 w-28 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`h-3 w-36 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       </div>
     </td>
     <td className="px-6 py-4">
       <div className="space-y-2">
-        <div className="h-4 w-16 bg-gray-200 rounded"></div>
-        <div className="h-3 w-20 bg-gray-200 rounded"></div>
+        <div className={`h-4 w-16 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`h-3 w-20 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       </div>
     </td>
     <td className="px-6 py-4">
-      <div className="h-5 w-24 bg-gray-200 rounded"></div>
+      <div className={`h-5 w-24 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
     </td>
     <td className="px-6 py-4">
       <div className="space-y-2">
-        <div className="h-4 w-20 bg-gray-200 rounded"></div>
-        <div className="h-3 w-16 bg-gray-200 rounded"></div>
+        <div className={`h-4 w-20 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`h-3 w-16 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       </div>
     </td>
     <td className="px-6 py-4">
       <div className="flex gap-2">
-        <div className="w-8 h-8 bg-gray-200 rounded"></div>
-        <div className="w-8 h-8 bg-gray-200 rounded"></div>
+        <div className={`w-8 h-8 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`w-8 h-8 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       </div>
     </td>
   </tr>
 );
 
-const StatCardSkeleton = () => (
-  <div className="bg-white p-4 rounded-lg border border-gray-200 animate-pulse">
-    <div className="h-4 w-20 bg-gray-200 rounded mb-2"></div>
-    <div className="h-8 w-16 bg-gray-300 rounded"></div>
+const StatCardSkeleton = ({ isDarkMode }) => (
+  <div className={`p-4 rounded-lg border animate-pulse transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+    <div className={`h-4 w-20 rounded mb-2 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+    <div className={`h-8 w-16 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
   </div>
 );
 
 // Edit Customer Modal Component
-const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) => {
-  const { logCustomerAction } = useAdminLog();
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone_number: '',
-    address: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate, isDarkMode }) => {
+    const { logCustomerAction } = useAdminLog();
+    const [formData, setFormData] = useState({
+      full_name: '',
+      phone_number: '',
+      address: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
   useEffect(() => {
     if (customer) {
@@ -134,7 +135,7 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+      <div className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl max-w-md w-full shadow-2xl transition-colors duration-300`}>
         <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Edit Customer</h3>
           <button 
@@ -147,13 +148,13 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className={`${isDarkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-50 border-red-500'} border-l-4 p-4 rounded`}>
+              <p className={`text-sm ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>{error}</p>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Full Name *
             </label>
             <input
@@ -162,13 +163,13 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
               required
               value={formData.full_name}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
               placeholder="Juan Dela Cruz"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Phone Number
             </label>
             <input
@@ -176,30 +177,30 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
               name="phone_number"
               value={formData.phone_number}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
               placeholder="0912 345 6789"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Address
             </label>
             <textarea
               name="address"
               value={formData.address}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none resize-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#0033A0] outline-none resize-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
               rows="3"
               placeholder="Customer's address"
             />
           </div>
 
-          <div className="flex gap-3 pt-4 border-t">
+          <div className={`flex gap-3 pt-4 border-t transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className={`flex-1 py-2.5 border rounded-lg transition-colors duration-300 ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               Cancel
             </button>
@@ -227,28 +228,28 @@ const EditCustomerModal = React.memo(({ isOpen, onClose, customer, onUpdate }) =
 EditCustomerModal.displayName = 'EditCustomerModal';
 
 // Customer Details Modal Component
-const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) => {
-  const stats = useMemo(() => {
-    const orders = customer.orders || [];
-    const totalSpent = orders.reduce((sum, order) => 
-      order.status === 'Completed' ? sum + order.total_amount : sum, 0
-    );
-    const lastOrder = orders.length > 0 
-      ? new Date(Math.max(...orders.map(o => new Date(o.created_at))))
-      : null;
+  const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick, isDarkMode }) => {
+    const stats = useMemo(() => {
+      const orders = customer.orders || [];
+      const totalSpent = orders.reduce((sum, order) => 
+        order.status === 'Completed' ? sum + order.total_amount : sum, 0
+      );
+      const lastOrder = orders.length > 0 
+        ? new Date(Math.max(...orders.map(o => new Date(o.created_at))))
+        : null;
 
-    return {
-      totalOrders: orders.length,
-      totalSpent,
-      lastOrder,
-      completedOrders: orders.filter(o => o.status === 'Completed').length,
-      pendingOrders: orders.filter(o => o.status === 'Pending').length
-    };
-  }, [customer]);
+      return {
+        totalOrders: orders.length,
+        totalSpent,
+        lastOrder,
+        completedOrders: orders.filter(o => o.status === 'Completed').length,
+        pendingOrders: orders.filter(o => o.status === 'Pending').length
+      };
+    }, [customer]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl transition-colors duration-300`}>
         <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Customer Details</h3>
           <button 
@@ -282,8 +283,8 @@ const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) =
                 </div>
               )}
               <div>
-                <h4 className="text-xl font-bold text-gray-900">{customer.full_name}</h4>
-                <p className="text-gray-500 flex items-center mt-1">
+                <h4 className={`text-xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.full_name}</h4>
+                <p className={`flex items-center mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Mail size={14} className="mr-1" />
                   {customer.email}
                 </p>
@@ -292,67 +293,67 @@ const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) =
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-blue-50 p-3 rounded-lg text-center">
+              <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-blue-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
                 <Package size={20} className="text-[#0033A0] mx-auto mb-1" />
-                <p className="text-sm text-gray-600">Total Orders</p>
+                <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Orders</p>
                 <p className="font-bold text-[#0033A0]">{stats.totalOrders}</p>
               </div>
-              <div className="bg-green-50 p-3 rounded-lg text-center">
+              <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-green-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
                 <DollarSign size={20} className="text-green-600 mx-auto mb-1" />
-                <p className="text-sm text-gray-600">Total Spent</p>
+                <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Spent</p>
                 <p className="font-bold text-green-600">{formatCurrency(stats.totalSpent)}</p>
               </div>
-              <div className="bg-purple-50 p-3 rounded-lg text-center">
+              <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-purple-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
                 <Clock size={20} className="text-purple-600 mx-auto mb-1" />
-                <p className="text-sm text-gray-600">Completed</p>
+                <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Completed</p>
                 <p className="font-bold text-purple-600">{stats.completedOrders}</p>
               </div>
             </div>
 
             {/* Contact Information */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500 flex items-center">
+              <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'} p-4 rounded-lg transition-colors duration-300`}>
+                <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Phone size={14} className="mr-1" /> Phone Number
                 </p>
-                <p className="font-medium text-gray-900 mt-1">{customer.phone_number || 'N/A'}</p>
+                <p className={`font-medium mt-1 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.phone_number || 'N/A'}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500 flex items-center">
+              <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'} p-4 rounded-lg transition-colors duration-300`}>
+                <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Calendar size={14} className="mr-1" /> Member Since
                 </p>
-                <p className="font-medium text-gray-900 mt-1">
+                <p className={`font-medium mt-1 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {customer.created_at ? formatDate(customer.created_at) : 'N/A'}
                 </p>
               </div>
               {customer.address && (
-                <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500 flex items-center">
+                <div className={`col-span-2 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'} p-4 rounded-lg transition-colors duration-300`}>
+                  <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     <MapPin size={14} className="mr-1" /> Address
                   </p>
-                  <p className="font-medium text-gray-900 mt-1">{customer.address}</p>
+                  <p className={`font-medium mt-1 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.address}</p>
                 </div>
               )}
             </div>
 
             {/* Order History */}
             <div>
-              <h5 className="font-semibold text-gray-900 mb-3">Recent Orders</h5>
+              <h5 className={`font-semibold mb-3 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Recent Orders</h5>
               {customer.orders && customer.orders.length > 0 ? (
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {customer.orders.slice(0, 5).map(order => (
-                    <div key={order.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div key={order.id} className={`flex justify-between items-center p-3 rounded-lg transition-colors duration-150 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-gray-100'}`}>
                       <div>
-                        <p className="font-medium text-gray-900">Order #{order.id}</p>
-                        <p className="text-xs text-gray-500">{formatDate(order.created_at)}</p>
+                        <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Order #{order.id}</p>
+                        <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{formatDate(order.created_at)}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-[#0033A0]">{formatCurrency(order.total_amount)}</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
-                          order.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                          order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                          order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
+                          order.status === 'Completed' ? (isDarkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-700') :
+                          order.status === 'Pending' ? (isDarkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-700') :
+                          order.status === 'Processing' ? (isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700') :
+                          (isDarkMode ? 'bg-slate-600 text-gray-300' : 'bg-gray-100 text-gray-700')
                         }`}>
                           {order.status}
                         </span>
@@ -361,9 +362,9 @@ const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) =
                   ))}
                 </div>
               ) : (
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <Package size={24} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">No orders yet</p>
+                <div className={`p-4 rounded-lg text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                  <Package size={24} className={`mx-auto mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No orders yet</p>
                 </div>
               )}
             </div>
@@ -377,6 +378,7 @@ const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick }) =
 CustomerDetailsModal.displayName = 'CustomerDetailsModal';
 
 export default function Customers() {
+  const { isDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const handledFocusNonceRef = useRef(null);
@@ -576,23 +578,23 @@ export default function Customers() {
 
         {/* Stats Summary Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <StatCardSkeleton key={i} />)}
+          {[1,2,3,4].map(i => <StatCardSkeleton key={i} isDarkMode={isDarkMode} />)}
         </div>
 
         {/* Table Skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <div className={`rounded-xl border overflow-x-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <table className="w-full min-w-[900px]">
-            <thead className="bg-gray-50">
+            <thead className={`transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
               <tr>
                 {[1,2,3,4,5,6].map(i => (
                   <th key={i} className="px-6 py-4">
-                    <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                    <div className={`h-4 w-20 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {[1,2,3,4,5,6,7,8,9,10].map(i => <TableRowSkeleton key={i} />)}
+            <tbody className={`divide-y transition-colors duration-300 ${isDarkMode ? 'divide-slate-700' : 'divide-gray-200'}`}>
+              {[1,2,3,4,5,6,7,8,9,10].map(i => <TableRowSkeleton key={i} isDarkMode={isDarkMode} />)}
             </tbody>
           </table>
         </div>
@@ -603,7 +605,7 @@ export default function Customers() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Customer Management</h2>
+        <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Customer Management</h2>
       </div>
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
@@ -619,22 +621,22 @@ export default function Customers() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-500">Total Customers</p>
+        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Customers</p>
           <p className="text-2xl font-bold text-[#0033A0]">{summaryStats.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-500">Active This Month</p>
+        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active This Month</p>
           <p className="text-2xl font-bold text-green-600">{summaryStats.active}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-500">Total Revenue</p>
+        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Revenue</p>
           <p className="text-2xl font-bold text-[#ED1C24]">
             {formatCurrency(summaryStats.revenue)}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-500">Avg Order Value</p>
+        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Avg Order Value</p>
           <p className="text-2xl font-bold text-purple-600">
             {formatCurrency(summaryStats.avgOrderValue)}
           </p>
@@ -643,32 +645,32 @@ export default function Customers() {
 
       {/* Customers Table */}
       {filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Users size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
-          <p className="text-gray-500">
+        <div className={`rounded-xl border p-12 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <Users size={48} className={`mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <h3 className={`text-lg font-medium mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No customers found</h3>
+          <p className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             {searchQuery ? "Try adjusting your search" : "No customers have registered yet"}
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+          <div className={`rounded-xl shadow-sm border overflow-x-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
             <table className="w-full min-w-[900px]">
-              <thead className="bg-gray-50 border-b">
+              <thead className={`border-b transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Total Spent</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Last Order</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Customer</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Contact</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Orders</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Total Spent</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Last Order</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+            <tbody className={`divide-y transition-colors duration-300 ${isDarkMode ? 'divide-slate-700' : 'divide-gray-200'}`}>
                 {paginatedCustomers.map((customer) => {
                   const stats = getCustomerStats(customer);
                   return (
-                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <tr key={customer.id} className={`transition-colors duration-150 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-50'}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           {customer.avatar_url ? (
@@ -690,20 +692,20 @@ export default function Customers() {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-gray-900">{customer.full_name || 'Unnamed'}</p>
-                            <p className="text-sm text-gray-500">{customer.email || 'No email'}</p>
+                            <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.full_name || 'Unnamed'}</p>
+                            <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{customer.email || 'No email'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <p className="text-sm text-gray-900 flex items-center">
-                            <Phone size={14} className="mr-1 text-gray-400" />
+                          <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                            <Phone size={14} className={`mr-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                             {customer.phone_number || 'N/A'}
                           </p>
                           {customer.address && (
-                            <p className="text-sm text-gray-500 flex items-center">
-                              <MapPin size={14} className="mr-1 text-gray-400" />
+                            <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              <MapPin size={14} className={`mr-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                               <span className="truncate max-w-[200px]">{customer.address}</span>
                             </p>
                           )}
@@ -711,8 +713,8 @@ export default function Customers() {
                       </td>
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{stats.totalOrders}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stats.totalOrders}</p>
+                          <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             {stats.completedOrders} completed
                           </p>
                         </div>
@@ -723,15 +725,15 @@ export default function Customers() {
                       <td className="px-6 py-4">
                         {stats.lastOrder ? (
                           <div>
-                            <p className="text-sm text-gray-900">
+                            <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
                               {stats.lastOrder.toLocaleDateString()}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               {stats.lastOrder.toLocaleTimeString()}
                             </p>
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-400">No orders</span>
+                          <span className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No orders</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -745,7 +747,7 @@ export default function Customers() {
                           </button>
                           <button 
                             onClick={() => handleEditClick(customer)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                            className={`p-2 rounded-lg transition-colors duration-150 ${isDarkMode ? 'text-gray-400 hover:bg-slate-700' : 'text-gray-600 hover:bg-gray-100'}`}
                             title="Edit Customer"
                           >
                             <Edit2 size={18} />
@@ -776,6 +778,7 @@ export default function Customers() {
           customer={selectedCustomer}
           onClose={handleCloseModal}
           onAvatarClick={setPreviewImageUrl}
+          isDarkMode={isDarkMode}
         />
       )}
 
@@ -786,6 +789,7 @@ export default function Customers() {
           onClose={handleCloseModal}
           customer={selectedCustomer}
           onUpdate={handleUpdateSuccess}
+          isDarkMode={isDarkMode}
         />
       )}
 

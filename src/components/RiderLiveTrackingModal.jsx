@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { retryAsync } from '../utils/retry';
 import { formatOrderNumber } from '../utils/formatters';
 
-export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
+export default function RiderLiveTrackingModal({ isOpen, onClose, rider, isDarkMode }) {
   const [riderLocation, setRiderLocation] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(null);
@@ -461,7 +461,7 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl w-full max-w-6xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl w-full max-w-6xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col transition-colors duration-300`}>
         <div className="bg-petron-blue p-6 flex justify-between items-center">
           <h3 className="text-xl font-bold text-white flex items-center">
             <Navigation className="mr-2" size={24} />
@@ -473,19 +473,19 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 bg-gray-100 relative">
+          <div className={`flex-1 relative ${isDarkMode ? 'bg-slate-900' : 'bg-gray-100'}`}>
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="animate-spin p-4 mb-4">⏳</div>
-                  <p className="text-gray-600">Loading map...</p>
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Loading map...</p>
                 </div>
               </div>
             ) : error ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-6">
-                  <AlertCircle size={48} className="mx-auto text-red-500 mb-2" />
-                  <p className="text-red-600">{error}</p>
+                  <AlertCircle size={48} className={`mx-auto mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
+                  <p className={isDarkMode ? 'text-red-400' : 'text-red-600'}>{error}</p>
                 </div>
               </div>
             ) : (
@@ -499,30 +499,30 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
             )}
           </div>
 
-          <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <div className={`w-96 overflow-y-auto ${isDarkMode ? 'bg-slate-700 border-l border-slate-600' : 'bg-white border-l border-gray-200'}`}>
+            <div className={`p-6 border-b ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`}>
+              <h4 className={`font-semibold mb-4 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 <User size={18} className="mr-2 text-petron-blue" />
                 Rider Information
               </h4>
               <div className="space-y-3 text-sm">
-                <p><span className="text-gray-500">Name:</span> <span className="font-medium text-gray-900">{rider?.full_name || 'N/A'}</span></p>
-                <p className="flex items-center"><Phone size={14} className="mr-1 text-gray-500" />{rider?.phone_number || 'N/A'}</p>
+                <p><span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Name:</span> <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{rider?.full_name || 'N/A'}</span></p>
+                <p className={`flex items-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}><Phone size={14} className="mr-1 text-gray-500" />{rider?.phone_number || 'N/A'}</p>
                 {rider?.vehicle_type && (
-                  <p><span className="text-gray-500">Vehicle:</span> <span className="font-medium">{rider.vehicle_type} {rider?.vehicle_plate ? `(${rider.vehicle_plate})` : ''}</span></p>
+                  <p><span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Vehicle:</span> <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{rider.vehicle_type} {rider?.vehicle_plate ? `(${rider.vehicle_plate})` : ''}</span></p>
                 )}
                 <div className="flex items-center gap-2">
                   <span className={`w-3 h-3 rounded-full ${riderLocation?.isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                  <span className="font-medium text-gray-900">{riderLocation?.isOnline ? 'Online' : 'Offline'}</span>
+                  <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{riderLocation?.isOnline ? 'Online' : 'Offline'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full ${getChannelBadge().dot}`}></span>
-                  <span className="text-xs text-gray-600">Realtime: {getChannelBadge().label}</span>
+                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Realtime: {getChannelBadge().label}</span>
                 </div>
-                {lastUpdated && <p className="text-xs text-gray-500">Last updated: {lastUpdated.toLocaleTimeString()}</p>}
+                {lastUpdated && <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Last updated: {lastUpdated.toLocaleTimeString()}</p>}
                 <button
                   onClick={fetchInitialData}
-                  className="mt-2 inline-flex items-center px-3 py-1.5 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
+                  className={`mt-2 inline-flex items-center px-3 py-1.5 text-xs border rounded-md transition-colors ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   <RefreshCw size={12} className="mr-1" />
                   Refresh Data
@@ -530,38 +530,38 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
               </div>
             </div>
 
-            <div className="p-6 border-b border-gray-200">
-              <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+            <div className={`p-6 border-b ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`}>
+              <h4 className={`font-semibold mb-3 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 <Route size={18} className="mr-2 text-petron-blue" />
                 Focused Route
               </h4>
               {selectedDeliveryId ? (
                 <div className="space-y-1 text-sm">
-                  <p className="text-gray-700">Mode: <span className="font-semibold">Specific order</span></p>
-                  <p className="text-gray-700">ETA: <span className="font-semibold">{routeEtaMinutes ? `${routeEtaMinutes} min` : 'Calculating...'}</span></p>
-                  <p className="text-gray-700">Distance: <span className="font-semibold">{routeDistanceKm ? `${routeDistanceKm} km` : 'Calculating...'}</span></p>
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Mode: <span className="font-semibold">Specific order</span></p>
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>ETA: <span className="font-semibold">{routeEtaMinutes ? `${routeEtaMinutes} min` : 'Calculating...'}</span></p>
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Distance: <span className="font-semibold">{routeDistanceKm ? `${routeDistanceKm} km` : 'Calculating...'}</span></p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-600">All deliveries mode. Pick an order below to get road routing + ETA.</p>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>All deliveries mode. Pick an order below to get road routing + ETA.</p>
               )}
               <button
                 onClick={() => setSelectedDeliveryId(null)}
-                className="mt-3 w-full py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className={`mt-3 w-full py-2 border rounded-lg text-sm transition-colors ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 Show All Deliveries
               </button>
             </div>
 
             <div className="p-6">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+              <h4 className={`font-semibold mb-4 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 <Truck size={18} className="mr-2 text-petron-blue" />
                 Active Deliveries ({activeDeliveries?.length || 0})
               </h4>
 
               {!activeDeliveries?.length ? (
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <Truck size={24} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">No active deliveries</p>
+                <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'bg-slate-600' : 'bg-gray-50'}`}>
+                  <Truck size={24} className={`mx-auto mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No active deliveries</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -571,13 +571,13 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider }) {
                       <button
                         key={delivery.id}
                         onClick={() => setSelectedDeliveryId(delivery.id)}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors ${isFocused ? 'border-[#0033A0] bg-blue-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
+                        className={`w-full text-left p-3 rounded-lg border transition-colors ${isFocused ? (isDarkMode ? 'border-[#0033A0] bg-blue-900/40' : 'border-[#0033A0] bg-blue-50') : isDarkMode ? 'border-slate-600 bg-slate-600 hover:bg-slate-500' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <p className="font-medium text-gray-900">Order {formatOrderNumber(delivery.order?.order_number, delivery.order?.id)}</p>
+                          <p className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Order {formatOrderNumber(delivery.order?.order_number, delivery.order?.id)}</p>
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusBadgeColor(delivery.status)}`}>{delivery.status}</span>
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2 flex items-start">
+                        <p className={`text-sm line-clamp-2 flex items-start ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           <MapPin size={14} className="mr-1 mt-0.5 flex-shrink-0" />
                           {delivery.order?.delivery_address}
                         </p>

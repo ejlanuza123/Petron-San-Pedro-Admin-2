@@ -12,6 +12,7 @@ import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_CATEGORIES } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 // Default placeholder images based on category
 const getPlaceholderImage = (category) => {
@@ -28,38 +29,39 @@ const getPlaceholderImage = (category) => {
 };
 
 // Skeleton Components
-const ProductCardSkeleton = () => (
-  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
-    <div className="h-48 bg-gray-200"></div>
+const ProductCardSkeleton = ({ isDarkMode }) => (
+  <div className={`rounded-xl border overflow-hidden animate-pulse transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+    <div className={`h-48 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
     <div className="p-4">
-      <div className="h-5 w-32 bg-gray-200 rounded mb-2"></div>
-      <div className="h-4 w-24 bg-gray-200 rounded mb-3"></div>
+      <div className={`h-5 w-32 rounded mb-2 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+      <div className={`h-4 w-24 rounded mb-3 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       <div className="flex justify-between items-center mt-3">
         <div className="space-y-2">
-          <div className="h-3 w-12 bg-gray-200 rounded"></div>
-          <div className="h-5 w-20 bg-gray-200 rounded"></div>
+          <div className={`h-3 w-12 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+          <div className={`h-5 w-20 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
         </div>
         <div className="text-right space-y-2">
-          <div className="h-3 w-12 bg-gray-200 rounded"></div>
-          <div className="h-5 w-16 bg-gray-200 rounded"></div>
+          <div className={`h-3 w-12 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+          <div className={`h-5 w-16 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
         </div>
       </div>
-      <div className="mt-4 pt-4 border-t flex gap-2">
-        <div className="flex-1 h-10 bg-gray-200 rounded"></div>
-        <div className="w-12 h-10 bg-gray-200 rounded"></div>
+      <div className={`mt-4 pt-4 border-t flex gap-2 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
+        <div className={`flex-1 h-10 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+        <div className={`w-12 h-10 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
       </div>
     </div>
   </div>
 );
 
-const StatCardSkeleton = () => (
-  <div className="bg-white p-4 rounded-lg border border-gray-200 animate-pulse">
-    <div className="h-4 w-20 bg-gray-200 rounded mb-2"></div>
-    <div className="h-8 w-16 bg-gray-300 rounded"></div>
+const StatCardSkeleton = ({ isDarkMode }) => (
+  <div className={`p-4 rounded-lg border animate-pulse transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+    <div className={`h-4 w-20 rounded mb-2 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
+    <div className={`h-8 w-16 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
   </div>
 );
 
 export default function Products() {
+  const { isDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const handledFocusNonceRef = useRef(null);
@@ -224,15 +226,14 @@ export default function Products() {
           <div className="w-48 h-12 bg-gray-200 rounded animate-pulse"></div>
         </div>
 
-        {/* Stats Summary Skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <StatCardSkeleton key={i} />)}
-        </div>
-
-        {/* Products Grid Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[1,2,3,4,5,6,7,8].map(i => <ProductCardSkeleton key={i} />)}
-        </div>
+        {/* Stats Cards Skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <StatCardSkeleton key={i} isDarkMode={isDarkMode} />)}
+      </div>
+      {/* Products Grid Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {[1,2,3,4,5,6,7,8].map(i => <ProductCardSkeleton key={i} isDarkMode={isDarkMode} />)}
+      </div>
       </div>
     );
   }
@@ -240,7 +241,7 @@ export default function Products() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Inventory Management</h2>
+        <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Inventory Management</h2>
         
         <button 
           onClick={openAdd}
@@ -264,7 +265,7 @@ export default function Products() {
         <select
           value={categoryFilter}
           onChange={handleCategoryChange}
-          className="bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none"
+          className={`border rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
         >
           <option value="All">All Categories</option>
           {Object.values(PRODUCT_CATEGORIES).map(category => (
@@ -275,20 +276,20 @@ export default function Products() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
-          <p className="text-sm text-gray-500">Total Products</p>
+        <div className={`p-4 rounded-lg border min-w-0 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Products</p>
           <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
-          <p className="text-sm text-gray-500">Low Stock</p>
+        <div className={`p-4 rounded-lg border min-w-0 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Low Stock</p>
           <p className="text-2xl font-bold text-[#ED1C24]">{stats.lowStock}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
-          <p className="text-sm text-gray-500">Categories</p>
-          <p className="text-2xl font-bold text-gray-900">{stats.categories}</p>
+        <div className={`p-4 rounded-lg border min-w-0 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Categories</p>
+          <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stats.categories}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 min-w-0">
-          <p className="text-sm text-gray-500">Total Value</p>
+        <div className={`p-4 rounded-lg border min-w-0 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Value</p>
           <p className="text-lg sm:text-2xl font-bold text-green-600 leading-tight break-words">
             {formatCurrency(stats.totalValue)}
           </p>
@@ -313,11 +314,11 @@ export default function Products() {
             {paginatedProducts.map((product) => (
               <div 
                 key={product.id} 
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-150 group cursor-pointer"
+                className={`rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-all duration-150 group cursor-pointer ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
                 onClick={() => openDetails(product)}
               >
                 {/* Product Image */}
-                <div className="h-48 bg-gray-100 relative overflow-hidden">
+                <div className={`h-48 relative overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
                   {!imageErrors[product.id] && product.image_url ? (
                     <img 
                       src={product.image_url}
@@ -326,21 +327,21 @@ export default function Products() {
                       onError={() => handleImageError(product.id)}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                    <div className={`w-full h-full flex items-center justify-center ${isDarkMode ? 'bg-gradient-to-br from-slate-700 to-slate-800' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
                       {product.category === PRODUCT_CATEGORIES.FUEL ? (
                         <div className="text-center">
                           <div className="text-6xl mb-2">⛽</div>
-                          <p className="text-sm text-gray-400">Fuel Product</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>Fuel Product</p>
                         </div>
                       ) : product.category === PRODUCT_CATEGORIES.MOTOR_OIL ? (
                         <div className="text-center">
                           <div className="text-6xl mb-2">🛢️</div>
-                          <p className="text-sm text-gray-400">Motor Oil</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>Motor Oil</p>
                         </div>
                       ) : (
                         <div className="text-center">
                           <div className="text-6xl mb-2">🔧</div>
-                          <p className="text-sm text-gray-400">Engine Oil</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>Engine Oil</p>
                         </div>
                       )}
                     </div>
@@ -359,21 +360,25 @@ export default function Products() {
 
                   {/* Category Badge */}
                   <div className="absolute top-2 left-2">
-                    <span className="px-2 py-1 text-xs font-bold rounded bg-white/90 backdrop-blur-sm text-gray-700 shadow-lg">
+                    <span className={`px-2 py-1 text-xs font-bold rounded shadow-lg backdrop-blur-sm ${
+                      isDarkMode 
+                        ? 'bg-slate-700/90 text-gray-200' 
+                        : 'bg-white/90 text-gray-700'
+                    }`}>
                       {product.category}
                     </span>
                   </div>
                 </div>
 
                 <div className="p-4">
-                  <h3 className="font-bold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
+                  <h3 className={`font-bold mb-1 line-clamp-1 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
                   
                   {product.description && (
-                    <p className="text-sm text-gray-500 mb-2 line-clamp-2">{product.description}</p>
+                    <p className={`text-sm mb-2 line-clamp-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
                   )}
                   
                   {product.stock_quantity < 10 && (
-                    <div className="flex items-center text-[#ED1C24] text-xs mb-2 bg-red-50 p-1 rounded">
+                    <div className={`flex items-center text-[#ED1C24] text-xs mb-2 p-1 rounded ${isDarkMode ? 'bg-red-900/30' : 'bg-red-50'}`}>
                       <AlertTriangle size={12} className="mr-1 flex-shrink-0" />
                       Low stock alert
                     </div>
@@ -381,13 +386,13 @@ export default function Products() {
 
                   <div className="flex justify-between items-center mt-3">
                     <div>
-                      <p className="text-xs text-gray-400">Price</p>
+                      <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Price</p>
                       <p className="font-bold text-[#0033A0] text-lg">
                         {formatCurrency(product.current_price)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-gray-400">Stock</p>
+                      <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Stock</p>
                       <p className={`font-medium ${
                         product.stock_quantity > 10 ? 'text-green-600' : 'text-red-600'
                       }`}>
@@ -402,7 +407,7 @@ export default function Products() {
                         e.stopPropagation();
                         openEdit(product);
                       }}
-                      className="flex-1 bg-gray-50 text-gray-700 py-2 rounded-lg hover:bg-[#E5EEFF] hover:text-[#0033A0] text-sm font-medium flex items-center justify-center gap-2 transition-colors duration-150"
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors duration-150 ${isDarkMode ? 'bg-slate-700 text-gray-300 hover:bg-slate-600 hover:text-white' : 'bg-gray-50 text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0]'}`}
                     >
                       <Edit2 size={14} />
                       Edit
@@ -412,7 +417,7 @@ export default function Products() {
                         e.stopPropagation();
                         handleDeleteClick(product);
                       }}
-                      className="bg-red-50 text-[#ED1C24] px-4 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors duration-150"
+                    className={`px-4 rounded-lg flex items-center justify-center transition-colors duration-150 ${isDarkMode ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'bg-red-50 text-[#ED1C24] hover:bg-red-100'}`}
                     >
                       <Trash2 size={14} />
                     </button>

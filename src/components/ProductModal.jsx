@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom';
 import { X, Save, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '../utils/constants';
 import { validateProduct } from '../utils/validation';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ProductModal({ isOpen, onClose, product, onSave }) {
+  const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -105,7 +107,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm w-screen h-screen">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden">
+      <div className={`rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
         <div className="bg-petron-blue p-6">
           <h3 className="text-xl font-bold text-white">
             {product ? 'Edit Product' : 'Add New Product'}
@@ -117,13 +119,13 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
             {/* Left Column */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Product Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="name"
-                  className={`w-full border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                  className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${errors.name ? 'border-red-500' : (isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900')}`}
                   value={formData.name}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -139,12 +141,12 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Category
                   </label>
                   <select
                     name="category"
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none"
+                    className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
                     value={formData.category}
                     onChange={handleChange}
                   >
@@ -154,13 +156,13 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     SKU
                   </label>
                   <input
                     type="text"
                     name="sku"
-                    className={`w-full border ${errors.sku ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                    className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${errors.sku ? 'border-red-500' : (isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900')}`}
                     value={formData.sku}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -176,13 +178,13 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Unit
                 </label>
                 <input
                   type="text"
                   name="unit"
-                  className={`w-full border ${errors.unit ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                  className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${errors.unit ? 'border-red-500' : (isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900')}`}
                   value={formData.unit}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -192,7 +194,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Price (₱)
                   </label>
                   <input
@@ -200,7 +202,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
                     name="current_price"
                     step="0.01"
                     min="0"
-                    className={`w-full border ${errors.current_price ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                    className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${errors.current_price ? 'border-red-500' : (isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900')}`}
                     value={formData.current_price}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -208,14 +210,14 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Stock
                   </label>
                   <input
                     type="number"
                     name="stock_quantity"
                     min="0"
-                    className={`w-full border ${errors.stock_quantity ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none`}
+                    className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${errors.stock_quantity ? 'border-red-500' : (isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900')}`}
                     value={formData.stock_quantity}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -225,14 +227,14 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Low Stock Threshold
                 </label>
                 <input
                   type="number"
                   name="low_stock_threshold"
                   min="1"
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none"
+                  className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
                   value={formData.low_stock_threshold}
                   onChange={handleChange}
                   placeholder="10"
@@ -246,9 +248,9 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
                   id="is_active"
                   checked={formData.is_active}
                   onChange={handleChange}
-                  className="rounded border-gray-300 text-[#0033A0] focus:ring-[#0033A0]"
+                  className={`rounded text-[#0033A0] focus:ring-[#0033A0] transition-colors duration-300 ${isDarkMode ? 'border-slate-500 bg-slate-600' : 'border-gray-300'}`}
                 />
-                <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="is_active" className={`ml-2 text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Active (visible to customers)
                 </label>
               </div>
@@ -257,13 +259,13 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
             {/* Right Column */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Image URL
                 </label>
                 <input
                   type="url"
                   name="image_url"
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none"
+                  className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
                   value={formData.image_url}
                   onChange={handleChange}
                   placeholder="https://example.com/image.jpg"
@@ -271,7 +273,7 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
               </div>
 
               {imagePreview && (
-                <div className="border rounded-lg p-2">
+                <div className={`border rounded-lg p-2 transition-colors duration-300 ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`}>
                   <img 
                     src={imagePreview} 
                     alt="Preview" 
@@ -282,12 +284,12 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Description
                 </label>
                 <textarea
                   name="description"
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none h-32 resize-none"
+                  className={`w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-[#0033A0] outline-none h-32 resize-none transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
                   value={formData.description}
                   onChange={handleChange}
                   placeholder="Product details, specifications, etc."
@@ -296,11 +298,11 @@ export default function ProductModal({ isOpen, onClose, product, onSave }) {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4 border-t">
+          <div className={`flex gap-3 pt-4 border-t transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition"
+              className={`flex-1 py-2.5 border font-medium rounded-lg transition transition-colors duration-300 ${isDarkMode ? 'border-slate-600 text-gray-200 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               Cancel
             </button>

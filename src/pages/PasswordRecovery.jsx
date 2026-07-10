@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -19,6 +20,7 @@ function readAuthParamsFromUrl() {
 }
 
 export default function PasswordRecovery() {
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [bootLoading, setBootLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

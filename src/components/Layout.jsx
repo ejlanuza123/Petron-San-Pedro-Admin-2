@@ -3,6 +3,7 @@ import React, { useState, useCallback, memo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -21,6 +22,7 @@ import {
   CheckCheck,
   Trash2
 } from 'lucide-react';
+import { AnimatedThemeToggle } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import petronLogo from '../assets/images/petron-logo.png';
 import PageTransition from './PageTransition';
@@ -30,6 +32,7 @@ import FloatingChatBubble from './common/FloatingChatBubble';
 
 // Animated NavItem with scale and slide effects
 const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
+  const { isDarkMode } = useTheme();
   return (
     <motion.button
       onClick={onClick}
@@ -40,7 +43,9 @@ const NavItem = memo(({ to, icon: Icon, label, isActive, onClick }) => {
         transition-all duration-300 ease-in-out
         ${isActive 
           ? 'bg-petron-blue text-white shadow-lg' 
-          : 'text-gray-600 hover:bg-[#E5EEFF] hover:text-[#0033A0]'
+          : isDarkMode 
+            ? 'text-gray-400 hover:bg-gray-700 hover:text-white' 
+            : 'text-gray-600 hover:bg-[#E5EEFF] hover:text-[#0033A0]'
         }
       `}
     >
@@ -116,7 +121,7 @@ const getReservationDateKey = (notificationData = {}) => {
   return `${year}-${month}-${day}`;
 };
 
-const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, onNotificationClick, requestNotificationPermission, className = '', placement = 'bottom-right', buttonClassName = '' }) => {
+const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, onNotificationClick, requestNotificationPermission, className = '', placement = 'bottom-right', buttonClassName = '', isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const previewNotifications = notifications.slice(0, 8);
 
@@ -139,7 +144,11 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
           }
           setIsOpen(prev => !prev);
         }}
-        className={`relative p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition ${buttonClassName}`}
+        className={`relative p-2 rounded-lg border transition ${buttonClassName} ${
+          isDarkMode 
+            ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-gray-300' 
+            : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700'
+        }`}
         aria-label="Open notifications"
       >
         <Bell size={20} className="text-current" />
@@ -157,23 +166,27 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
             animate={{ y: 0 }}
             exit={{ y: 8 }}
             transition={{ duration: 0.2 }}
-            className={`${panelPositionClass} ${placement === 'mobile-center' ? '' : 'w-[min(22rem,calc(100vw-1rem))]'} max-h-[420px] bg-white border border-gray-200 rounded-xl shadow-xl z-[120] overflow-hidden`}
+            className={`${panelPositionClass} ${placement === 'mobile-center' ? '' : 'w-[min(22rem,calc(100vw-1rem))]'} max-h-[420px] rounded-xl shadow-xl z-[120] overflow-hidden transition-colors duration-300 ${
+              isDarkMode 
+                ? 'bg-slate-800 border border-slate-700 text-slate-100' 
+                : 'bg-white border border-gray-200 text-gray-900'
+            }`}
             style={{ opacity: 1 }}
           >
-            <div className="px-4 py-3 border-b flex items-center justify-between">
+            <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
-                <p className="text-xs text-gray-500">{unreadCount} unread</p>
+                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Notifications</h3>
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{unreadCount} unread</p>
               </div>
             </div>
 
             {notifications.length > 0 && (
-              <div className="px-4 py-2 border-b bg-gray-50 flex items-center justify-between gap-2">
+              <div className={`px-4 py-2 border-b flex items-center justify-between gap-2 ${isDarkMode ? 'bg-slate-700/50 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
                 <button
                   onClick={async () => {
                     await markAllAsRead();
                   }}
-                  className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 font-medium"
+                  className={`inline-flex items-center gap-1 text-xs font-medium ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-700 hover:text-blue-900'}`}
                 >
                   <CheckCheck size={14} />
                   Mark all as read
@@ -183,7 +196,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
                     await clearAll();
                     setIsOpen(false);
                   }}
-                  className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-[#ED1C24]"
+                  className={`inline-flex items-center gap-1 text-xs ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-[#ED1C24]'}`}
                 >
                   <Trash2 size={14} />
                   Remove all
@@ -193,9 +206,9 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
 
             <div className="max-h-[340px] overflow-auto">
               {previewNotifications.length === 0 ? (
-                <div className="p-6 text-center text-sm text-gray-500">No notifications yet</div>
+                <div className={`p-6 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No notifications yet</div>
               ) : (
-                <div className="divide-y">
+                <div className={`divide-y ${isDarkMode ? 'divide-slate-700' : 'divide-gray-200'}`}>
                   {previewNotifications.map((notification) => (
                     <button
                       key={notification.id}
@@ -208,13 +221,17 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
                         }
                         setIsOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 transition hover:bg-gray-50 ${notification.is_read ? 'bg-white' : 'bg-blue-50'}`}
+                      className={`w-full text-left px-4 py-3 transition ${
+                        isDarkMode 
+                          ? `hover:bg-slate-700 ${notification.is_read ? 'bg-slate-800' : 'bg-blue-900/20'}` 
+                          : `hover:bg-gray-50 ${notification.is_read ? 'bg-white' : 'bg-blue-50'}`
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{notification.title}</p>
-                          <p className="text-xs text-gray-600 mt-1 break-words">{notification.message}</p>
-                          <p className="text-[11px] text-gray-400 mt-2">
+                          <p className={`text-sm font-semibold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{notification.title}</p>
+                          <p className={`text-xs mt-1 break-words ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{notification.message}</p>
+                          <p className={`text-[11px] mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             {formatNotificationTime(notification.created_at)}
                           </p>
                         </div>
@@ -224,14 +241,14 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
                               e.stopPropagation();
                               await markAsRead(notification.id);
                             }}
-                            className="mt-0.5 p-1 rounded text-blue-600 hover:bg-blue-100"
+                            className={`mt-0.5 p-1 rounded ${isDarkMode ? 'text-blue-400 hover:bg-blue-900/50' : 'text-blue-600 hover:bg-blue-100'}`}
                             title="Mark as read"
                             aria-label="Mark as read"
                           >
                             <Check size={14} />
                           </button>
                         ) : (
-                          <span className="mt-1 text-green-600" title="Read">
+                          <span className={`mt-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} title="Read">
                             <CheckCheck size={14} />
                           </span>
                         )}
@@ -240,7 +257,7 @@ const NotificationMenu = memo(({ notifications, unreadCount, markAsRead, markAll
                             e.stopPropagation();
                             await removeNotification(notification.id);
                           }}
-                          className="mt-0.5 p-1 rounded text-gray-500 hover:bg-red-100 hover:text-[#ED1C24]"
+                          className={`mt-0.5 p-1 rounded ${isDarkMode ? 'text-gray-400 hover:bg-red-900/50 hover:text-red-400' : 'text-gray-500 hover:bg-red-100 hover:text-[#ED1C24]'}`}
                           title="Remove notification"
                           aria-label="Remove notification"
                         >
@@ -263,6 +280,7 @@ NotificationMenu.displayName = 'NotificationMenu';
 
 // Sidebar component
 const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, onSettingsClick, onProfileClick, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onNotificationClick }) => {
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Handle navigation with slide direction
@@ -299,7 +317,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
       initial={{ x: -300 }}
       animate={{ x: 0 }}
       transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
-      className="hidden md:flex flex-col w-72 bg-white border-r border-gray-200 relative z-40 overflow-visible"
+      className={`hidden md:flex flex-col w-72 relative z-40 overflow-visible transition-colors duration-300 ${isDarkMode ? 'bg-slate-900 border-r border-slate-700' : 'bg-white border-r border-gray-200'}`}
     >
       {/* Logo Section */}
       <motion.div 
@@ -339,7 +357,8 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
             requestNotificationPermission={requestNotificationPermission}
             placement="right-start"
             className="translate-x-2"
-            buttonClassName="bg-white border-white/70 text-[#0033A0] hover:bg-[#E5EEFF]"
+            buttonClassName={isDarkMode ? 'bg-slate-800 border-slate-700 text-[#0033A0] hover:bg-slate-700' : 'bg-white border-white/70 text-[#0033A0] hover:bg-[#E5EEFF]'}
+            isDarkMode={isDarkMode}
           />
         </div>
       </motion.div>
@@ -366,7 +385,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
 
       {/* Profile Section */}
       <motion.div 
-        className="p-4 border-t"
+        className={`p-4 border-t transition-colors duration-300 ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-gray-200 bg-white'}`}
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
@@ -376,7 +395,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center w-full px-4 py-3 rounded-lg hover:bg-[#E5EEFF] transition-all duration-300"
+            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-300 ${isDarkMode ? 'hover:bg-slate-800 hover:bg-opacity-60' : 'hover:bg-[#E5EEFF]'}`}
           >
             {profile?.avatar_url ? (
               <img
@@ -390,16 +409,16 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
               </div>
             )}
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-theme-primary truncate">
                 {profile?.full_name || 'Admin'}
               </p>
-              <p className="text-xs text-gray-500 truncate">{profile?.email || 'admin@petron.com'}</p>
+              <p className="text-xs text-theme-secondary truncate">{profile?.email || 'admin@petron.com'}</p>
             </div>
             <motion.div
               animate={{ rotate: isProfileMenuOpen ? 180 : 0 }}
               transition={{ duration: 0.3 }}
             >
-              <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
+              <ChevronDown size={18} className="text-theme-secondary flex-shrink-0" />
             </motion.div>
           </motion.button>
 
@@ -407,7 +426,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
           <AnimatePresence>
             {isProfileMenuOpen && (
               <motion.div 
-                className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                className={`absolute bottom-full left-0 w-full mb-2 rounded-lg shadow-lg border py-2 z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -415,7 +434,7 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
               >
                 <motion.button 
                   whileHover={{ x: 5 }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] flex items-center"
+                  className={`w-full px-4 py-2 text-left text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-slate-200 hover:bg-slate-700 hover:text-white' : 'text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0]'}`}
                   onClick={() => {
                     onProfileClick();
                     setIsProfileMenuOpen(false);
@@ -424,11 +443,15 @@ const Sidebar = memo(({ profile, handleSignOut, isActive, handleNavigation, setS
                   <User size={16} className="mr-2" />
                   Profile and settings
                 </motion.button>
-                <div className="border-t my-2"></div>
+                <div className={`w-full px-4 py-2 flex items-center transition-colors duration-300 ${isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0]'}`}>
+                  <AnimatedThemeToggle className="mr-2" />
+                  <span className="text-sm">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                </div>
+                <div className={`border-t my-2 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}></div>
                 <motion.button 
                   whileHover={{ x: 5 }}
                   onClick={handleSignOut}
-                  className="w-full px-4 py-2 text-left text-sm text-[#ED1C24] hover:bg-red-50 flex items-center"
+                  className={`w-full px-4 py-2 text-left text-sm text-[#ED1C24] flex items-center transition-colors duration-300 ${isDarkMode ? 'hover:bg-red-900/30' : 'hover:bg-red-50'}`}
                 >
                   <LogOut size={16} className="mr-2" />
                   Sign Out
@@ -446,6 +469,7 @@ Sidebar.displayName = 'Sidebar';
 
 // Mobile header with animations
 const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onSettingsClick, onProfileClick, onNotificationClick }) => {
+  const { isDarkMode } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileProfileMenuOpen, setIsMobileProfileMenuOpen] = useState(false);
 
@@ -499,6 +523,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
             onNotificationClick={onNotificationClick}
             requestNotificationPermission={requestNotificationPermission}
             placement="mobile-center"
+            isDarkMode={isDarkMode}
           />
           <motion.button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -514,12 +539,11 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
-            className="md:hidden fixed inset-0 top-16 bg-white z-10 overflow-y-auto"
+            className={`md:hidden fixed inset-0 top-16 z-10 overflow-y-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-white text-gray-900'}`}
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+            transition={{ duration: 0.3 }}>
             <div className="p-4">
               <nav className="space-y-2">
                 {[
@@ -630,6 +654,7 @@ MobileHeader.displayName = 'MobileHeader';
 
 export default function Layout() {
   const { user, profile, signOut } = useAuth();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const {
     notifications,
     unreadCount,
@@ -732,7 +757,7 @@ export default function Layout() {
   const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className={`flex h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-gray-100 text-gray-900'}`}>
       <Sidebar 
         profile={profile} 
         handleSignOut={handleSignOut}
@@ -770,7 +795,7 @@ export default function Layout() {
           onNotificationClick={handleNotificationClick}
         />
 
-        <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50">
+        <main className={`flex-1 overflow-auto p-4 md:p-8 transition-colors duration-300 ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
           {(permissionStatus === 'denied' || permissionStatus === 'unsupported') && (
             <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
               <div className="flex flex-wrap items-center justify-between gap-2">

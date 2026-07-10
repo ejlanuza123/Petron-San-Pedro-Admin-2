@@ -1,5 +1,6 @@
 // src/pages/Login.jsx
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
@@ -36,6 +37,7 @@ export default function Login() {
       return false;
     }
   });
+  const { isDarkMode } = useTheme();
   const { signIn } = useAuth();
   const navigate = useNavigate();
 

@@ -1,5 +1,6 @@
 // src/pages/ChatInbox.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { chatService } from '../services/chatService';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +54,7 @@ const getInitials = (name) => {
 };
 
 export default function ChatInbox() {
+  const { isDarkMode } = useTheme();
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);

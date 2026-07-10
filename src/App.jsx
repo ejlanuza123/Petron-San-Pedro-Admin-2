@@ -6,6 +6,7 @@ import { SuccessModalProvider } from './context/SuccessModalContext';
 import { ErrorProvider } from './context/ErrorContext';
 import { LoadingProvider } from './context/LoadingContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -59,8 +60,9 @@ function App() {
         <LoadingProvider>
           <AuthProvider>
             <NotificationProvider>
-              <BrowserRouter>
-                <SuccessModalProvider>
+              <ThemeProvider>
+                <BrowserRouter>
+                  <SuccessModalProvider>
                   <GlobalLoader />
                   <GlobalErrorDisplay />
                   <Routes>
@@ -90,8 +92,9 @@ function App() {
 
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
-                </SuccessModalProvider>
-              </BrowserRouter>
+                   </SuccessModalProvider>
+                 </BrowserRouter>
+               </ThemeProvider>
             </NotificationProvider>
           </AuthProvider>
         </LoadingProvider>

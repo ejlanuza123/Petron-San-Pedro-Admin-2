@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, Phone, User } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import { reservationService } from '../services/reservationService';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -42,6 +43,7 @@ function parseDateKey(value) {
 }
 
 export default function Reservations() {
+  const { isDarkMode } = useTheme();
   const location = useLocation();
   const initialSelectedDateKey = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -161,11 +163,11 @@ export default function Reservations() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className={`text-2xl font-bold flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             <CalendarDays className="text-[#0033A0]" size={24} />
             Reservations
           </h1>
-          <p className="text-sm text-gray-600">Read-only view of customer schedule submissions.</p>
+          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Read-only view of customer schedule submissions.</p>
         </div>
       </div>
 
@@ -174,28 +176,28 @@ export default function Reservations() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <section className={`rounded-xl p-5 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between mb-4">
             <button
               type="button"
               onClick={() => goToMonth(-1)}
-              className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'border-slate-600 hover:bg-slate-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
               aria-label="Previous month"
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-semibold text-gray-900">{monthLabel}</h2>
+            <h2 className={`font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{monthLabel}</h2>
             <button
               type="button"
               onClick={() => goToMonth(1)}
-              className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'border-slate-600 hover:bg-slate-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
               aria-label="Next month"
             >
               <ChevronRight size={16} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 text-center text-xs font-medium text-gray-500 mb-2">
+          <div className="grid grid-cols-7 text-center text-xs font-medium mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}">
             {WEEKDAYS.map((label) => (
               <div key={label}>{label}</div>
             ))}
@@ -219,7 +221,7 @@ export default function Reservations() {
                   className={`h-12 rounded-md border text-sm font-medium transition ${
                     selected
                       ? 'bg-[#0033A0] border-[#0033A0] text-white'
-                      : 'border-gray-200 bg-white text-gray-800 hover:bg-blue-50'
+                      : isDarkMode ? 'border-slate-700 bg-slate-700 text-gray-300 hover:bg-slate-600' : 'border-gray-200 bg-white text-gray-800 hover:bg-blue-50'}
                   }`}
                 >
                   <div className="flex flex-col items-center justify-center leading-tight">
@@ -245,14 +247,14 @@ export default function Reservations() {
           {loadingMonth && <p className="mt-2 text-xs text-blue-700">Loading month summary...</p>}
         </section>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">{formatDateLabel(selectedDateKey)}</h2>
-          <p className="text-sm text-gray-600 mb-4">Admin can view only. No actions are available.</p>
+        <section className={`rounded-xl p-5 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <h2 className={`text-lg font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatDateLabel(selectedDateKey)}</h2>
+          <p className={`text-sm mb-4 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Admin can view only. No actions are available.</p>
 
           {loadingDay ? (
             <div className="text-sm text-blue-700">Loading reservations...</div>
           ) : dayReservations.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+            <div className={`rounded-lg border border-dashed px-4 py-8 text-center text-sm transition-colors duration-300 ${isDarkMode ? 'border-gray-600 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
               No reservations for this day.
             </div>
           ) : (
@@ -263,26 +265,26 @@ export default function Reservations() {
                 const displayPhone = reservation.customer_phone || profile.phone_number || 'N/A';
 
                 return (
-                  <article key={reservation.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <article key={reservation.id} className={`border rounded-lg p-4 transition-colors duration-300 ${isDarkMode ? 'border-slate-700 bg-slate-700' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                      <p className="font-semibold text-gray-900">Reservation #{reservation.id}</p>
-                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
+                      <p className={`font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Reservation #{reservation.id}</p>
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
                         <Clock size={12} />
                         {formatTime(reservation.scheduled_at)}
                       </span>
                     </div>
 
-                    <div className="space-y-2 text-sm text-gray-700">
+                    <div className={`space-y-2 text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       <p className="flex items-center gap-2">
-                        <User size={14} className="text-gray-500" />
+                        <User size={14} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
                         <span>{displayName}</span>
                       </p>
                       <p className="flex items-center gap-2">
-                        <Phone size={14} className="text-gray-500" />
+                        <Phone size={14} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
                         <span>{displayPhone}</span>
                       </p>
                       {reservation.notes && (
-                        <p className="text-gray-600 bg-white border border-gray-200 rounded-md p-2">
+                        <p className={`rounded-md p-2 transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-600 text-gray-300' : 'text-gray-600 bg-white border border-gray-200'}`}>
                           {reservation.notes}
                         </p>
                       )}

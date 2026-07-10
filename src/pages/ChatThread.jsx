@@ -1,5 +1,6 @@
 // src/pages/ChatThread.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { chatService } from '../services/chatService';
@@ -18,6 +19,7 @@ const getInitials = (name) => {
 };
 
 export default function ChatThread() {
+  const { isDarkMode } = useTheme();
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();

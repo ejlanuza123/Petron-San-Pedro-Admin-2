@@ -3,6 +3,76 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark mode styles */
+@layer base {
+  :root {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-tertiary: #9ca3af;
+    --color-border: #e5e7eb;
+    --color-card-bg: #ffffff;
+    --color-input-bg: #ffffff;
+    --color-sidebar-bg: #ffffff;
+    --color-header-bg: #ffffff;
+  }
+
+  .dark {
+    --color-bg-primary: #0f172a;
+    --color-bg-secondary: #1e293b;
+    --color-bg-tertiary: #334155;
+    --color-text-primary: #f1f5f9;
+    --color-text-secondary: #cbd5e1;
+    --color-text-tertiary: #94a3b8;
+    --color-border: #334155;
+    --color-card-bg: #1e293b;
+    --color-input-bg: #0f172a;
+    --color-sidebar-bg: #1e293b;
+    --color-header-bg: #1e293b;
+  }
+}
+
+@layer utilities {
+  /* Dark mode utility classes */
+  .bg-theme-primary {
+    background-color: var(--color-bg-primary);
+  }
+  
+  .bg-theme-secondary {
+    background-color: var(--color-bg-secondary);
+  }
+  
+  .bg-theme-tertiary {
+    background-color: var(--color-bg-tertiary);
+  }
+  
+  .text-theme-primary {
+    color: var(--color-text-primary);
+  }
+  
+  .text-theme-secondary {
+    color: var(--color-text-secondary);
+  }
+  
+  .text-theme-tertiary {
+    color: var(--color-text-tertiary);
+  }
+  
+  .border-theme {
+    border-color: var(--color-border);
+  }
+  
+  .bg-card-theme {
+    background-color: var(--color-card-bg);
+  }
+  
+  .bg-input-theme {
+    background-color: var(--color-input-bg);
+  }
+}
+
 @layer utilities {
   /* Slide animations */
   @keyframes slideInLeft {
