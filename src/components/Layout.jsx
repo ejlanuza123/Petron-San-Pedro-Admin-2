@@ -469,7 +469,7 @@ Sidebar.displayName = 'Sidebar';
 
 // Mobile header with animations
 const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation, setSlideDirection, notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, requestNotificationPermission, onSettingsClick, onProfileClick, onNotificationClick }) => {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileProfileMenuOpen, setIsMobileProfileMenuOpen] = useState(false);
 
@@ -615,7 +615,7 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.15 }}
-                      className="mb-3 bg-gray-50 border border-gray-200 rounded-lg p-2"
+                      className={`mb-3 border rounded-lg p-2 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}
                     >
                       <button
                         onClick={() => {
@@ -628,6 +628,26 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                         <User size={16} className="mr-2" />
                         Profile and settings
                       </button>
+                      <div className="flex items-center justify-between px-3 py-2 rounded-md">
+                        <span className="text-sm text-gray-700 flex items-center">
+                          <AnimatedThemeToggle className="mr-2" />
+                          {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={toggleDarkMode}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${
+                            isDarkMode ? 'bg-[#0033A0]' : 'bg-gray-300'
+                          }`}
+                          aria-label="Toggle dark mode"
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
+                              isDarkMode ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
