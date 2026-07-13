@@ -596,13 +596,13 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                     </div>
                   )}
                   <div className="min-w-0 text-left flex-1">
-                    <p className="font-medium text-gray-900 truncate">{profile?.full_name || 'Admin'}</p>
-                    <p className="text-sm text-gray-500 truncate">{profile?.email || 'admin@petron.com'}</p>
+                    <p className={`font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{profile?.full_name || 'Admin'}</p>
+                    <p className={`text-sm truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{profile?.email || 'admin@petron.com'}</p>
                   </div>
                   <motion.div
                     animate={{ rotate: isMobileProfileMenuOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
-                    className="text-gray-500"
+                    className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}
                   >
                     <ChevronDown size={18} />
                   </motion.div>
@@ -623,13 +623,13 @@ const MobileHeader = memo(({ profile, handleSignOut, isActive, handleNavigation,
                           setIsMobileProfileMenuOpen(false);
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0] rounded-md flex items-center"
+                        className={`w-full px-3 py-2 text-left text-sm rounded-md flex items-center transition-colors duration-300 ${isDarkMode ? 'text-slate-200 hover:bg-slate-700 hover:text-white' : 'text-gray-700 hover:bg-[#E5EEFF] hover:text-[#0033A0]'}`}
                       >
                         <User size={16} className="mr-2" />
                         Profile and settings
                       </button>
                       <div className="flex items-center justify-between px-3 py-2 rounded-md">
-                        <span className="text-sm text-gray-700 flex items-center">
+                        <span className={`text-sm flex items-center ${isDarkMode ? 'text-slate-200' : 'text-gray-700'}`}>
                           <AnimatedThemeToggle className="mr-2" />
                           {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                         </span>
