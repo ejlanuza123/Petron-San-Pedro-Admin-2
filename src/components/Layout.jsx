@@ -771,6 +771,14 @@ export default function Layout() {
       return;
     }
 
+    if (type.includes('chat') || type.includes('message')) {
+      const conversationId = data?.conversation_id || data?.conversationId;
+      if (conversationId) {
+        navigate(`/chat/${conversationId}`, { state: { backTo: '/chat' } });
+        return;
+      }
+    }
+
     navigate('/');
   }, [navigate]);
 
