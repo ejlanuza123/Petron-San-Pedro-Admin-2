@@ -20,6 +20,10 @@ vi.mock('../../hooks/useAuth', () => ({
   useAuth: (...args) => mocks.useAuth(...args),
 }));
 
+vi.mock('../../context/ThemeContext', () => ({
+  useTheme: () => ({ isDarkMode: false, toggleDarkMode: vi.fn() }),
+}));
+
 vi.mock('react-router-dom', () => ({
   useLocation: (...args) => mocks.useLocation(...args),
   useNavigate: (...args) => mocks.useNavigate(...args),
@@ -151,10 +155,17 @@ describe('Orders page', () => {
       }),
     };
 
+    const fromSettings = {
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { delivery_fee: 50 }, error: null }),
+      }),
+    };
+
     mocks.from.mockImplementation((table) => {
       if (table === 'profiles') return fromProfiles;
       if (table === 'deliveries') return fromDeliveries;
       if (table === 'delivery_proofs') return fromDeliveryProofs;
+      if (table === 'settings') return fromSettings;
       return {};
     });
 

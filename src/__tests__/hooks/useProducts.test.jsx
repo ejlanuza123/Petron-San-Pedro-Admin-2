@@ -83,8 +83,13 @@ describe('useProducts', () => {
       await result.current.addProduct({ name: 'Oil B' });
     });
 
-    expect(mocks.productService.create).toHaveBeenCalledWith({ name: 'Oil B' });
-    expect(mocks.logProductAction).toHaveBeenCalledWith('p-2', 'create_product', { name: 'Oil B' });
+    expect(mocks.productService.create).toHaveBeenCalledWith({ name: 'Oil B', sku: null });
+    expect(mocks.logProductAction).toHaveBeenCalledTimes(1);
+    const addCall = mocks.logProductAction.mock.calls[0];
+    expect(addCall[0]).toBe('p-2');
+    expect(addCall[1]).toBe('create_product');
+    expect(addCall[2].name).toBe('Oil B');
+    expect(typeof addCall[3]).toBe('string');
     expect(mocks.notifySuccess).toHaveBeenCalledWith('Created product: Oil B');
     expect(result.current.products.some((p) => p.id === 'p-2')).toBe(true);
   });
@@ -100,20 +105,25 @@ describe('useProducts', () => {
       await result.current.updateProduct('p-1', { name: 'Oil A+' });
     });
 
-    expect(mocks.productService.update).toHaveBeenCalledWith('p-1', { name: 'Oil A+' });
-    expect(mocks.logProductAction).toHaveBeenCalledWith(
-      'p-1',
-      'update_product',
-      expect.any(Object),
-      'Updated product'
-    );
+    expect(mocks.productService.update).toHaveBeenCalledWith('p-1', { name: 'Oil A+', sku: null });
+    expect(mocks.logProductAction).toHaveBeenCalledTimes(1);
+    const updateCall = mocks.logProductAction.mock.calls[0];
+    expect(updateCall[0]).toBe('p-1');
+    expect(updateCall[1]).toBe('update_product');
+    expect(updateCall[2]).toEqual({ name: { from: 'A', to: 'B' } });
+    expect(updateCall[3]).toBe('Updated product');
 
     await act(async () => {
       await result.current.deleteProduct('p-1');
     });
 
     expect(mocks.productService.delete).toHaveBeenCalledWith('p-1');
-    expect(mocks.logProductAction).toHaveBeenCalledWith('p-1', 'delete_product');
+    expect(mocks.logProductAction).toHaveBeenCalledTimes(2);
+    const deleteCall = mocks.logProductAction.mock.calls[1];
+    expect(deleteCall[0]).toBe('p-1');
+    expect(deleteCall[1]).toBe('delete_product');
+    expect(deleteCall[2].name).toBe('Oil A+');
+    expect(typeof deleteCall[3]).toBe('string');
     expect(result.current.products.find((p) => p.id === 'p-1')).toBeUndefined();
   });
 
