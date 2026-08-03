@@ -1,5 +1,5 @@
 // admin-web/src/components/Layout.jsx
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../context/NotificationContext';
@@ -178,8 +178,8 @@ const NotificationMenu = memo(({
         }}
         className={`relative p-2 rounded-lg border transition ${buttonClassName} ${
           isDarkMode 
-            ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-gray-300' 
-            : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700'
+            ? 'border-gray-600 bg-slate-800 hover:bg-slate-700 text-gray-300' 
+            : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
         }`}
         aria-label="Open notifications"
       >
@@ -366,8 +366,27 @@ const Sidebar = memo(({
 }) => {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
   const isExpanded = !isDesktopViewport || !isCollapsed;
   const isCollapsedDesktop = isDesktopViewport && isCollapsed;
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isProfileMenuOpen]);
 
   // Handle navigation with slide direction
   const onNavigate = (to) => {
@@ -470,7 +489,7 @@ const Sidebar = memo(({
                 requestNotificationPermission={requestNotificationPermission}
                 placement="right-start"
                 className="translate-x-2 flex-shrink-0"
-                buttonClassName={isDarkMode ? 'bg-slate-800 border-slate-700 text-[#0033A0] hover:bg-slate-700' : 'bg-white border-white/70 text-[#0033A0] hover:bg-[#E5EEFF]'}
+                buttonClassName={isDarkMode ? 'bg-slate-800 text-[#0033A0] hover:bg-slate-700' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF]'}
                 isDarkMode={isDarkMode}
               />
             </>
@@ -486,7 +505,7 @@ const Sidebar = memo(({
               requestNotificationPermission={requestNotificationPermission}
               placement="right-start"
               className="flex-shrink-0"
-              buttonClassName={isDarkMode ? 'bg-slate-800 border-white text-[#0033A0] hover:bg-slate-700 p-1.5' : 'bg-white border-black text-[#0033A0] hover:bg-[#E5EEFF] p-1.5'}
+              buttonClassName={isDarkMode ? 'bg-slate-800 text-[#0033A0] hover:bg-slate-700 p-1.5' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF] p-1.5'}
               isDarkMode={isDarkMode}
             />
           )}
@@ -521,7 +540,7 @@ const Sidebar = memo(({
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
       >
-        <div className="relative">
+        <div ref={profileMenuRef} className="relative">
           <motion.button
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             whileHover={{ scale: 1.02 }}
@@ -560,9 +579,9 @@ const Sidebar = memo(({
 
           {/* Profile dropdown */}
           <AnimatePresence>
-            {isProfileMenuOpen && isExpanded && (
+            {isProfileMenuOpen && (
               <motion.div 
-                className={`absolute bottom-full left-0 w-full mb-2 rounded-lg shadow-lg border py-2 z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+                className={`absolute ${isCollapsedDesktop ? 'left-full bottom-0 ml-2 w-60 origin-bottom-left' : 'bottom-full left-0 w-full'} mb-2 rounded-lg shadow-lg border py-2 z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
