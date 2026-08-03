@@ -1,5 +1,5 @@
 // admin-web/src/components/Layout.jsx
-import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../context/NotificationContext';
@@ -114,6 +114,29 @@ const getReservationDateKey = (notificationData = {}) => {
   const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0');
   const day = `${parsedDate.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const useIsDesktopViewport = () => {
+  const getIsDesktop = useCallback(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth >= 768;
+  }, []);
+
+  const [isDesktopViewport, setIsDesktopViewport] = useState(getIsDesktop);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handleResize = () => {
+      setIsDesktopViewport(window.innerWidth >= 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isDesktopViewport;
 };
 
 // Notification Menu Component
@@ -288,7 +311,11 @@ const NotificationMenu = memo(({
 NotificationMenu.displayName = 'NotificationMenu';
 
 // Sidebar Toggle Button Component
-const SidebarToggle = memo(({ isCollapsed, onToggle, isDarkMode }) => {
+const SidebarToggle = memo(({ isCollapsed, onToggle, isDarkMode, isVisible }) => {
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <motion.button
       onClick={onToggle}
@@ -334,15 +361,13 @@ const Sidebar = memo(({
   requestNotificationPermission, 
   onNotificationClick,
   isCollapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  isDesktopViewport
 }) => {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Determine if sidebar should be expanded (for display)
-  // Expand when: NOT collapsed OR hovering over the collapsed sidebar
-  const isExpanded = !isCollapsed || (isCollapsed && isHovering);
+  const isExpanded = !isDesktopViewport || !isCollapsed;
+  const isCollapsedDesktop = isDesktopViewport && isCollapsed;
 
   // Handle navigation with slide direction
   const onNavigate = (to) => {
@@ -395,35 +420,34 @@ const Sidebar = memo(({
         ${sidebarWidth} flex flex-col relative z-40 overflow-visible 
         transition-all duration-300 ease-in-out
         ${isDarkMode ? 'bg-slate-900 border-r border-slate-700' : 'bg-white border-r border-gray-200'}
-        ${isCollapsed && !isHovering ? 'shadow-lg' : ''}
+        ${isCollapsedDesktop ? 'shadow-lg' : ''}
       `}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
     >
       {/* Toggle Button */}
       <SidebarToggle 
         isCollapsed={isCollapsed} 
         onToggle={onToggleCollapse}
         isDarkMode={isDarkMode}
+        isVisible={isDesktopViewport}
       />
 
       {/* Logo Section - Hide logo text when collapsed, show only icon */}
       <motion.div 
-        className="p-6 border-b bg-petron-blue relative"
+        className={`border-b bg-petron-blue relative ${isExpanded ? 'p-6' : 'p-3'}`}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <div className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} gap-3`}>
+        <div className="flex items-center justify-between gap-2">
           <motion.img 
             src={petronLogo} 
             alt="Petron Logo" 
-            className="h-12 w-auto object-contain bg-white rounded-lg p-1 flex-shrink-0"
+            className={`w-auto object-contain bg-white rounded-lg p-1 flex-shrink-0 ${isExpanded ? 'h-12' : 'h-8'}`}
             whileHover={{ rotate: 360 }}
             transition={{ duration: 0.5 }}
           />
           
-          {isExpanded && (
+          {isExpanded ? (
             <>
               <motion.div
                 className="min-w-0 flex-1"
@@ -450,6 +474,21 @@ const Sidebar = memo(({
                 isDarkMode={isDarkMode}
               />
             </>
+          ) : (
+            <NotificationMenu
+              notifications={notifications}
+              unreadCount={unreadCount}
+              markAsRead={markAsRead}
+              markAllAsRead={markAllAsRead}
+              removeNotification={removeNotification}
+              clearAll={clearAll}
+              onNotificationClick={onNotificationClick}
+              requestNotificationPermission={requestNotificationPermission}
+              placement="right-start"
+              className="flex-shrink-0"
+              buttonClassName={isDarkMode ? 'bg-slate-800 border-white text-[#0033A0] hover:bg-slate-700 p-1.5' : 'bg-white border-black text-[#0033A0] hover:bg-[#E5EEFF] p-1.5'}
+              isDarkMode={isDarkMode}
+            />
           )}
         </div>
       </motion.div>
@@ -487,16 +526,17 @@ const Sidebar = memo(({
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-300 ${isDarkMode ? 'hover:bg-slate-800 hover:bg-opacity-60' : 'hover:bg-[#E5EEFF]'} ${!isExpanded ? 'justify-center px-2' : ''}`}
+            className={`flex items-center w-full rounded-lg transition-all duration-300 ${isDarkMode ? 'hover:bg-slate-800 hover:bg-opacity-60' : 'hover:bg-[#E5EEFF]'} ${isExpanded ? 'px-4 py-3' : 'justify-center px-2 py-2'}`}
+            aria-label={`Open profile menu for ${profile?.full_name || 'Admin'}`}
           >
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt={profile?.full_name || 'Admin'}
-                className={`w-8 h-8 rounded-lg object-cover ${isExpanded ? 'mr-3' : ''} flex-shrink-0 border border-gray-200`}
+                className={`w-8 h-8 rounded-lg object-cover flex-shrink-0 border border-gray-200 ${isExpanded ? 'mr-3' : ''}`}
               />
             ) : (
-              <div className={`w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold ${isExpanded ? 'mr-3' : ''} flex-shrink-0`}>
+              <div className={`w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 ${isExpanded ? 'mr-3' : ''}`}>
                 {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
               </div>
             )}
@@ -640,6 +680,8 @@ const MobileHeader = memo(({
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
             className="p-2 hover:bg-white/20 rounded-lg text-white"
+            aria-label={isMobileMenuOpen ? 'Close mobile menu' : 'Open mobile menu'}
+            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </motion.button>
@@ -788,6 +830,7 @@ MobileHeader.displayName = 'MobileHeader';
 export default function Layout() {
   const { user, profile, signOut } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const isDesktopViewport = useIsDesktopViewport();
   const {
     notifications,
     unreadCount,
@@ -812,12 +855,16 @@ export default function Layout() {
 
   // Save sidebar state to localStorage
   const handleToggleCollapse = useCallback(() => {
+    if (!isDesktopViewport) {
+      return;
+    }
+
     setIsSidebarCollapsed(prev => {
       const newState = !prev;
       localStorage.setItem('petron-sidebar-collapsed', JSON.stringify(newState));
       return newState;
     });
-  }, []);
+  }, [isDesktopViewport]);
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -915,25 +962,28 @@ export default function Layout() {
 
   return (
     <div className={`flex h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-gray-100 text-gray-900'}`}>
-      <Sidebar 
-        profile={profile} 
-        handleSignOut={handleSignOut}
-        isActive={isActive}
-        handleNavigation={handleNavigation}
-        setSlideDirection={setSlideDirection}
-        onSettingsClick={() => setIsSettingsModalOpen(true)}
-        onProfileClick={handleProfileClick}
-        notifications={notifications}
-        unreadCount={unreadCount}
-        markAsRead={markAsRead}
-        markAllAsRead={markAllAsRead}
-        removeNotification={removeNotification}
-        clearAll={clearAll}
-        requestNotificationPermission={requestNotificationPermission}
-        onNotificationClick={handleNotificationClick}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={handleToggleCollapse}
-      />
+      {isDesktopViewport && (
+        <Sidebar 
+          profile={profile} 
+          handleSignOut={handleSignOut}
+          isActive={isActive}
+          handleNavigation={handleNavigation}
+          setSlideDirection={setSlideDirection}
+          onSettingsClick={() => setIsSettingsModalOpen(true)}
+          onProfileClick={handleProfileClick}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          markAsRead={markAsRead}
+          markAllAsRead={markAllAsRead}
+          removeNotification={removeNotification}
+          clearAll={clearAll}
+          requestNotificationPermission={requestNotificationPermission}
+          onNotificationClick={handleNotificationClick}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+          isDesktopViewport={isDesktopViewport}
+        />
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <MobileHeader 
