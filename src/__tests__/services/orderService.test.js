@@ -8,11 +8,13 @@ const mockFrom = vi.fn();
 const mockChannel = vi.fn();
 const mockChannelOn = vi.fn();
 const mockChannelSubscribe = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args) => mockFrom(...args),
     channel: (...args) => mockChannel(...args),
+    rpc: (...args) => mockRpc(...args),
   },
 }));
 
@@ -96,6 +98,111 @@ describe('orderService.updateStatus', () => {
 describe('orderService retrieval methods', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: RPC unavailable so fallback path is exercised by legacy tests
+    mockRpc.mockResolvedValue({ data: [], error: new Error('rpc not found') });
+  });
+
+  it('uses dashboard stats RPC when available', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{
+        total_revenue: 1500,
+        today_revenue: 300,
+        pending_orders: 2,
+        processing_orders: 3,
+        completed_orders: 4,
+        low_stock: 5,
+      }],
+      error: null,
+    });
+
+    const stats = await orderService.getStats();
+
+    expect(mockRpc).toHaveBeenCalledWith('get_dashboard_stats');
+    expect(stats).toEqual({
+      totalRevenue: 1500,
+      todayRevenue: 300,
+      pendingOrders: 2,
+      processingOrders: 3,
+      completedOrders: 4,
+      lowStock: 5,
+    });
+  });
+
+  it('coerces null RPC values to zero', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{
+        total_revenue: null,
+        today_revenue: null,
+        pending_orders: null,
+        processing_orders: null,
+        completed_orders: null,
+        low_stock: null,
+      }],
+      error: null,
+    });
+
+    const stats = await orderService.getStats();
+
+    expect(stats).toEqual({
+      totalRevenue: 0,
+      todayRevenue: 0,
+      pendingOrders: 0,
+      processingOrders: 0,
+      completedOrders: 0,
+      lowStock: 0,
+    });
+  });
+
+  it('falls back to multi-query when RPC returns empty rows', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    const revenueCompleted = { data: [{ total_amount: 200 }], error: null };
+    const pendingCount = { count: 1, error: null };
+    const processingCount = { count: 0, error: null };
+    const completedCount = { count: 1, error: null };
+    const lowStockCount = { count: 0, error: null };
+    const todayCompleted = { data: [{ total_amount: 200 }], error: null };
+    let totalAmountQueryCount = 0;
+
+    const selectOrders = vi.fn((selection, options) => {
+      if (selection === 'total_amount' && !options) {
+        totalAmountQueryCount += 1;
+        if (totalAmountQueryCount === 1) {
+          return { eq: vi.fn(() => Promise.resolve(revenueCompleted)) };
+        }
+        return {
+          eq: vi.fn(() => ({
+            gte: vi.fn(() => Promise.resolve(todayCompleted)),
+          })),
+        };
+      }
+      if (selection === '*' && options?.count === 'exact' && options?.head === true) {
+        return {
+          eq: vi.fn((_, status) => {
+            if (status === ORDER_STATUS.PENDING) return Promise.resolve(pendingCount);
+            if (status === ORDER_STATUS.PROCESSING) return Promise.resolve(processingCount);
+            if (status === ORDER_STATUS.COMPLETED) return Promise.resolve(completedCount);
+            return Promise.resolve({ count: 0 });
+          }),
+        };
+      }
+      return {};
+    });
+
+    const selectProducts = vi.fn(() => ({ lt: vi.fn(() => Promise.resolve(lowStockCount)) }));
+
+    mockFrom.mockImplementation((table) => {
+      if (table === 'orders') return { select: selectOrders };
+      if (table === 'products') return { select: selectProducts };
+      return {};
+    });
+
+    const stats = await orderService.getStats();
+
+    expect(stats.totalRevenue).toBe(200);
+    expect(stats.todayRevenue).toBe(200);
+    expect(stats.pendingOrders).toBe(1);
+    expect(stats.completedOrders).toBe(1);
   });
 
   it('returns order details from getById', async () => {

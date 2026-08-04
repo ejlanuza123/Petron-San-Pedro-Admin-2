@@ -96,6 +96,27 @@ export const orderService = {
   },
 
   async getStats() {
+    // Primary path: single RPC call (see migration 020_dashboard_stats_rpc.sql)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_dashboard_stats');
+
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        const row = rpcData[0];
+        return {
+          totalRevenue: Number(row.total_revenue) || 0,
+          todayRevenue: Number(row.today_revenue) || 0,
+          pendingOrders: Number(row.pending_orders) || 0,
+          processingOrders: Number(row.processing_orders) || 0,
+          completedOrders: Number(row.completed_orders) || 0,
+          lowStock: Number(row.low_stock) || 0
+        };
+      }
+    } catch (rpcErr) {
+      console.warn('Dashboard RPC unavailable, falling back to multi-query stats:', rpcErr?.message || rpcErr);
+    }
+
+    // Fallback path: original multi-query approach (6 round trips)
     try {
       const [revenueData, pendingCount, processingCount, completedCount, lowStockData] = await Promise.all([
         supabase.from('orders').select('total_amount').eq('status', ORDER_STATUS.COMPLETED),
