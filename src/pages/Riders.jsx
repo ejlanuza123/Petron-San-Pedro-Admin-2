@@ -1,6 +1,6 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation, MessageCircle } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation, MessageCircle, TrendingUp, Award, DollarSign, BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import RiderLiveTrackingModal from '../components/RiderLiveTrackingModal';
@@ -12,6 +12,7 @@ import { useAdminLog } from '../hooks/useAdminLog';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { getAllRidersWithStats, buildLeaderboard, computePlatformStats, computeRiderStats, resolveDateRange } from '../services/riderService';
 
 // Skeleton Components (keep as is)
 const RiderCardSkeleton = ({ isDarkMode }) => (
@@ -833,6 +834,8 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
     };
   }, [rider]);
 
+  const perfStats = useMemo(() => computeRiderStats(rider), [rider]);
+
   if (!rider) return null;
 
   return (
@@ -935,6 +938,51 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
               </div>
             </div>
 
+            {/* Earnings & Performance */}
+            <div className={`rounded-xl p-4 border transition-colors duration-300 ${isDarkMode ? 'bg-slate-700/60 border-slate-600' : 'bg-blue-50/60 border-blue-100'}`}>
+              <h5 className={`font-semibold mb-3 flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <TrendingUp size={16} className="text-[#0033A0]" />
+                Earnings &amp; Performance
+              </h5>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className={`rounded-lg p-3 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-600' : 'bg-white'}`}>
+                  <DollarSign size={16} className="text-green-500 mx-auto mb-1" />
+                  <p className={`text-xs mb-0.5 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Lifetime Earnings</p>
+                  <p className="font-bold text-green-600 text-sm">₱{perfStats.earnings.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div className={`rounded-lg p-3 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-600' : 'bg-white'}`}>
+                  <CheckCircle size={16} className="text-[#0033A0] mx-auto mb-1" />
+                  <p className={`text-xs mb-0.5 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Completion Rate</p>
+                  <p className="font-bold text-[#0033A0] text-sm">{perfStats.completionRate}%</p>
+                </div>
+                <div className={`rounded-lg p-3 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-600' : 'bg-white'}`}>
+                  <Clock size={16} className="text-orange-500 mx-auto mb-1" />
+                  <p className={`text-xs mb-0.5 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Avg. Time</p>
+                  <p className="font-bold text-orange-500 text-sm">{perfStats.avgDeliveryTime !== null ? `${perfStats.avgDeliveryTime}m` : '—'}</p>
+                </div>
+              </div>
+              {/* 7-day delivery bar chart */}
+              {perfStats.weeklyData && perfStats.weeklyData.length > 0 && (
+                <div>
+                  <p className={`text-xs mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Last 7 Days</p>
+                  <div className="flex items-end gap-1 h-16">
+                    {(() => {
+                      const maxCount = Math.max(...perfStats.weeklyData.map(d => d.count), 1);
+                      return perfStats.weeklyData.map((d, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.label}: ${d.count} deliveries`}>
+                          <div
+                            className="w-full rounded-t transition-all duration-500 bg-[#0033A0]/70 hover:bg-[#0033A0]"
+                            style={{ height: `${Math.max((d.count / maxCount) * 52, d.count > 0 ? 4 : 0)}px` }}
+                          />
+                          <span className={`text-[9px] transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{d.day}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Recent Deliveries */}
             <div>
               <h5 className={`font-semibold mb-3 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Recent Deliveries</h5>
@@ -1007,6 +1055,257 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
 
 RiderDetailsModal.displayName = 'RiderDetailsModal';
 
+// ─── Performance Dashboard ───────────────────────────────────────────────────
+
+const DATE_RANGES = [
+  { key: 'week', label: 'This Week' },
+  { key: 'month', label: 'This Month' },
+  { key: '30days', label: 'Last 30 Days' },
+];
+
+const RANK_EMOJI = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+const PerformanceDashboard = React.memo(({ isDarkMode }) => {
+  const [perfRiders, setPerfRiders] = useState([]);
+  const [perfLoading, setPerfLoading] = useState(true);
+  const [perfError, setPerfError] = useState(null);
+  const [dateRangeKey, setDateRangeKey] = useState('30days');
+  const [expandedRiderId, setExpandedRiderId] = useState(null);
+  const [sortCol, setSortCol] = useState('score');
+  const [sortDir, setSortDir] = useState('desc');
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setPerfLoading(true);
+      setPerfError(null);
+      const { data, error } = await getAllRidersWithStats();
+      if (cancelled) return;
+      if (error) { setPerfError(error.message); setPerfLoading(false); return; }
+      setPerfRiders(data || []);
+      setPerfLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const dateFilter = useMemo(() => resolveDateRange(dateRangeKey), [dateRangeKey]);
+
+  const leaderboard = useMemo(() => buildLeaderboard(perfRiders, dateFilter), [perfRiders, dateFilter]);
+
+  const platformStats = useMemo(() => computePlatformStats(leaderboard), [leaderboard]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...leaderboard].sort((a, b) => {
+      if (sortCol === 'score') return dir * (a.score - b.score);
+      if (sortCol === 'total') return dir * (a.stats.total - b.stats.total);
+      if (sortCol === 'rate') return dir * (a.stats.completionRate - b.stats.completionRate);
+      if (sortCol === 'time') return dir * ((a.stats.avgDeliveryTime ?? 9999) - (b.stats.avgDeliveryTime ?? 9999));
+      if (sortCol === 'earnings') return dir * (a.stats.earnings - b.stats.earnings);
+      return 0;
+    });
+  }, [leaderboard, sortCol, sortDir]);
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
+
+  const SortIcon = ({ col }) => {
+    if (sortCol !== col) return <ChevronDown size={12} className="opacity-30 inline ml-0.5" />;
+    return sortDir === 'desc'
+      ? <ChevronDown size={12} className="inline ml-0.5 text-[#0033A0]" />
+      : <ChevronUp size={12} className="inline ml-0.5 text-[#0033A0]" />;
+  };
+
+  if (perfLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <div key={i} className={`h-24 rounded-xl animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`} />)}
+        </div>
+        <div className={`h-64 rounded-xl animate-pulse ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`} />
+      </div>
+    );
+  }
+
+  if (perfError) {
+    return <ErrorAlert message={perfError} onDismiss={() => setPerfError(null)} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Date range tabs */}
+      <div className={`flex gap-2 p-1 rounded-xl w-fit transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
+        {DATE_RANGES.map(r => (
+          <button
+            key={r.key}
+            onClick={() => setDateRangeKey(r.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              dateRangeKey === r.key
+                ? 'bg-[#0033A0] text-white shadow-md'
+                : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Platform-wide stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Deliveries', value: platformStats.totalDeliveries, icon: Package, color: 'text-[#0033A0]' },
+          { label: 'Avg Completion Rate', value: `${platformStats.avgCompletionRate}%`, icon: CheckCircle, color: 'text-green-500' },
+          { label: 'Avg Delivery Time', value: platformStats.avgDeliveryTime !== null ? `${platformStats.avgDeliveryTime} min` : '—', icon: Clock, color: 'text-orange-500' },
+          { label: 'Total Earnings Paid', value: `₱${platformStats.totalEarnings.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-emerald-500' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <Icon size={16} className={color} />
+              <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
+            </div>
+            <p className={`text-xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Leaderboard */}
+      <div className={`rounded-xl border overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`flex items-center gap-2 px-4 py-3 border-b transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-100'}`}>
+          <Award size={18} className="text-[#0033A0]" />
+          <h3 className={`font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Rider Leaderboard</h3>
+          <span className={`ml-auto text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{sorted.length} riders</span>
+        </div>
+
+        {sorted.length === 0 ? (
+          <div className="p-10 text-center">
+            <Truck size={36} className={`mx-auto mb-3 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No delivery data for this period</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={`border-b transition-colors duration-300 ${isDarkMode ? 'border-slate-700 bg-slate-900/40' : 'border-gray-100 bg-gray-50'}`}>
+                  <th className={`text-left px-4 py-2.5 font-medium transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Rank</th>
+                  <th className={`text-left px-4 py-2.5 font-medium transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Rider</th>
+                  <th className={`text-center px-3 py-2.5 font-medium cursor-pointer select-none transition-colors duration-300 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => toggleSort('total')}>Deliveries<SortIcon col="total" /></th>
+                  <th className={`text-center px-3 py-2.5 font-medium cursor-pointer select-none transition-colors duration-300 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => toggleSort('rate')}>Rate<SortIcon col="rate" /></th>
+                  <th className={`text-center px-3 py-2.5 font-medium cursor-pointer select-none transition-colors duration-300 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => toggleSort('time')}>Avg Time<SortIcon col="time" /></th>
+                  <th className={`text-right px-4 py-2.5 font-medium cursor-pointer select-none transition-colors duration-300 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => toggleSort('earnings')}>Earnings<SortIcon col="earnings" /></th>
+                  <th className={`text-center px-3 py-2.5 font-medium cursor-pointer select-none transition-colors duration-300 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => toggleSort('score')}>Score<SortIcon col="score" /></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map(({ rider, stats, score, rank }) => {
+                  const isExpanded = expandedRiderId === rider.id;
+                  const maxBar = Math.max(...sorted.map(e => e.stats.total), 1);
+                  return (
+                    <React.Fragment key={rider.id}>
+                      <tr
+                        className={`border-b cursor-pointer transition-colors duration-150 ${
+                          isDarkMode
+                            ? `border-slate-700 ${isExpanded ? 'bg-slate-700/60' : 'hover:bg-slate-700/40'}`
+                            : `border-gray-50 ${isExpanded ? 'bg-blue-50/60' : 'hover:bg-gray-50'}`
+                        }`}
+                        onClick={() => setExpandedRiderId(isExpanded ? null : rider.id)}
+                      >
+                        <td className="px-4 py-3">
+                          <span className="text-base">{RANK_EMOJI[rank] || <span className={`font-bold text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>#{rank}</span>}</span>
+                          {!RANK_EMOJI[rank] && <span className={`font-bold text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>#{rank}</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {rider.avatar_url
+                              ? <img src={rider.avatar_url} alt={rider.full_name} className="w-8 h-8 rounded-lg object-cover" />
+                              : <div className="w-8 h-8 bg-[#0033A0] rounded-lg flex items-center justify-center text-white font-bold text-xs">{rider.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
+                            }
+                            <div>
+                              <p className={`font-medium leading-tight transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{rider.full_name}</p>
+                              <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{rider.vehicle_type || 'Rider'}</p>
+                            </div>
+                            <span className={`ml-1 w-2 h-2 rounded-full flex-shrink-0 ${rider.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className={`font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stats.total}</span>
+                            <div className={`h-1 w-12 rounded-full ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>
+                              <div className="h-1 rounded-full bg-[#0033A0]" style={{ width: `${Math.min((stats.total / maxBar) * 100, 100)}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            stats.completionRate >= 90 ? (isDarkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-700') :
+                            stats.completionRate >= 70 ? (isDarkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-700') :
+                            (isDarkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700')
+                          }`}>{stats.completionRate}%</span>
+                        </td>
+                        <td className={`px-3 py-3 text-center transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {stats.avgDeliveryTime !== null ? `${stats.avgDeliveryTime} min` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-semibold text-emerald-600">₱{stats.earnings.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <div className={`h-1.5 rounded-full ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`} style={{ width: '40px' }}>
+                              <div className="h-1.5 rounded-full bg-gradient-to-r from-[#0033A0] to-blue-400" style={{ width: `${score}%` }} />
+                            </div>
+                            <span className={`text-xs font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{score}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className={`border-b transition-colors duration-300 ${isDarkMode ? 'border-slate-700 bg-slate-700/30' : 'border-gray-100 bg-blue-50/40'}`}>
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="flex items-end gap-1 h-16">
+                              {(() => {
+                                const weeklyData = stats.weeklyData || [];
+                                const maxCount = Math.max(...weeklyData.map(d => d.count), 1);
+                                return weeklyData.map((d, i) => (
+                                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.label}: ${d.count} deliveries · ₱${d.earnings.toFixed(2)}`}>
+                                    <div
+                                      className="w-full rounded-t bg-[#0033A0]/60 hover:bg-[#0033A0] transition-all duration-300"
+                                      style={{ height: `${Math.max((d.count / maxCount) * 48, d.count > 0 ? 4 : 0)}px` }}
+                                    />
+                                    <span className={`text-[9px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{d.day}</span>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                            <div className="flex gap-6 mt-3">
+                              <span className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                ✅ Completed: <strong className={isDarkMode ? 'text-white' : 'text-gray-900'}>{stats.completed}</strong>
+                              </span>
+                              <span className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                ❌ Failed: <strong className="text-red-500">{stats.failed}</strong>
+                              </span>
+                              <span className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                ⏳ Pending: <strong className="text-yellow-500">{stats.pending}</strong>
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+PerformanceDashboard.displayName = 'PerformanceDashboard';
+
+// ─── Main Riders Page ─────────────────────────────────────────────────────────
+
 export default function Riders() {
   const { isDarkMode } = useTheme();
   const location = useLocation();
@@ -1014,6 +1313,7 @@ export default function Riders() {
   const { user } = useAuth();
   const handledFocusNonceRef = useRef(null);
   const { logRiderAction } = useAdminLog();
+  const [activeTab, setActiveTab] = useState('riders');
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1307,50 +1607,83 @@ export default function Riders() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Rider Management</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-petron-blue text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
-        >
-          <Plus size={18} />
-          Add Rider
-        </button>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Rider Management</h2>
+          {/* Tab switcher */}
+          <div className={`flex gap-1 mt-2 p-1 rounded-lg w-fit transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
+            <button
+              id="riders-tab-riders"
+              onClick={() => setActiveTab('riders')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'riders'
+                  ? 'bg-[#0033A0] text-white shadow-sm'
+                  : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+              }`}
+            >
+              <Truck size={14} /> Riders
+            </button>
+            <button
+              id="riders-tab-performance"
+              onClick={() => setActiveTab('performance')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'performance'
+                  ? 'bg-[#0033A0] text-white shadow-sm'
+                  : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+              }`}
+            >
+              <BarChart2 size={14} /> Performance
+            </button>
+          </div>
+        </div>
+        {activeTab === 'riders' && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-petron-blue text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
+          >
+            <Plus size={18} />
+            Add Rider
+          </button>
+        )}
       </div>
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Riders</p>
-          <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
-        </div>
-        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active Riders</p>
-          <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-        </div>
-        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Deliveries</p>
-          <p className="text-2xl font-bold text-[#ED1C24]">{stats.totalDeliveries}</p>
-        </div>
-        <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Success Rate</p>
-          <div className="flex items-center">
-            <CheckCircle size={20} className="text-green-500 mr-1" />
-            <span className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stats.successRate}%</span>
+      {activeTab === 'performance' ? (
+        <PerformanceDashboard isDarkMode={isDarkMode} />
+      ) : (
+        <>
+          {/* Stats Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Riders</p>
+              <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
+            </div>
+            <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active Riders</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Deliveries</p>
+              <p className="text-2xl font-bold text-[#ED1C24]">{stats.totalDeliveries}</p>
+            </div>
+            <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Success Rate</p>
+              <div className="flex items-center">
+                <CheckCircle size={20} className="text-green-500 mr-1" />
+                <span className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stats.successRate}%</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Search */}
-      <SearchBar 
-        onSearch={handleSearch}
-        placeholder="Search riders by name, phone, vehicle, or address..."
-        className="w-full"
-      />
+          {/* Search */}
+          <SearchBar 
+            onSearch={handleSearch}
+            placeholder="Search riders by name, phone, vehicle, or address..."
+            className="w-full"
+          />
 
-      {filteredRiders.length === 0 ? (
+          {filteredRiders.length === 0 ? (
         <div className={`rounded-xl border p-12 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <Truck size={48} className={`mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
           <h3 className={`text-lg font-medium mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No riders found</h3>
@@ -1513,6 +1846,7 @@ export default function Riders() {
             );
           })}
         </div>
+        </>
       )}
 
       {/* Modals */}
