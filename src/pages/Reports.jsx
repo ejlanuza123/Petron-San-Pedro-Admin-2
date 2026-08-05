@@ -119,6 +119,20 @@ const ExportDropdown = ({ onExport, disabled, exporting }) => {
           <button
             onClick={() => {
               setIsOpen(false);
+              onExport('csv');
+            }}
+            className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors border-t ${isDarkMode ? 'border-slate-700 hover:bg-slate-700' : 'border-gray-100 hover:bg-blue-50'}`}
+          >
+            <FileText size={18} className="text-blue-600" />
+            <div>
+              <p className={`text-sm font-medium transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>CSV Raw Data (.csv)</p>
+              <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>Download raw comma-separated data</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsOpen(false);
               onExport('pdf');
             }}
             className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors border-t ${isDarkMode ? 'border-slate-700 hover:bg-slate-700' : 'border-gray-100 hover:bg-blue-50'}`}

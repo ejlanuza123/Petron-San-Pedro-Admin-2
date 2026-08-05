@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Navigation, Phone, MapPin, User, Clock, Route } from 'lucide-react';
+import { X, Navigation, Phone, MapPin, User, Clock, Route, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatDate, formatOrderNumber } from '../utils/formatters';
 

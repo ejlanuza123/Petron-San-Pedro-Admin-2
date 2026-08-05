@@ -170,5 +170,65 @@ export const orderService = {
         }
       )
       .subscribe();
+  },
+
+  async autoDispatchOrderIfEnabled(orderId) {
+    try {
+      const { settingsService } = await import('./settingsService');
+      const settings = await settingsService.getAutoDispatchSettings();
+      
+      if (!settings.enabled) {
+        return { success: false, reason: 'Auto-dispatch is disabled in settings' };
+      }
+
+      const { data: riders, error: riderErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, is_online')
+        .eq('role', 'rider')
+        .eq('is_online', true);
+
+      if (riderErr || !riders || riders.length === 0) {
+        return { success: false, reason: 'No online riders available' };
+      }
+
+      const { data: activeDeliveries } = await supabase
+        .from('deliveries')
+        .select('rider_id')
+        .in('status', ['assigned', 'accepted', 'in_transit']);
+
+      const countsMap = (activeDeliveries || []).reduce((acc, curr) => {
+        if (curr.rider_id) {
+          acc[curr.rider_id] = (acc[curr.rider_id] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      const eligibleRiders = riders.filter(r => (countsMap[r.id] || 0) < settings.maxOrders);
+
+      if (eligibleRiders.length === 0) {
+        return { success: false, reason: 'All available riders are at maximum workload capacity' };
+      }
+
+      eligibleRiders.sort((a, b) => (countsMap[a.id] || 0) - (countsMap[b.id] || 0));
+      const selectedRider = eligibleRiders[0];
+
+      const { error: deliveryErr } = await supabase
+        .from('deliveries')
+        .insert([{
+          order_id: orderId,
+          rider_id: selectedRider.id,
+          status: 'assigned',
+          created_at: new Date().toISOString()
+        }]);
+
+      if (deliveryErr) throw deliveryErr;
+
+      await this.updateStatus(orderId, ORDER_STATUS.PROCESSING);
+
+      return { success: true, rider: selectedRider };
+    } catch (err) {
+      console.error('Error during auto-dispatch:', err);
+      return { success: false, error: err.message };
+    }
   }
 };

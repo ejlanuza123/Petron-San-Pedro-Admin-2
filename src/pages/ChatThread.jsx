@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { chatService } from '../services/chatService';
 import '../styles/ChatThread.css';
 import { formatDistanceToNow, format } from 'date-fns';
-import { ChevronLeft, Send, Sparkles, Circle, Check, CheckCheck, Pencil, Trash2, Ellipsis } from 'lucide-react';
+import { ChevronLeft, Send, Sparkles, Circle, Check, CheckCheck, Pencil, Trash2, Ellipsis, Image as ImageIcon } from 'lucide-react';
 
 const getInitials = (name) => {
   if (!name) return 'R';
@@ -579,6 +579,11 @@ export default function ChatThread() {
                 <div className="message-bubble">
                   {!isCurrentUser && (
                     <div className="message-sender">{msg.profiles?.full_name || 'Unknown'}</div>
+                  )}
+                  {msg.media_url && (
+                    <div className="message-media-wrap mb-1">
+                      <img src={msg.media_url} alt="Attachment" className="max-h-48 rounded-md object-cover border border-gray-200" />
+                    </div>
                   )}
                   <p className="message-content">{msg.content}</p>
                   <span className="message-time">

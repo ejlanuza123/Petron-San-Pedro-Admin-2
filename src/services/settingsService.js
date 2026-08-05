@@ -52,6 +52,44 @@ export const settingsService = {
   },
 
   /**
+   * Get Auto-Dispatch configuration settings
+   * @returns {Promise<{ enabled: boolean, maxOrders: number }>}
+   */
+  async getAutoDispatchSettings() {
+    try {
+      const enabledVal = await this.getSetting('auto_dispatch_enabled', 'true');
+      const maxVal = await this.getSetting('auto_dispatch_max_rider_orders', '3');
+      return {
+        enabled: enabledVal === 'true' || enabledVal === true,
+        maxOrders: Number.parseInt(String(maxVal), 10) || 3
+      };
+    } catch (error) {
+      console.error('Error fetching auto dispatch settings:', error);
+      return { enabled: true, maxOrders: 3 };
+    }
+  },
+
+  /**
+   * Update Auto-Dispatch configuration settings
+   * @param {{ enabled: boolean, maxOrders: number }} settings
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateAutoDispatchSettings({ enabled, maxOrders }) {
+    try {
+      const updates = [
+        { key: 'auto_dispatch_enabled', value: String(!!enabled), updated_at: new Date().toISOString() },
+        { key: 'auto_dispatch_max_rider_orders', value: String(maxOrders || 3), updated_at: new Date().toISOString() }
+      ];
+      const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating auto dispatch settings:', error);
+      return false;
+    }
+  },
+
+  /**
    * Get any app setting by key
    * @param {string} key - Setting key
    * @param {any} defaultValue - Fallback value if not found
