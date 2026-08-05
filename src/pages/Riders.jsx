@@ -1846,8 +1846,9 @@ export default function Riders() {
             );
           })}
         </div>
-        </>
       )}
+    </>
+  )}
 
       {/* Modals */}
       <AddRiderModal
