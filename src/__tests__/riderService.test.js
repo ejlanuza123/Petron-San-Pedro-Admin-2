@@ -233,12 +233,12 @@ describe('computePlatformStats', () => {
     ];
     const lb = buildLeaderboard(riders);
     const platform = computePlatformStats(lb);
-    // Both riders have 1 delivery each. r1 = 100%, r2 = 0% \u2192 avg = 50%
+    // Both riders have 1 delivery each. r1 = 100%, r2 = 0% → avg = 50%
     expect(platform.avgCompletionRate).toBe(50);
   });
 });
 
-// \u2500\u2500\u2500 computePerformanceScore \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ──────────────── computePerformanceScore ──────────────────────────────
 
 describe('computePerformanceScore', () => {
   it('returns 0 for zero total deliveries and 0 completion rate', () => {
@@ -251,10 +251,10 @@ describe('computePerformanceScore', () => {
     expect(score).toBe(100);
   });
 
-  it('weights completion rate at 60% and volume at 40%', () => {
-    // completionRate=60, volumeScore=(5/10)*100=50
-    // score = 60*0.6 + 50*0.4 = 36 + 20 = 56
+  it('weights completion rate at 50%, volume at 30%, and rating at 20%', () => {
+    // completionRate=60, volumeScore=(5/10)*100=50, ratingScore=60
+    // score = 60*0.5 + 50*0.3 + 60*0.2 = 30 + 15 + 12 = 57
     const score = computePerformanceScore({ completionRate: 60, total: 5 }, 10);
-    expect(score).toBe(56);
+    expect(score).toBe(57);
   });
 });
