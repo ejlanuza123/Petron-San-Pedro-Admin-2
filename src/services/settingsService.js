@@ -53,32 +53,42 @@ export const settingsService = {
 
   /**
    * Get Auto-Dispatch configuration settings
-   * @returns {Promise<{ enabled: boolean, maxOrders: number }>}
+   * @returns {Promise<{ enabled: boolean, maxOrders: number, radiusKm: number, timeoutMins: number, strategy: string }>}
    */
   async getAutoDispatchSettings() {
     try {
       const enabledVal = await this.getSetting('auto_dispatch_enabled', 'true');
       const maxVal = await this.getSetting('auto_dispatch_max_rider_orders', '3');
+      const radiusVal = await this.getSetting('auto_dispatch_radius_km', '10');
+      const timeoutVal = await this.getSetting('auto_dispatch_timeout_mins', '5');
+      const strategyVal = await this.getSetting('auto_dispatch_strategy', 'nearest');
+
       return {
         enabled: enabledVal === 'true' || enabledVal === true,
-        maxOrders: Number.parseInt(String(maxVal), 10) || 3
+        maxOrders: Number.parseInt(String(maxVal), 10) || 3,
+        radiusKm: Number.parseFloat(String(radiusVal)) || 10,
+        timeoutMins: Number.parseInt(String(timeoutVal), 10) || 5,
+        strategy: strategyVal || 'nearest',
       };
     } catch (error) {
       console.error('Error fetching auto dispatch settings:', error);
-      return { enabled: true, maxOrders: 3 };
+      return { enabled: true, maxOrders: 3, radiusKm: 10, timeoutMins: 5, strategy: 'nearest' };
     }
   },
 
   /**
    * Update Auto-Dispatch configuration settings
-   * @param {{ enabled: boolean, maxOrders: number }} settings
+   * @param {{ enabled: boolean, maxOrders: number, radiusKm: number, timeoutMins: number, strategy: string }} settings
    * @returns {Promise<boolean>} Success status
    */
-  async updateAutoDispatchSettings({ enabled, maxOrders }) {
+  async updateAutoDispatchSettings({ enabled, maxOrders, radiusKm, timeoutMins, strategy }) {
     try {
       const updates = [
         { key: 'auto_dispatch_enabled', value: String(!!enabled), updated_at: new Date().toISOString() },
-        { key: 'auto_dispatch_max_rider_orders', value: String(maxOrders || 3), updated_at: new Date().toISOString() }
+        { key: 'auto_dispatch_max_rider_orders', value: String(maxOrders || 3), updated_at: new Date().toISOString() },
+        { key: 'auto_dispatch_radius_km', value: String(radiusKm || 10), updated_at: new Date().toISOString() },
+        { key: 'auto_dispatch_timeout_mins', value: String(timeoutMins || 5), updated_at: new Date().toISOString() },
+        { key: 'auto_dispatch_strategy', value: String(strategy || 'nearest'), updated_at: new Date().toISOString() }
       ];
       const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
       if (error) throw error;
