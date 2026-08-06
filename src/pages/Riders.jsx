@@ -12,7 +12,7 @@ import { useAdminLog } from '../hooks/useAdminLog';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { getAllRidersWithStats, buildLeaderboard, computePlatformStats, computeRiderStats, resolveDateRange } from '../services/riderService';
+import { getAllRidersWithStats, buildLeaderboard, computePlatformStats, computeRiderStats, resolveDateRange, getStoredPayoutSettlements, setRiderPayoutStatus } from '../services/riderService';
 import { exportRiderPayouts } from '../utils/exportUtils';
 
 // Skeleton Components (keep as is)
@@ -1310,7 +1310,193 @@ const PerformanceDashboard = React.memo(({ isDarkMode }) => {
     </div>
   );
 });
-PerformanceDashboard.displayName = 'PerformanceDashboard';
+// Rider Payouts & Settlement Tracker Component
+const RiderPayoutsTracker = React.memo(({ riders, isDarkMode }) => {
+  const [settlements, setSettlements] = useState(() => getStoredPayoutSettlements());
+  const [filterPreset, setFilterPreset] = useState('month'); // 'week' | 'month' | '30days' | 'all'
+
+  const dateFilter = useMemo(() => {
+    if (filterPreset === 'all') return null;
+    return resolveDateRange(filterPreset);
+  }, [filterPreset]);
+
+  const payoutRows = useMemo(() => {
+    return riders.map((rider) => {
+      const stats = computeRiderStats(rider, dateFilter);
+      const record = settlements[rider.id] || { status: 'pending', settled_at: null };
+      return {
+        rider,
+        stats,
+        payoutStatus: record.status || 'pending',
+        settledAt: record.settled_at,
+      };
+    });
+  }, [riders, dateFilter, settlements]);
+
+  const totals = useMemo(() => {
+    let totalGross = 0;
+    let totalSettled = 0;
+    let totalPending = 0;
+
+    payoutRows.forEach((r) => {
+      totalGross += r.stats.earnings;
+      if (r.payoutStatus === 'settled') {
+        totalSettled += r.stats.earnings;
+      } else {
+        totalPending += r.stats.earnings;
+      }
+    });
+
+    return { totalGross, totalSettled, totalPending };
+  }, [payoutRows]);
+
+  const handleToggleStatus = (riderId, currentStatus, riderName) => {
+    const nextStatus = currentStatus === 'settled' ? 'pending' : 'settled';
+    const updated = setRiderPayoutStatus(riderId, nextStatus);
+    setSettlements({ ...updated });
+    notifySuccess(`Payout status for ${riderName} updated to ${nextStatus.toUpperCase()}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 3 Top Summary KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Delivery Fees Owed</p>
+            <DollarSign size={18} className="text-blue-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-blue-600">
+            ₱{totals.totalGross.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Cumulative delivery fee earnings across riders</p>
+        </div>
+
+        <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Pending Payouts</p>
+            <Clock size={18} className="text-amber-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-amber-500">
+            ₱{totals.totalPending.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Fees waiting for cashier/admin settlement</p>
+        </div>
+
+        <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Settled Payouts</p>
+            <CheckCircle size={18} className="text-emerald-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-emerald-600">
+            ₱{totals.totalSettled.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Completed settlements disbursed to riders</p>
+        </div>
+      </div>
+
+      {/* Date Filter & Table Header */}
+      <div className={`p-6 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+          <div>
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Rider Payout & Settlement Statement</h3>
+            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Track individual rider earnings, completed deliveries, and settlement statuses</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Time Period:</label>
+            <select
+              value={filterPreset}
+              onChange={(e) => setFilterPreset(e.target.value)}
+              className={`px-3 py-1.5 border rounded-lg text-sm font-medium outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Payout Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className={`text-xs uppercase border-b transition-colors duration-300 ${isDarkMode ? 'bg-slate-700/50 border-slate-700 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+              <tr>
+                <th className="px-4 py-3">Rider Name</th>
+                <th className="px-4 py-3 text-center">Vehicle</th>
+                <th className="px-4 py-3 text-center">Completed Deliveries</th>
+                <th className="px-4 py-3 text-right">Gross Delivery Fee (₱)</th>
+                <th className="px-4 py-3 text-center">Settlement Status</th>
+                <th className="px-4 py-3 text-center">Last Settled Date</th>
+                <th className="px-4 py-3 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              {payoutRows.map(({ rider, stats, payoutStatus, settledAt }) => (
+                <tr key={rider.id} className={`transition-colors duration-150 ${isDarkMode ? 'hover:bg-slate-700/40' : 'hover:bg-gray-50'}`}>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      {rider.avatar_url ? (
+                        <img src={rider.avatar_url} alt={rider.full_name} className="w-9 h-9 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-9 h-9 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-sm">
+                          {rider.full_name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                      <div>
+                        <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{rider.full_name}</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{rider.phone_number || rider.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${isDarkMode ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                      {rider.vehicle_type || 'Rider'} ({rider.vehicle_plate || 'N/A'})
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-center font-semibold">
+                    {stats.completed}
+                  </td>
+                  <td className="px-4 py-3.5 text-right font-bold text-emerald-600">
+                    ₱{stats.earnings.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    {payoutStatus === 'settled' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        <CheckCircle size={12} /> Settled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        <Clock size={12} /> Pending
+                      </span>
+                    )}
+                  </td>
+                  <td className={`px-4 py-3.5 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {settledAt ? new Date(settledAt).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    <button
+                      onClick={() => handleToggleStatus(rider.id, payoutStatus, rider.full_name)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm ${
+                        payoutStatus === 'settled'
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      }`}
+                    >
+                      {payoutStatus === 'settled' ? 'Mark Pending' : 'Mark Settled'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+});
+RiderPayoutsTracker.displayName = 'RiderPayoutsTracker';
 
 // ─── Main Riders Page ─────────────────────────────────────────────────────────
 
@@ -1642,6 +1828,17 @@ export default function Riders() {
             >
               <BarChart2 size={14} /> Performance
             </button>
+            <button
+              id="riders-tab-payouts"
+              onClick={() => setActiveTab('payouts')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'payouts'
+                  ? 'bg-[#0033A0] text-white shadow-sm'
+                  : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+              }`}
+            >
+              <DollarSign size={14} /> Payouts & Settlement
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -1685,6 +1882,8 @@ export default function Riders() {
 
       {activeTab === 'performance' ? (
         <PerformanceDashboard isDarkMode={isDarkMode} />
+      ) : activeTab === 'payouts' ? (
+        <RiderPayoutsTracker riders={riders} isDarkMode={isDarkMode} />
       ) : (
         <>
           {/* Stats Summary */}

@@ -260,3 +260,37 @@ export function computePlatformStats(leaderboardEntries) {
 
   return { totalDeliveries, avgCompletionRate, avgDeliveryTime, totalEarnings };
 }
+
+/**
+ * Retrieves stored payout settlement state for riders.
+ * Stores in localStorage key 'rider_payout_settlements'.
+ */
+export function getStoredPayoutSettlements() {
+  try {
+    const raw = localStorage.getItem('rider_payout_settlements');
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.error('Error reading payout settlements:', err);
+    return {};
+  }
+}
+
+/**
+ * Updates payout settlement status for a specific rider.
+ * @param {string} riderId
+ * @param {'settled'|'pending'} status
+ */
+export function setRiderPayoutStatus(riderId, status) {
+  try {
+    const settlements = getStoredPayoutSettlements();
+    settlements[riderId] = {
+      status,
+      settled_at: status === 'settled' ? new Date().toISOString() : null,
+    };
+    localStorage.setItem('rider_payout_settlements', JSON.stringify(settlements));
+    return settlements;
+  } catch (err) {
+    console.error('Error saving payout settlement:', err);
+    return {};
+  }
+}
