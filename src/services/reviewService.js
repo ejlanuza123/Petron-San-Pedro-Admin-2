@@ -20,13 +20,12 @@ export async function getProductReviews(options = {}) {
       rating,
       comment,
       created_at,
-      products (
+      products:products!product_reviews_product_id_fkey (
         id,
         name,
-        image_url,
-        price_per_unit
+        image_url
       ),
-      profiles:user_id (
+      profiles:profiles!product_reviews_user_id_fkey (
         id,
         full_name,
         email,
