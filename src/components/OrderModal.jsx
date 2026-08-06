@@ -7,6 +7,7 @@ import { ORDER_STATUS_COLORS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
+import { receiptService } from '../services/receiptService';
 
 export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
   const { isDarkMode } = useTheme();
@@ -573,18 +574,26 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
 
         {/* Footer */}
         <div className={`p-6 border-t transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-gray-50'}`} data-order-print-footer="true">
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end items-center gap-3">
             <button 
               onClick={onClose}
-              className={`px-6 py-2.5 border rounded-lg font-medium transition ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+              className={`px-5 py-2.5 border rounded-lg font-medium transition text-sm ${isDarkMode ? 'border-slate-600 text-gray-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
             >
               Close
             </button>
             <button
-              onClick={handlePrintOrder}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
+              onClick={() => receiptService.printThermalPOS(order)}
+              className="px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 font-medium transition text-sm flex items-center gap-1.5"
+              title="Print 80mm POS thermal counter receipt"
             >
-              Print Order
+              <span>🖨️ POS Receipt (80mm)</span>
+            </button>
+            <button
+              onClick={() => receiptService.generateOfficialPDF(order)}
+              className="px-5 py-2.5 bg-[#0033A0] text-white rounded-lg hover:bg-[#00297d] font-medium transition text-sm flex items-center gap-1.5"
+              title="Download vector Official Sales Invoice PDF"
+            >
+              <span>📄 Official Invoice (PDF)</span>
             </button>
           </div>
         </div>
