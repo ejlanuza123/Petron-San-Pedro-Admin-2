@@ -714,13 +714,14 @@ const MobileHeader = memo(({
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
-            className={`md:hidden fixed inset-0 top-16 z-10 overflow-y-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-white text-gray-900'}`}
+            className={`md:hidden fixed inset-0 top-16 z-50 flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-white text-gray-900'}`}
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="p-4">
+            {/* Scrollable Nav Area */}
+            <div className="flex-1 overflow-y-auto p-4">
               <nav className="space-y-2">
                 {[
                   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -731,14 +732,13 @@ const MobileHeader = memo(({
                   { to: '/riders', icon: Truck, label: 'Riders' },
                   { to: '/reviews', icon: Star, label: 'Reviews' },
                   { to: '/reports', icon: FileText, label: 'Reports' },
-                  { to: '/audit-logs', icon: FileText, label: 'Audit Logs' },
-                  { to: '/settings', icon: Settings, label: 'Settings' }
+                  { to: '/audit-logs', icon: FileText, label: 'Audit Logs' }
                 ].map((item, index) => (
                   <motion.div
                     key={item.to}
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05 }}
                   >
                     <NavItem 
                       to={item.to} 
@@ -753,16 +753,17 @@ const MobileHeader = memo(({
               </nav>
             </div>
             
+            {/* Fixed Docked Profile Footer */}
             <motion.div 
-              className="absolute bottom-4 left-4 right-4"
+              className={`p-4 border-t shrink-0 z-20 transition-colors duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200 shadow-lg'}`}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.3 }}
             >
-              <div className="border-t pt-4">
+              <div>
                 <button
                   onClick={() => setIsMobileProfileMenuOpen(prev => !prev)}
-                  className="w-full flex items-center mb-2 p-2 rounded-lg hover:bg-gray-100 transition"
+                  className={`w-full flex items-center mb-2 p-2 rounded-lg transition ${isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
                 >
                   {profile?.avatar_url ? (
                     <img
@@ -822,7 +823,7 @@ const MobileHeader = memo(({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSignOut}
-                  className="flex items-center justify-center w-full bg-red-50 text-[#ED1C24] px-4 py-3 rounded-lg hover:bg-red-100"
+                  className="flex items-center justify-center w-full bg-red-50 text-[#ED1C24] px-4 py-3 rounded-lg hover:bg-red-100 font-semibold"
                 >
                   <LogOut size={20} className="mr-2" />
                   Sign Out
