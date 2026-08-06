@@ -531,7 +531,7 @@ const Sidebar = memo(({
       </motion.div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-hidden">
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto custom-scrollbar">
         {navItems.map((item, index) => (
           <motion.div
             key={item.to}
