@@ -17,6 +17,7 @@ import {
 import ErrorAlert from '../components/common/ErrorAlert';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { analyticsService } from '../services/analyticsService';
 import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
@@ -152,6 +153,9 @@ const ExportDropdown = ({ onExport, disabled, exporting }) => {
 export default function Reports() {
   const { isDarkMode } = useTheme();
   const [dateRange, setDateRange] = useState('month');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [activeReportTab, setActiveReportTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
@@ -206,111 +210,28 @@ export default function Reports() {
         case 'year':
           startDate.setFullYear(startDate.getFullYear() - 1);
           break;
+        case 'custom':
+          if (customStartDate) startDate.setTime(new Date(customStartDate).getTime());
+          if (customEndDate) endDate.setTime(new Date(customEndDate).getTime());
+          break;
         default:
           startDate.setMonth(startDate.getMonth() - 1);
       }
 
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          profiles!orders_user_id_fkey (
-            full_name
-          ),
-          order_items (
-            quantity,
-            price_at_order,
-            products (
-              name,
-              category
-            )
-          )
-        `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
-        .order('created_at', { ascending: true });
-
-      if (ordersError) throw ordersError;
-
-      const completedOrders = orders?.filter(o => o.status === 'Completed') || [];
-      const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
-      const totalOrders = orders?.length || 0;
-
-      const statusCounts = (orders || []).reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {});
-
-      const categorySales = (orders || []).reduce((acc, order) => {
-        order.order_items?.forEach(item => {
-          const category = item.products?.category || 'Other';
-          if (!acc[category]) {
-            acc[category] = { 
-              revenue: 0, 
-              quantity: 0, 
-              orders: new Set() 
-            };
-          }
-          acc[category].revenue += (item.quantity * item.price_at_order) || 0;
-          acc[category].quantity += item.quantity || 0;
-          acc[category].orders.add(order.id);
-        });
-        return acc;
-      }, {});
-
-      Object.keys(categorySales).forEach(category => {
-        categorySales[category].orderCount = categorySales[category].orders.size;
-        delete categorySales[category].orders;
-      });
-
-      const timeSeriesData = {};
-      (orders || []).forEach(order => {
-        if (order.status === 'Completed') {
-          const date = dateRange === 'year' 
-            ? new Date(order.created_at).toLocaleString('default', { month: 'short', year: 'numeric' })
-            : formatDate(order.created_at);
-          timeSeriesData[date] = (timeSeriesData[date] || 0) + (order.total_amount || 0);
-        }
-      });
-
-      const customerSpending = (orders || []).reduce((acc, order) => {
-        if (order.status === 'Completed' && order.profiles) {
-          const customerId = order.user_id;
-          if (!acc[customerId]) {
-            acc[customerId] = {
-              name: order.profiles.full_name || 'Unknown Customer',
-              totalSpent: 0,
-              orderCount: 0
-            };
-          }
-          acc[customerId].totalSpent += order.total_amount || 0;
-          acc[customerId].orderCount += 1;
-        }
-        return acc;
-      }, {});
-
-      const topCustomers = Object.values(customerSpending)
-        .sort((a, b) => b.totalSpent - a.totalSpent)
-        .slice(0, 5);
+      const res = await analyticsService.getAnalyticsOverview(startDate, endDate);
+      if (!res.success) throw new Error(res.error || 'Failed to load report analytics');
 
       setReportData({
-        summary: {
-          totalRevenue,
-          totalOrders,
-          completedOrders: completedOrders.length,
-          pendingOrders: statusCounts['Pending'] || 0,
-          processingOrders: statusCounts['Processing'] || 0,
-          cancelledOrders: statusCounts['Cancelled'] || 0,
-          averageOrderValue: completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0,
-          uniqueCustomers: new Set((orders || []).map(o => o.user_id)).size
-        },
-        categorySales,
-        timeSeriesData: Object.entries(timeSeriesData).map(([date, amount]) => ({ date, amount })),
-        topCustomers,
+        summary: res.summary,
+        paymentMethods: res.paymentMethods,
+        statusDistribution: res.statusDistribution,
+        topProducts: res.topProducts,
+        categorySales: res.categorySales,
+        timeSeriesData: res.dailyTrend,
         dateRange: {
           start: startDate,
           end: endDate,
-          label: dateRangeLabel
+          label: dateRange === 'custom' ? `${customStartDate || 'Start'} to ${customEndDate || 'End'}` : dateRangeLabel
         }
       });
     } catch (err) {
@@ -320,7 +241,7 @@ export default function Reports() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateRange, dateRangeLabel]);
+  }, [dateRange, dateRangeLabel, customStartDate, customEndDate]);
 
   useEffect(() => {
     fetchReportData();
@@ -979,17 +900,36 @@ export default function Reports() {
           )}
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className={`border rounded-lg px-2.5 py-1.5 text-xs outline-none ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300'}`}
+              />
+              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className={`border rounded-lg px-2.5 py-1.5 text-xs outline-none ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+          )}
+
           <select
             value={dateRange}
             onChange={handleDateRangeChange}
-            className={`border rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+            className={`border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
             disabled={refreshing || exporting}
           >
             <option value="week">Last 7 Days</option>
             <option value="month">Last 30 Days</option>
             <option value="quarter">Last 3 Months</option>
             <option value="year">Last 12 Months</option>
+            <option value="custom">Custom Date Range</option>
           </select>
           
           <button
@@ -1009,11 +949,45 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* Analytics Navigation Sub-Tabs */}
+      <div className={`flex gap-1 p-1 rounded-xl w-fit transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-gray-100'}`}>
+        <button
+          onClick={() => setActiveReportTab('overview')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeReportTab === 'overview'
+              ? 'bg-[#0033A0] text-white shadow-sm'
+              : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+          }`}
+        >
+          <BarChart3 size={16} /> Executive Overview
+        </button>
+        <button
+          onClick={() => setActiveReportTab('products')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeReportTab === 'products'
+              ? 'bg-[#0033A0] text-white shadow-sm'
+              : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+          }`}
+        >
+          <ShoppingCart size={16} /> Product Sales Mix
+        </button>
+        <button
+          onClick={() => setActiveReportTab('operations')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeReportTab === 'operations'
+              ? 'bg-[#0033A0] text-white shadow-sm'
+              : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+          }`}
+        >
+          <TrendingUp size={16} /> Delivery & Operations
+        </button>
+      </div>
+
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
       {reportData && (
         <>
-          {/* Summary Cards */}
+          {/* Executive Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className={`p-6 rounded-xl shadow-sm border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'} hover:shadow-md transition-shadow`}>
               <div className="flex items-center justify-between mb-2">
@@ -1023,10 +997,10 @@ export default function Reports() {
                 </div>
               </div>
               <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {formatCurrency(reportData.summary.totalRevenue)}
+                {formatCurrency(reportData.summary.totalSales || 0)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                {reportData.summary.completedOrders} completed orders
+                {reportData.summary.completedCount || 0} completed orders
               </p>
             </div>
 
@@ -1037,10 +1011,9 @@ export default function Reports() {
                   <ShoppingCart className="text-[#ED1C24]" size={18} />
                 </div>
               </div>
-              <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{reportData.summary.totalOrders}</p>
+              <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{reportData.summary.totalOrdersCount || 0}</p>
               <div className="flex gap-2 mt-1 text-xs">
-                <span className="text-green-600">{reportData.summary.completedOrders} completed</span>
-                <span className="text-yellow-600">{reportData.summary.pendingOrders} pending</span>
+                <span className="text-emerald-600 font-semibold">{reportData.summary.completionRate}% completion rate</span>
               </div>
             </div>
 
@@ -1052,7 +1025,7 @@ export default function Reports() {
                 </div>
               </div>
               <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {formatCurrency(reportData.summary.averageOrderValue)}
+                {formatCurrency(Number(reportData.summary.avgOrderValue || 0))}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 per completed order
@@ -1061,130 +1034,202 @@ export default function Reports() {
 
             <div className={`p-6 rounded-xl shadow-sm border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'} hover:shadow-md transition-shadow`}>
               <div className="flex items-center justify-between mb-2">
-                <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Success Rate</p>
+                <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Delivery Fees</p>
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <BarChart3 className="text-purple-600" size={18} />
                 </div>
               </div>
               <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {reportData.summary.totalOrders > 0 
-                  ? Math.round((reportData.summary.completedOrders / reportData.summary.totalOrders) * 100) 
-                  : 0}%
+                {formatCurrency(reportData.summary.totalDeliveryFees || 0)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                {reportData.summary.uniqueCustomers} unique customers
+                Peak Hour: <span className="font-bold text-purple-600">{reportData.summary.peakHourLabel}</span>
               </p>
             </div>
           </div>
 
-          {/* Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Sales Timeline */}
-            <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Sales Timeline</h3>
-              {reportData.timeSeriesData.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                  {reportData.timeSeriesData.map((item, index) => {
-                    const maxAmount = Math.max(...reportData.timeSeriesData.map(d => d.amount));
-                    const percentage = (item.amount / maxAmount) * 100;
-                    
-                    return (
-                      <div key={index} className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 w-24">{item.date}</span>
-                        <div className="flex-1">
-                          <div className="h-8 bg-gray-100 rounded-lg relative group">
-                            <div 
-                              className="h-full bg-petron-blue rounded-lg transition-all duration-300"
-                              style={{ width: `${percentage}%` }}
-                            >
-                              <div className="opacity-0 group-hover:opacity-100 absolute right-0 -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded transition-opacity">
-                                {formatCurrency(item.amount)}
+          {/* TAB 1: EXECUTIVE OVERVIEW */}
+          {activeReportTab === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Daily Sales Timeline */}
+              <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Daily Sales Timeline</h3>
+                {reportData.timeSeriesData && reportData.timeSeriesData.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {reportData.timeSeriesData.map((item, index) => {
+                      const maxAmount = Math.max(...reportData.timeSeriesData.map(d => d.sales), 1);
+                      const percentage = (item.sales / maxAmount) * 100;
+                      
+                      return (
+                        <div key={index} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 w-24">{item.date}</span>
+                          <div className="flex-1">
+                            <div className="h-8 bg-gray-100 dark:bg-slate-700 rounded-lg relative group">
+                              <div 
+                                className="h-full bg-petron-blue rounded-lg transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              >
+                                <div className="opacity-0 group-hover:opacity-100 absolute right-0 -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded transition-opacity shadow">
+                                  {formatCurrency(item.sales)} ({item.orders} orders)
+                                </div>
                               </div>
                             </div>
                           </div>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-24 text-right">
+                            {formatCurrency(item.sales)}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium text-gray-700 w-24 text-right">
-                          {formatCurrency(item.amount)}
-                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    No sales data available for this period
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Methods & Operational Highlights */}
+              <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Payment Method Distribution</h3>
+                
+                <div className="space-y-4 mb-6">
+                  {Object.entries(reportData.paymentMethods || {}).map(([method, count]) => {
+                    const pct = reportData.summary.totalOrdersCount > 0
+                      ? Math.round((count / reportData.summary.totalOrdersCount) * 100)
+                      : 0;
+                    return (
+                      <div key={method} className="space-y-1">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{method}</span>
+                          <span className="text-blue-600">{count} orders ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+                          <div
+                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          ></div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  No sales data available for this period
-                </div>
-              )}
-            </div>
 
-            {/* Category Breakdown */}
-            <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Sales by Category</h3>
-              {Object.keys(reportData.categorySales).length > 0 ? (
-                <div className="space-y-4">
-                  {Object.entries(reportData.categorySales)
-                    .sort(([,a], [,b]) => b.revenue - a.revenue)
-                    .map(([category, data]) => (
-                      <div key={category}>
-                        <div className="flex justify-between items-center mb-1">
-                          <div>
-                            <span className="font-medium text-gray-700">{category}</span>
-                            <span className="text-xs text-gray-500 ml-2">
-                              ({data.quantity} units)
+                <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-blue-50/60 border-blue-100'}`}>
+                  <p className="text-xs font-bold text-blue-600 uppercase mb-1">Operational Highlight</p>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                    Peak ordering volume occurs around <strong className="text-blue-600">{reportData.summary.peakHourLabel}</strong>. 
+                    {reportData.summary.avgDeliveryMinutes ? ` Average delivery duration is ${reportData.summary.avgDeliveryMinutes} mins.` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: PRODUCT SALES MIX */}
+          {activeReportTab === 'products' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Top 10 Products Table */}
+              <div className={`lg:col-span-2 rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Top 10 Best Selling Products</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className={`text-xs uppercase border-b ${isDarkMode ? 'bg-slate-700 text-gray-300 border-slate-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                      <tr>
+                        <th className="px-4 py-3">Product Name</th>
+                        <th className="px-4 py-3 text-center">Category</th>
+                        <th className="px-4 py-3 text-center">Qty Sold</th>
+                        <th className="px-4 py-3 text-right">Revenue (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                      {(reportData.topProducts || []).map((prod, idx) => (
+                        <tr key={idx} className={isDarkMode ? 'hover:bg-slate-700/40' : 'hover:bg-gray-50'}>
+                          <td className={`px-4 py-3 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{prod.name}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs px-2.5 py-1 rounded-full ${isDarkMode ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                              {prod.category}
                             </span>
-                          </div>
-                          <span className="text-[#0033A0] font-bold">
-                            {formatCurrency(data.revenue)}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-petron-blue h-2.5 rounded-full transition-all duration-300"
-                            style={{ 
-                              width: `${getPercentage(data.revenue, reportData.summary.totalRevenue)}%` 
-                            }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {data.orderCount} orders
-                        </p>
-                      </div>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-blue-600">{prod.quantity}</td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatCurrency(prod.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  No category data available
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Top Customers */}
-          {reportData.topCustomers.length > 0 && (
-            <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Top Customers</h3>
-              <div className="space-y-3">
-                {reportData.topCustomers.map((customer, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-petron-blue rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        {customer.name?.charAt(0)?.toUpperCase() || '?'}
+              {/* Category Breakdown */}
+              <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Category Sales Distribution</h3>
+                <div className="space-y-4">
+                  {(reportData.categorySales || []).map((cat) => {
+                    const pct = reportData.summary.totalSales > 0
+                      ? Math.round((cat.revenue / reportData.summary.totalSales) * 100)
+                      : 0;
+                    return (
+                      <div key={cat.category}>
+                        <div className="flex justify-between text-xs font-semibold mb-1">
+                          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{cat.category}</span>
+                          <span className="text-emerald-600">{formatCurrency(cat.revenue)} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                          <div className="bg-emerald-600 h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
+                        </div>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{cat.quantity} items sold</p>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{customer.name}</p>
-                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: DELIVERY & OPERATIONS */}
+          {activeReportTab === 'operations' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Order Status Distribution */}
+              <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Order Status Distribution</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(reportData.statusDistribution || {}).map(([status, count]) => (
+                    <div key={status} className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                      <p className={`text-xs font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{status}</p>
+                      <p className="text-2xl font-extrabold text-blue-600 mt-1">{count}</p>
+                      <p className="text-xs text-gray-400 mt-1">orders</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-[#0033A0]">{formatCurrency(customer.totalSpent)}</p>
-                      <p className="text-xs text-gray-500">{customer.orderCount} orders</p>
-                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Delivery Duration & Performance summary */}
+              <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Delivery & Dispatch Metrics</h3>
+                
+                <div className="space-y-4">
+                  <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-700/40 border-slate-600' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <p className="text-xs font-bold text-emerald-700 uppercase mb-1">Average Delivery Time</p>
+                    <p className="text-3xl font-extrabold text-emerald-600">
+                      {reportData.summary.avgDeliveryMinutes ? `${reportData.summary.avgDeliveryMinutes} mins` : 'N/A'}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>From dispatch assignment to customer drop-off</p>
                   </div>
-                ))}
+
+                  <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-700/40 border-slate-600' : 'bg-blue-50 border-blue-100'}`}>
+                    <p className="text-xs font-bold text-blue-700 uppercase mb-1">Total Delivery Fee Revenue</p>
+                    <p className="text-3xl font-extrabold text-blue-600">
+                      {formatCurrency(reportData.summary.totalDeliveryFees || 0)}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Collected across all fulfilled deliveries</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </>
       )}
     </div>
+
   );
 }

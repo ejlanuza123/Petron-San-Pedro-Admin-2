@@ -1,256 +1,205 @@
+// src/services/analyticsService.js
 import { supabase } from '../lib/supabase';
 
 export const analyticsService = {
   /**
-   * Get sales dashboard metrics
+   * Fetches comprehensive analytics for a given date range.
+   * @param {Date} startDate
+   * @param {Date} endDate
    */
-  async getSalesMetrics(startDate, endDate) {
+  async getAnalyticsOverview(startDate, endDate) {
     try {
-      // Total sales
-      const { data: salesData, error: salesError } = await supabase
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+
+      // Fetch orders in range with profiles and items
+      const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('total_amount, created_at, status')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .select(`
+          id,
+          order_number,
+          total_amount,
+          delivery_fee,
+          status,
+          payment_method,
+          created_at,
+          user_id,
+          profiles!orders_user_id_fkey (full_name),
+          order_items (
+            quantity,
+            price_at_order,
+            products (id, name, category)
+          )
+        `)
+        .gte('created_at', startIso)
+        .lte('created_at', endIso)
+        .order('created_at', { ascending: true });
 
-      if (salesError) throw salesError;
+      if (ordersError) throw ordersError;
 
-      // Total deliveries
-      const { data: deliveriesData } = await supabase
+      // Fetch deliveries in range for delivery duration stats
+      const { data: deliveries, error: deliveriesError } = await supabase
         .from('deliveries')
-        .select('id, status, delivered_at')
-        .gte('delivered_at', startDate.toISOString())
-        .lte('delivered_at', endDate.toISOString());
+        .select('id, status, assigned_at, delivered_at, rider_id')
+        .gte('created_at', startIso)
+        .lte('created_at', endIso);
 
-      const totalSales = salesData.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0);
-      const completedOrders = salesData.filter(o => o.status === 'Completed').length;
+      if (deliveriesError && deliveriesError.code !== 'PGRST116') {
+        console.warn('Deliveries query notice:', deliveriesError);
+      }
+
+      const allOrders = orders || [];
+      const completedOrders = allOrders.filter(o => o.status === 'Completed' || o.status === 'delivered');
+      
+      const totalSales = completedOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+      const totalDeliveryFees = completedOrders.reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0);
+      const totalOrdersCount = allOrders.length;
+      const completedCount = completedOrders.length;
+      const completionRate = totalOrdersCount > 0 ? ((completedCount / totalOrdersCount) * 100).toFixed(1) : '0.0';
+      const avgOrderValue = completedCount > 0 ? (totalSales / completedCount).toFixed(2) : '0.00';
+
+      // 1. Payment Method Breakdown
+      const paymentMethods = {};
+      allOrders.forEach(o => {
+        const method = (o.payment_method || 'Cash on Delivery').toUpperCase();
+        paymentMethods[method] = (paymentMethods[method] || 0) + 1;
+      });
+
+      // 2. Order Status Distribution
+      const statusDistribution = {};
+      allOrders.forEach(o => {
+        const status = o.status || 'Pending';
+        statusDistribution[status] = (statusDistribution[status] || 0) + 1;
+      });
+
+      // 3. Peak Hours of Day (0-23)
+      const hourlyDistribution = Array(24).fill(0);
+      allOrders.forEach(o => {
+        if (o.created_at) {
+          const hour = new Date(o.created_at).getHours();
+          hourlyDistribution[hour] += 1;
+        }
+      });
+      const peakHourIndex = hourlyDistribution.indexOf(Math.max(...hourlyDistribution));
+      const peakHourLabel = `${peakHourIndex % 12 || 12}:00 ${peakHourIndex >= 12 ? 'PM' : 'AM'}`;
+
+      // 4. Product Sales & Revenue Aggregation
+      const productMap = {};
+      const categoryMap = {};
+
+      allOrders.forEach(o => {
+        if (o.status !== 'Cancelled') {
+          (o.order_items || []).forEach(item => {
+            const pId = item.products?.id || item.product_id || 'unknown';
+            const pName = item.products?.name || 'Product';
+            const category = item.products?.category || 'General';
+            const qty = Number(item.quantity || 1);
+            const price = Number(item.price_at_order || item.products?.price || 0);
+            const rev = qty * price;
+
+            if (!productMap[pId]) {
+              productMap[pId] = { id: pId, name: pName, category, quantity: 0, revenue: 0 };
+            }
+            productMap[pId].quantity += qty;
+            productMap[pId].revenue += rev;
+
+            if (!categoryMap[category]) {
+              categoryMap[category] = { category, quantity: 0, revenue: 0 };
+            }
+            categoryMap[category].quantity += qty;
+            categoryMap[category].revenue += rev;
+          });
+        }
+      });
+
+      const topProducts = Object.values(productMap)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
+      const categorySales = Object.values(categoryMap)
+        .sort((a, b) => b.revenue - a.revenue);
+
+      // 5. Daily Trend Chart Data
+      const dailyMap = {};
+      allOrders.forEach(o => {
+        const dateKey = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (!dailyMap[dateKey]) {
+          dailyMap[dateKey] = { date: dateKey, sales: 0, orders: 0 };
+        }
+        if (o.status === 'Completed' || o.status === 'delivered') {
+          dailyMap[dateKey].sales += Number(o.total_amount || 0);
+        }
+        dailyMap[dateKey].orders += 1;
+      });
+      const dailyTrend = Object.values(dailyMap);
+
+      // 6. Delivery Duration Stats (in minutes)
+      const validDeliveries = (deliveries || []).filter(d => d.delivered_at && d.assigned_at);
+      const deliveryDurations = validDeliveries.map(d => (new Date(d.delivered_at) - new Date(d.assigned_at)) / 60000);
+      const avgDeliveryMinutes = deliveryDurations.length > 0
+        ? Math.round(deliveryDurations.reduce((a, b) => a + b, 0) / deliveryDurations.length)
+        : null;
 
       return {
         success: true,
-        totalSales,
-        totalOrders: salesData.length,
-        completedOrders,
-        completionRate: salesData.length > 0 ? (completedOrders / salesData.length * 100).toFixed(2) : 0,
-        totalDeliveries: deliveriesData?.length || 0,
-        avgOrderValue: salesData.length > 0 ? (totalSales / salesData.length).toFixed(2) : 0
+        summary: {
+          totalSales,
+          totalDeliveryFees,
+          totalOrdersCount,
+          completedCount,
+          completionRate,
+          avgOrderValue,
+          peakHourLabel,
+          avgDeliveryMinutes,
+        },
+        paymentMethods,
+        statusDistribution,
+        topProducts,
+        categorySales,
+        dailyTrend,
+        rawOrders: allOrders,
       };
     } catch (error) {
+      console.error('Error fetching analytics overview:', error);
       return { success: false, error: error.message };
     }
+  },
+
+  /**
+   * Get sales dashboard metrics (legacy compatibility)
+   */
+  async getSalesMetrics(startDate, endDate) {
+    const res = await this.getAnalyticsOverview(startDate, endDate);
+    if (!res.success) return { success: false, error: res.error };
+    return {
+      success: true,
+      totalSales: res.summary.totalSales,
+      totalOrders: res.summary.totalOrdersCount,
+      completedOrders: res.summary.completedCount,
+      completionRate: res.summary.completionRate,
+      avgOrderValue: res.summary.avgOrderValue,
+    };
   },
 
   /**
    * Get daily sales data for chart
    */
   async getDailySalesData(days = 30) {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const { data, error } = await supabase
-        .from('orders')
-        .select('created_at, total_amount, status')
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      // Group by date
-      const grouped = data.reduce((acc, order) => {
-        const date = new Date(order.created_at).toLocaleDateString('en-US');
-        if (!acc[date]) {
-          acc[date] = { sales: 0, orders: 0, completed: 0 };
-        }
-        acc[date].sales += parseFloat(order.total_amount || 0);
-        acc[date].orders += 1;
-        if (order.status === 'Completed') acc[date].completed += 1;
-        return acc;
-      }, {});
-
-      const chartData = Object.entries(grouped).map(([date, metrics]) => ({
-        date,
-        ...metrics
-      }));
-
-      return { success: true, data: chartData };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const endDate = new Date();
+    const res = await this.getAnalyticsOverview(startDate, endDate);
+    return { success: res.success, data: res.dailyTrend || [], error: res.error };
   },
 
   /**
    * Get product performance
    */
   async getProductPerformance() {
-    try {
-      const { data, error } = await supabase
-        .from('order_items')
-        .select('product_id, quantity, price_at_order, products(name, category)')
-        .order('quantity', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      const products = data.reduce((acc, item) => {
-        const productId = item.product_id;
-        if (!acc[productId]) {
-          acc[productId] = {
-            name: item.products?.name,
-            category: item.products?.category,
-            quantity: 0,
-            revenue: 0
-          };
-        }
-        acc[productId].quantity += item.quantity;
-        acc[productId].revenue += parseFloat(item.price_at_order || 0) * item.quantity;
-        return acc;
-      }, {});
-
-      return {
-        success: true,
-        data: Object.values(products)
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Get delivery performance metrics
-   */
-  async getDeliveryMetrics(startDate, endDate) {
-    try {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('id, status, assigned_at, delivered_at, attempt_count')
-        .gte('assigned_at', startDate.toISOString())
-        .lte('assigned_at', endDate.toISOString());
-
-      if (error) throw error;
-
-      const metrics = {
-        total: data.length,
-        completed: data.filter(d => d.status === 'delivered').length,
-        failed: data.filter(d => d.status === 'failed').length,
-        avgAttempts: data.reduce((sum, d) => sum + (d.attempt_count || 0), 0) / data.length || 0
-      };
-
-      metrics.successRate = data.length > 0 ? ((metrics.completed / data.length) * 100).toFixed(2) : 0;
-
-      return { success: true, data: metrics };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Get customer metrics
-   */
-  async getCustomerMetrics() {
-    try {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, role, created_at')
-        .eq('role', 'customer');
-
-      if (profilesError) throw profilesError;
-
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select('user_id');
-
-      const totalCustomers = profilesData.length;
-      const activeCustomers = new Set(ordersData?.map(o => o.user_id)).size;
-      const newCustomersThisMonth = profilesData.filter(c => {
-        const createdDate = new Date(c.created_at);
-        const now = new Date();
-        return createdDate.getMonth() === now.getMonth() && 
-               createdDate.getFullYear() === now.getFullYear();
-      }).length;
-
-      return {
-        success: true,
-        data: {
-          totalCustomers,
-          activeCustomers,
-          newCustomersThisMonth,
-          customerRetentionRate: totalCustomers > 0 ? ((activeCustomers / totalCustomers) * 100).toFixed(2) : 0
-        }
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Get order status distribution
-   */
-  async getOrderStatusDistribution() {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('status');
-
-      if (error) throw error;
-
-      const distribution = data.reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {});
-
-      return { success: true, data: distribution };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Export report to CSV
-   */
-  async exportToCSV(data, filename = 'report.csv') {
-    try {
-      const headers = Object.keys(data[0]);
-      const csvContent = [
-        headers.join(','),
-        ...data.map(row =>
-          headers.map(header => {
-            const value = row[header];
-            if (typeof value === 'string' && value.includes(',')) {
-              return `"${value}"`;
-            }
-            return value;
-          }).join(',')
-        )
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Export to PDF (requires pdfkit or similar)
-   */
-  async exportToPDF(data, filename = 'report.pdf') {
-    try {
-      // This would require a PDF library like pdfkit
-      // For now, return a placeholder
-      console.warn('PDF export requires pdfkit library');
-      return { success: false, error: 'PDF export not configured' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    const endDate = new Date();
+    const res = await this.getAnalyticsOverview(startDate, endDate);
+    return { success: res.success, data: res.topProducts || [], error: res.error };
   }
 };
