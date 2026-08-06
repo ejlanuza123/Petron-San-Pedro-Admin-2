@@ -24,7 +24,7 @@ export async function getProductReviews(options = {}) {
         id,
         name,
         image_url,
-        price
+        price_per_unit
       ),
       profiles:user_id (
         id,
