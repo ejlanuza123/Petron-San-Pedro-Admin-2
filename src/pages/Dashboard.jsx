@@ -582,7 +582,7 @@ export default function Dashboard() {
               <tbody>
                 {recentOrders.map((order) => (
                   <tr key={order.id} className={`border-b ${isDarkMode ? 'border-slate-700/50 hover:bg-slate-700/40' : 'border-gray-50 hover:bg-gray-50'}`}>
-                    <td className="py-3 px-3 font-semibold text-[#0033A0]">#{order.id.slice(0, 8)}</td>
+                    <td className="py-3 px-3 font-semibold text-[#0033A0]">#{String(order.id || '').slice(0, 8)}</td>
                     <td className={`py-3 px-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{order.profiles?.full_name || order.customer_name || 'Customer'}</td>
                     <td className="py-3 px-3">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
