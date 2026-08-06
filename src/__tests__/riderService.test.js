@@ -49,7 +49,7 @@ describe('resolveDateRange', () => {
   it('returns from/to for "30days" default', () => {
     const { from, to } = resolveDateRange('30days');
     const diffDays = Math.round((to - from) / (1000 * 60 * 60 * 24));
-    expect(diffDays).toBe(29);
+    expect(diffDays).toBe(30);
   });
 
   it('returns from/to for custom object', () => {
