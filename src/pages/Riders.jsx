@@ -1,6 +1,6 @@
 // src/pages/Riders.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation, MessageCircle, TrendingUp, Award, DollarSign, BarChart2, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Truck, MapPin, Phone, Edit2, Plus, X, CheckCircle, Eye, EyeOff, Calendar, Package, Clock, Navigation, MessageCircle, TrendingUp, Award, DollarSign, BarChart2, ChevronDown, ChevronUp, Star, Download, FileSpreadsheet } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import RiderLiveTrackingModal from '../components/RiderLiveTrackingModal';
@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { getAllRidersWithStats, buildLeaderboard, computePlatformStats, computeRiderStats, resolveDateRange } from '../services/riderService';
+import { exportRiderPayouts } from '../utils/exportUtils';
 
 // Skeleton Components (keep as is)
 const RiderCardSkeleton = ({ isDarkMode }) => (
@@ -1643,15 +1644,41 @@ export default function Riders() {
             </button>
           </div>
         </div>
-        {activeTab === 'riders' && (
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-petron-blue text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const lb = buildLeaderboard(riders);
+              exportRiderPayouts(lb, 'csv');
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-colors shadow-sm"
+            title="Export Rider Payout Statement to CSV"
           >
-            <Plus size={18} />
-            Add Rider
+            <Download size={16} />
+            <span>Export Payouts (CSV)</span>
           </button>
-        )}
+
+          <button
+            onClick={() => {
+              const lb = buildLeaderboard(riders);
+              exportRiderPayouts(lb, 'excel');
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-green-700 hover:bg-green-800 text-white font-medium rounded-lg text-sm transition-colors shadow-sm"
+            title="Export Rider Payout Statement to Excel"
+          >
+            <FileSpreadsheet size={16} />
+            <span>Export Excel</span>
+          </button>
+
+          {activeTab === 'riders' && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-petron-blue text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity text-sm font-medium"
+            >
+              <Plus size={18} />
+              Add Rider
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
