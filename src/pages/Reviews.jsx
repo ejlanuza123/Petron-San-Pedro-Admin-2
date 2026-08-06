@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Star, MessageSquare, Package, Truck, Trash2, Filter, Search, User, CheckCircle, RefreshCw } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
-import ConfirmationModal from '../components/common/ConfirmationModal';
+import AlertModal from '../components/common/AlertModal';
 import { useTheme } from '../context/ThemeContext';
 import { notifySuccess } from '../utils/successNotifier';
 import {
@@ -377,7 +377,7 @@ export default function Reviews() {
       )}
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <AlertModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
           setIsDeleteModalOpen(false);
@@ -386,8 +386,10 @@ export default function Reviews() {
         onConfirm={handleDeleteConfirm}
         title={`Delete ${deletingItem?.type === 'product' ? 'Product Review' : 'Rider Rating'}`}
         message={`Are you sure you want to delete this ${deletingItem?.type === 'product' ? 'product review' : 'rider rating'}? This action cannot be undone.`}
+        type="warning"
+        showCancelButton={true}
         confirmText={isDeleting ? 'Deleting...' : 'Delete'}
-        isDarkMode={isDarkMode}
+        loading={isDeleting}
       />
     </div>
   );
