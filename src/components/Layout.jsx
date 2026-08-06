@@ -23,7 +23,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Star
+  Star,
+  Settings
 } from 'lucide-react';
 import { AnimatedThemeToggle } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -648,7 +649,7 @@ const MobileHeader = memo(({
 
   const onNavigate = (to) => {
     const currentPath = location.pathname;
-    const navItems = ['/', '/orders', '/reservations', '/products', '/customers', '/riders', '/reports'];
+    const navItems = ['/', '/orders', '/reservations', '/products', '/customers', '/riders', '/reviews', '/reports', '/audit-logs', '/settings'];
     const currentIndex = navItems.indexOf(currentPath);
     const newIndex = navItems.indexOf(to);
     
@@ -724,10 +725,14 @@ const MobileHeader = memo(({
                 {[
                   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
                   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+                  { to: '/reservations', icon: CalendarDays, label: 'Reservations' },
                   { to: '/products', icon: Package, label: 'Inventory' },
                   { to: '/customers', icon: Users, label: 'Customers' },
                   { to: '/riders', icon: Truck, label: 'Riders' },
-                  { to: '/reports', icon: FileText, label: 'Reports' }
+                  { to: '/reviews', icon: Star, label: 'Reviews' },
+                  { to: '/reports', icon: FileText, label: 'Reports' },
+                  { to: '/audit-logs', icon: FileText, label: 'Audit Logs' },
+                  { to: '/settings', icon: Settings, label: 'Settings' }
                 ].map((item, index) => (
                   <motion.div
                     key={item.to}
