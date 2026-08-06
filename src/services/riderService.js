@@ -69,6 +69,12 @@ export async function getAllRidersWithStats() {
           id,
           delivery_fee
         )
+      ),
+      rider_ratings!rider_ratings_rider_id_fkey (
+        id,
+        rating,
+        comment,
+        created_at
       )
     `)
     .eq('role', 'rider')
@@ -122,6 +128,12 @@ export function computeRiderStats(rider, dateFilter = null) {
   const completionRate =
     deliveries.length > 0 ? Math.round((completed.length / deliveries.length) * 100) : 0;
 
+  // Star Ratings calculation
+  const allRatings = rider.rider_ratings || [];
+  const ratingSum = allRatings.reduce((sum, r) => sum + (r.rating || 0), 0);
+  const avgRating = allRatings.length > 0 ? parseFloat((ratingSum / allRatings.length).toFixed(1)) : 0;
+  const totalRatings = allRatings.length;
+
   // Weekly bar chart: last 7 days
   const weeklyData = buildWeeklyData(allDeliveries);
 
@@ -133,6 +145,8 @@ export function computeRiderStats(rider, dateFilter = null) {
     avgDeliveryTime,
     earnings,
     completionRate,
+    avgRating,
+    totalRatings,
     weeklyData,
   };
 }
@@ -185,7 +199,8 @@ function buildWeeklyData(deliveries) {
  */
 export function computePerformanceScore(stats, maxTotal) {
   const volumeScore = maxTotal > 0 ? (stats.total / maxTotal) * 100 : 0;
-  return Math.round(stats.completionRate * 0.6 + volumeScore * 0.4);
+  const ratingScore = stats.avgRating > 0 ? (stats.avgRating / 5) * 100 : stats.completionRate;
+  return Math.round(stats.completionRate * 0.5 + volumeScore * 0.3 + ratingScore * 0.2);
 }
 
 /**

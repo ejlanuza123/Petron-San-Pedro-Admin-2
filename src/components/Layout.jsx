@@ -22,7 +22,8 @@ import {
   CheckCheck,
   Trash2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Star
 } from 'lucide-react';
 import { AnimatedThemeToggle } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -393,7 +394,7 @@ const Sidebar = memo(({
     const currentPath = location.pathname;
     const navItems = [
       '/', '/orders', '/reservations', '/products', 
-      '/customers', '/riders', '/reports', '/audit-logs'
+      '/customers', '/riders', '/reviews', '/reports', '/audit-logs'
     ];
     const currentIndex = navItems.findIndex(item => item === currentPath);
     const newIndex = navItems.findIndex(item => item === to);
@@ -426,6 +427,7 @@ const Sidebar = memo(({
     { to: '/products', icon: Package, label: 'Inventory' },
     { to: '/customers', icon: Users, label: 'Customers' },
     { to: '/riders', icon: Truck, label: 'Riders' },
+    { to: '/reviews', icon: Star, label: 'Reviews' },
     { to: '/reports', icon: FileText, label: 'Reports' },
     { to: '/audit-logs', icon: FileText, label: 'Audit Logs' }
   ];
