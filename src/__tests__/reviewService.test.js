@@ -55,6 +55,7 @@ describe('computeReviewSummary', () => {
     const summary = computeReviewSummary(productReviews, []);
     // (4.8 + 4.2) / 2 = 9.0 / 2 = 4.5
     expect(summary.avgProductRating).toBe(4.5);
-    expect(summary.productStarCounts[5]).toBe(2); // 4.8 rounded = 5, 4.2 rounded = 4 -> wait: 4.8 round 5, 4.2 round 4
+    expect(summary.productStarCounts[5]).toBe(1);
+    expect(summary.productStarCounts[4]).toBe(1);
   });
 });
