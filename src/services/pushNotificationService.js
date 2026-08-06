@@ -37,6 +37,44 @@ const buildReservationClickUrl = (notificationData = {}) => {
   return `/reservations${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 };
 
+/**
+ * Plays a pleasant 2-tone ascending notification chime using Web Audio API.
+ */
+export const playNotificationChime = () => {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+
+    // Tone 1: 587.33 Hz (D5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.3);
+
+    // Tone 2: 880.00 Hz (A5)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.12);
+    osc2.stop(ctx.currentTime + 0.45);
+  } catch (err) {
+    console.warn('Audio chime playback omitted:', err);
+  }
+};
+
 export const pushNotificationService = {
   getPermissionState() {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -171,6 +209,32 @@ export const pushNotificationService = {
           onStatusChange(status);
         }
       });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  },
+
+  /**
+   * Subscribe to incoming new order events across the platform
+   */
+  subscribeToOrderAlerts(onNewOrder) {
+    const channel = supabase
+      .channel('order-alerts-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          if (typeof onNewOrder === 'function') {
+            onNewOrder(payload.new);
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
       channel.unsubscribe();

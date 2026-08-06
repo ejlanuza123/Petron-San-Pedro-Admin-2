@@ -24,7 +24,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
-  Settings
+  Settings,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { AnimatedThemeToggle } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -157,6 +159,7 @@ const NotificationMenu = memo(({
   isDarkMode 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { soundEnabled, toggleSoundEnabled } = useNotifications();
   const previewNotifications = notifications.slice(0, 8);
 
   const panelPositionClass = placement === 'top-right'
@@ -212,6 +215,18 @@ const NotificationMenu = memo(({
                 <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Notifications</h3>
                 <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{unreadCount} unread</p>
               </div>
+              <button
+                onClick={toggleSoundEnabled}
+                className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition ${
+                  soundEnabled 
+                    ? (isDarkMode ? 'bg-blue-900/40 border-blue-700 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700')
+                    : (isDarkMode ? 'bg-slate-700 border-slate-600 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500')
+                }`}
+                title={soundEnabled ? 'Order sound chime ON (Click to mute)' : 'Order sound chime OFF (Click to unmute)'}
+              >
+                {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                <span className="text-[11px] font-semibold">{soundEnabled ? 'Chime ON' : 'Muted'}</span>
+              </button>
             </div>
 
             {notifications.length > 0 && (

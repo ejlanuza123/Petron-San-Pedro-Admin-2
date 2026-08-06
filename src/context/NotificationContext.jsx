@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { useAuth } from '../hooks/useAuth';
 import { useError } from './ErrorContext';
 import { supabase } from '../lib/supabase';
-import { pushNotificationService } from '../services/pushNotificationService';
+import { pushNotificationService, playNotificationChime } from '../services/pushNotificationService';
 
 const NotificationContext = createContext();
 
@@ -246,6 +246,62 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem('admin_order_sound_enabled');
+      return stored !== null ? JSON.parse(stored) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleSoundEnabled = () => {
+    setSoundEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('admin_order_sound_enabled', JSON.stringify(next));
+      } catch (err) {
+        console.error('Failed to store sound preference:', err);
+      }
+      return next;
+    });
+  };
+
+  // Subscribe to real-time incoming orders to play audio chime and browser notification
+  useEffect(() => {
+    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts((newOrder) => {
+      if (soundEnabled) {
+        playNotificationChime();
+      }
+
+      const orderTitle = `🔔 New Order #${String(newOrder.id || '').slice(0, 8)}`;
+      const orderMessage = `Amount: ₱${Number(newOrder.total_amount || 0).toLocaleString()} • Status: ${newOrder.status || 'Pending'}`;
+
+      pushNotificationService.sendNotification(orderTitle, {
+        body: orderMessage,
+        tag: 'order_created',
+        clickUrl: '/orders'
+      });
+
+      const inAppItem = {
+        id: `order-alert-${newOrder.id}-${Date.now()}`,
+        type: 'order_created',
+        title: orderTitle,
+        message: orderMessage,
+        created_at: new Date().toISOString(),
+        is_read: false,
+        data: { order_id: newOrder.id }
+      };
+
+      setNotifications(prev => [inAppItem, ...prev]);
+      setUnreadCount(count => count + 1);
+    });
+
+    return () => {
+      unsubscribeOrderAlerts();
+    };
+  }, [soundEnabled]);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -254,6 +310,8 @@ export const NotificationProvider = ({ children }) => {
         loading,
         permissionGranted,
         permissionStatus,
+        soundEnabled,
+        toggleSoundEnabled,
         requestNotificationPermission,
         markAsRead,
         markAllAsRead,
