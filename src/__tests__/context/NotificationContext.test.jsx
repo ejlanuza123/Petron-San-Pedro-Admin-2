@@ -35,11 +35,13 @@ vi.mock('../../services/pushNotificationService', () => ({
     requestPermission: (...args) => mockRequestPermission(...args),
     getPermissionState: (...args) => mockGetPermissionState(...args),
     subscribeToNotifications: (...args) => mockSubscribeToNotifications(...args),
+    subscribeToOrderAlerts: vi.fn(() => vi.fn()),
     markAsRead: (...args) => mockMarkAsRead(...args),
     markAllAsRead: (...args) => mockMarkAllAsRead(...args),
     removeNotification: (...args) => mockRemoveNotification(...args),
     clearNotifications: (...args) => mockClearNotifications(...args),
   },
+  playNotificationChime: vi.fn(),
 }));
 
 const wrapper = ({ children }) => <NotificationProvider>{children}</NotificationProvider>;
