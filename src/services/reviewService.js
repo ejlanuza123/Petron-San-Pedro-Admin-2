@@ -19,6 +19,8 @@ export async function getProductReviews(options = {}) {
       user_id,
       rating,
       comment,
+      admin_reply,
+      admin_replied_at,
       created_at,
       products:products!product_reviews_product_id_fkey (
         id,
@@ -75,6 +77,8 @@ export async function getRiderRatings(options = {}) {
       delivery_id,
       rating,
       comment,
+      admin_reply,
+      admin_replied_at,
       created_at,
       rider:profiles!rider_ratings_rider_id_fkey (
         id,
@@ -185,5 +189,41 @@ export async function deleteProductReview(reviewId) {
  */
 export async function deleteRiderRating(ratingId) {
   const { error } = await supabase.from('rider_ratings').delete().eq('id', ratingId);
+  return { error };
+}
+
+/**
+ * Adds an admin official reply to a product review.
+ * @param {string} reviewId
+ * @param {string} replyText
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function respondToProductReview(reviewId, replyText) {
+  const { error } = await supabase
+    .from('product_reviews')
+    .update({ 
+      admin_reply: replyText,
+      admin_replied_at: new Date().toISOString()
+    })
+    .eq('id', reviewId);
+
+  return { error };
+}
+
+/**
+ * Adds an admin official reply to a rider rating.
+ * @param {string} ratingId
+ * @param {string} replyText
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function respondToRiderRating(ratingId, replyText) {
+  const { error } = await supabase
+    .from('rider_ratings')
+    .update({ 
+      admin_reply: replyText,
+      admin_replied_at: new Date().toISOString()
+    })
+    .eq('id', ratingId);
+
   return { error };
 }
