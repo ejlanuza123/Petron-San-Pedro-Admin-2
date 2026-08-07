@@ -392,6 +392,7 @@ export default function Customers() {
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     if (!previewImageUrl) return;
@@ -468,15 +469,27 @@ export default function Customers() {
 
   // Memoized filtered customers
   const filteredCustomers = useMemo(() => {
-    if (!searchQuery.trim()) return customers;
-    
-    const query = searchQuery.toLowerCase().trim();
-    return customers.filter(customer =>
-      customer.full_name?.toLowerCase().includes(query) ||
-      customer.email?.toLowerCase().includes(query) ||
-      customer.phone_number?.includes(query)
-    );
-  }, [customers, searchQuery]);
+    let result = customers;
+
+    if (filterStatus === 'active') {
+      result = result.filter(c => (c.orders || []).length > 0);
+    } else if (filterStatus === 'new') {
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      result = result.filter(c => new Date(c.created_at) >= firstOfMonth);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(customer =>
+        customer.full_name?.toLowerCase().includes(query) ||
+        customer.email?.toLowerCase().includes(query) ||
+        customer.phone_number?.includes(query)
+      );
+    }
+
+    return result;
+  }, [customers, searchQuery, filterStatus]);
 
   // Memoized pagination
   const paginatedCustomers = useMemo(() => {
@@ -610,13 +623,23 @@ export default function Customers() {
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
         <SearchBar 
           onSearch={handleSearch}
           placeholder="Search customers by name, email, or phone..."
-          className="flex-1"
+          className="flex-1 w-full sm:w-auto"
         />
+
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className={`border rounded-lg px-4 py-2.5 text-sm outline-none transition-colors duration-300 w-full sm:w-auto ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+        >
+          <option value="all">All Customers</option>
+          <option value="active">Active Buyers 🛍️</option>
+          <option value="new">New This Month 🌟</option>
+        </select>
       </div>
 
       {/* Stats Summary */}

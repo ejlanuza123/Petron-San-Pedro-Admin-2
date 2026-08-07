@@ -216,8 +216,8 @@ export default function Dashboard() {
       const pendingOrders = allOrders.filter((o) => ['pending', 'processing', 'assigned', 'accepted'].includes(o.status)).length;
       const completedCount = completedFiltered.length;
 
-      // Fleet & Delivery Stats
-      const activeRidersCount = riders.filter((r) => r.is_active).length;
+      // Fleet & Delivery Stats (only count riders who are actively online or currently on duty)
+      const activeRidersCount = riders.filter((r) => r.is_active && (r.is_online || (r.deliveries || []).some(d => ['assigned', 'accepted', 'picked_up', 'in_transit'].includes(d.status)))).length;
       const leaderboard = buildLeaderboard(riders);
 
       // Customer Reviews Summary

@@ -185,9 +185,12 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
     }
 
     function getBearingDeg(from, to) {
-      const y = to.lng - from.lng;
-      const x = to.lat - from.lat;
-      return (Math.atan2(y, x) * 180 / Math.PI) + 90;
+      const dLng = (to.lng - from.lng) * Math.PI / 180;
+      const lat1 = from.lat * Math.PI / 180;
+      const lat2 = to.lat * Math.PI / 180;
+      const y = Math.sin(dLng) * Math.cos(lat2);
+      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
     }
 
     function drawRouteArrows(path) {
@@ -220,7 +223,7 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
             'font-size:14px;' +
             'font-weight:700;' +
             'text-shadow:0 0 2px rgba(255,255,255,0.9);' +
-            '">➤</div>',
+            '">▲</div>',
           iconSize: [14, 14],
           iconAnchor: [7, 7],
         });
