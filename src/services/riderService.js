@@ -30,7 +30,7 @@ export function resolveDateRange(range) {
     case '30days':
     default: {
       from = new Date(now);
-      from.setDate(now.getDate() - 29);
+      from.setDate(now.getDate() - 30);
       from.setHours(0, 0, 0, 0);
       break;
     }
