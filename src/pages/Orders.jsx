@@ -31,6 +31,7 @@ import { ORDER_STATUS, ORDER_STATUS_COLORS, CANCELLATION_REASONS } from '../util
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
+import FleetLiveMap from '../components/FleetLiveMap';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { settingsService } from '../services/settingsService';
@@ -83,6 +84,7 @@ export default function Orders() {
   const [defaultDeliveryFee, setDefaultDeliveryFee] = useState(50);
   const [defaultFeeInput, setDefaultFeeInput] = useState('50');
   const [savingDefaultFee, setSavingDefaultFee] = useState(false);
+  const [ordersViewMode, setOrdersViewMode] = useState('list'); // 'list' | 'map'
 
   useEffect(() => {
     const focusOrderId = Number(location.state?.focusOrderId);
@@ -489,7 +491,31 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Order Management</h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Order Management</h2>
+          <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-700 rounded-lg">
+            <button
+              onClick={() => setOrdersViewMode('list')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition ${
+                ordersViewMode === 'list'
+                  ? 'bg-[#0033A0] text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+              }`}
+            >
+              <FileText size={14} /> Order List
+            </button>
+            <button
+              onClick={() => setOrdersViewMode('map')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition ${
+                ordersViewMode === 'map'
+                  ? 'bg-[#0033A0] text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+              }`}
+            >
+              <MapPin size={14} /> 🗺️ Live Fleet Map
+            </button>
+          </div>
+        </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -529,7 +555,12 @@ export default function Orders() {
 
       {(error || statusActionError) && <ErrorAlert message={error || statusActionError} onDismiss={() => { clearError(); setStatusActionError(''); }} />}
 
-      {/* Stats Cards */}
+      {/* Live Fleet Map View */}
+      {ordersViewMode === 'map' ? (
+        <FleetLiveMap isDarkMode={isDarkMode} />
+      ) : (
+        <>
+          {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Orders</p>
