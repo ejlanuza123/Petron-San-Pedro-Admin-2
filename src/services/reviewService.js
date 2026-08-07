@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 /**
  * Fetches all product reviews with product and user profile details.
+ * Falls back if admin_reply column is not yet present in Supabase schema.
  * @param {object} options
  * @param {number|null} options.ratingFilter - Filter by rating (1-5), or null for all
  * @param {string} options.searchQuery - Search term for product name or reviewer name
@@ -11,36 +12,69 @@ import { supabase } from '../lib/supabase';
 export async function getProductReviews(options = {}) {
   const { ratingFilter = null, searchQuery = '' } = options;
 
-  let query = supabase
-    .from('product_reviews')
-    .select(`
-      id,
-      product_id,
-      user_id,
-      rating,
-      comment,
-      admin_reply,
-      admin_replied_at,
-      created_at,
-      products:products!product_reviews_product_id_fkey (
-        id,
-        name,
-        image_url
-      ),
-      profiles:profiles!product_reviews_user_id_fkey (
-        id,
-        full_name,
-        email,
-        avatar_url
-      )
-    `)
-    .order('created_at', { ascending: false });
+  const buildQuery = (selectFields) => {
+    let q = supabase
+      .from('product_reviews')
+      .select(selectFields)
+      .order('created_at', { ascending: false });
 
-  if (ratingFilter && ratingFilter >= 1 && ratingFilter <= 5) {
-    query = query.eq('rating', ratingFilter);
+    if (ratingFilter && ratingFilter >= 1 && ratingFilter <= 5) {
+      q = q.eq('rating', ratingFilter);
+    }
+    return q;
+  };
+
+  const primarySelect = `
+    id,
+    product_id,
+    user_id,
+    rating,
+    comment,
+    admin_reply,
+    admin_replied_at,
+    created_at,
+    products:products!product_reviews_product_id_fkey (
+      id,
+      name,
+      image_url
+    ),
+    profiles:profiles!product_reviews_user_id_fkey (
+      id,
+      full_name,
+      email,
+      avatar_url
+    )
+  `;
+
+  const fallbackSelect = `
+    id,
+    product_id,
+    user_id,
+    rating,
+    comment,
+    created_at,
+    products:products!product_reviews_product_id_fkey (
+      id,
+      name,
+      image_url
+    ),
+    profiles:profiles!product_reviews_user_id_fkey (
+      id,
+      full_name,
+      email,
+      avatar_url
+    )
+  `;
+
+  let { data, error } = await buildQuery(primarySelect);
+
+  // Fallback if admin_reply column does not exist yet
+  if (error && (error.code === 'PGRST204' || error.message?.includes('admin_reply'))) {
+    const fallbackResult = await buildQuery(fallbackSelect);
+    data = fallbackResult.data;
+    error = fallbackResult.error;
   }
 
-  const { data, error } = await query;
   if (error) return { data: [], error };
 
   let reviews = data || [];
@@ -60,6 +94,7 @@ export async function getProductReviews(options = {}) {
 
 /**
  * Fetches all rider ratings with rider, customer profile, and delivery details.
+ * Falls back if admin_reply column is not yet present in Supabase schema.
  * @param {object} options
  * @param {number|null} options.ratingFilter - Filter by rating (1-5), or null for all
  * @param {string} options.searchQuery - Search term for rider name or reviewer name
@@ -68,42 +103,81 @@ export async function getProductReviews(options = {}) {
 export async function getRiderRatings(options = {}) {
   const { ratingFilter = null, searchQuery = '' } = options;
 
-  let query = supabase
-    .from('rider_ratings')
-    .select(`
-      id,
-      rider_id,
-      user_id,
-      delivery_id,
-      rating,
-      comment,
-      admin_reply,
-      admin_replied_at,
-      created_at,
-      rider:profiles!rider_ratings_rider_id_fkey (
-        id,
-        full_name,
-        avatar_url,
-        vehicle_type
-      ),
-      customer:profiles!rider_ratings_user_id_fkey (
-        id,
-        full_name,
-        email,
-        avatar_url
-      ),
-      deliveries:delivery_id (
-        id,
-        order_id
-      )
-    `)
-    .order('created_at', { ascending: false });
+  const buildQuery = (selectFields) => {
+    let q = supabase
+      .from('rider_ratings')
+      .select(selectFields)
+      .order('created_at', { ascending: false });
 
-  if (ratingFilter && ratingFilter >= 1 && ratingFilter <= 5) {
-    query = query.eq('rating', ratingFilter);
+    if (ratingFilter && ratingFilter >= 1 && ratingFilter <= 5) {
+      q = q.eq('rating', ratingFilter);
+    }
+    return q;
+  };
+
+  const primarySelect = `
+    id,
+    rider_id,
+    user_id,
+    delivery_id,
+    rating,
+    comment,
+    admin_reply,
+    admin_replied_at,
+    created_at,
+    rider:profiles!rider_ratings_rider_id_fkey (
+      id,
+      full_name,
+      avatar_url,
+      vehicle_type
+    ),
+    customer:profiles!rider_ratings_user_id_fkey (
+      id,
+      full_name,
+      email,
+      avatar_url
+    ),
+    deliveries:delivery_id (
+      id,
+      order_id
+    )
+  `;
+
+  const fallbackSelect = `
+    id,
+    rider_id,
+    user_id,
+    delivery_id,
+    rating,
+    comment,
+    created_at,
+    rider:profiles!rider_ratings_rider_id_fkey (
+      id,
+      full_name,
+      avatar_url,
+      vehicle_type
+    ),
+    customer:profiles!rider_ratings_user_id_fkey (
+      id,
+      full_name,
+      email,
+      avatar_url
+    ),
+    deliveries:delivery_id (
+      id,
+      order_id
+    )
+  `;
+
+  let { data, error } = await buildQuery(primarySelect);
+
+  // Fallback if admin_reply column does not exist yet
+  if (error && (error.code === 'PGRST204' || error.message?.includes('admin_reply'))) {
+    const fallbackResult = await buildQuery(fallbackSelect);
+    data = fallbackResult.data;
+    error = fallbackResult.error;
   }
 
-  const { data, error } = await query;
   if (error) return { data: [], error };
 
   let ratings = data || [];
