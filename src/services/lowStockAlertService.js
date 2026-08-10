@@ -3,6 +3,22 @@ import { notifySuccess } from '../utils/successNotifier';
 
 const NOTIFIED_KEY = 'petron_low_stock_notified_v1';
 
+const safeNotifyError = (msg) => {
+  if (typeof window !== 'undefined' && typeof window.notifyError === 'function') {
+    window.notifyError(msg);
+  } else {
+    console.error('[Low Stock Alert]', msg);
+  }
+};
+
+const safeNotifyWarning = (msg) => {
+  if (typeof window !== 'undefined' && typeof window.notifyWarning === 'function') {
+    window.notifyWarning(msg);
+  } else {
+    console.warn('[Low Stock Alert]', msg);
+  }
+};
+
 const getNotifiedSet = () => {
   try {
     const raw = sessionStorage.getItem(NOTIFIED_KEY);
@@ -43,13 +59,13 @@ export const lowStockAlertService = {
       if (qty === 0) {
         outOfStockProducts.push(product);
         if (!notifiedSet.has(key)) {
-          notifyError(`🚨 CRITICAL: "${product.name}" is OUT OF STOCK!`);
+          safeNotifyError(`🚨 CRITICAL: "${product.name}" is OUT OF STOCK!`);
           notifiedSet.add(key);
         }
       } else if (qty <= threshold) {
         lowStockProducts.push(product);
         if (!notifiedSet.has(key)) {
-          notifyWarning(`⚠️ LOW STOCK: "${product.name}" has only ${qty} units remaining (threshold: ${threshold})`);
+          safeNotifyWarning(`⚠️ LOW STOCK: "${product.name}" has only ${qty} units remaining (threshold: ${threshold})`);
           notifiedSet.add(key);
         }
       }
