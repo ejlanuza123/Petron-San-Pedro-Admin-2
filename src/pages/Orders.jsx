@@ -16,8 +16,12 @@ import {
   UserPlus,
   Download,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Square,
+  CheckSquare,
+  Trash2
 } from 'lucide-react';
+import { bulkOperationsService } from '../services/bulkOperationsService';
 import OrderModal from '../components/OrderModal';
 import AssignRiderModal from '../components/AssignRiderModal';
 import RiderTrackingModal from '../components/RiderTrackingModal';
@@ -85,6 +89,13 @@ export default function Orders() {
   const [defaultFeeInput, setDefaultFeeInput] = useState('50');
   const [savingDefaultFee, setSavingDefaultFee] = useState(false);
   const [ordersViewMode, setOrdersViewMode] = useState('list'); // 'list' | 'map'
+
+  // Bulk selection state
+  const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showBulkCancelDialog, setShowBulkCancelDialog] = useState(false);
+  const [bulkCancelReason, setBulkCancelReason] = useState(CANCELLATION_REASONS[0]);
+  const [bulkCancelNote, setBulkCancelNote] = useState('');
 
   useEffect(() => {
     const focusOrderId = Number(location.state?.focusOrderId);
@@ -409,6 +420,100 @@ export default function Orders() {
     }
   }, [pendingStatusUpdate, updateStatus, cancelReason, cancelNote, user?.id, user?.email, user?.user_metadata]);
 
+  // ── Bulk action handlers ─────────────────────────────────────────────
+  const handleToggleSelectOrder = useCallback((orderId) => {
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const pageIds = paginatedOrders.map(o => o.id);
+    const allSelected = pageIds.every(id => selectedOrderIds.has(id));
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+      else { pageIds.forEach(id => next.add(id)); }
+      return next;
+    });
+  }, [paginatedOrders, selectedOrderIds]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedOrderIds(new Set());
+  }, []);
+
+  const handleBulkMarkProcessing = useCallback(async () => {
+    const ids = [...selectedOrderIds].filter(id => {
+      const order = orders.find(o => o.id === id);
+      return order?.status === 'Pending';
+    });
+    if (!ids.length) return;
+    try {
+      setBulkActionLoading(true);
+      const result = await bulkOperationsService.bulkUpdateOrderStatus(ids, 'Processing', user?.id);
+      if (result.success) {
+        notifySuccess(`${result.count} order${result.count > 1 ? 's' : ''} moved to Processing`);
+        clearSelection();
+        window.location.reload();
+      } else {
+        setStatusActionError(result.error || 'Bulk action failed');
+      }
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedOrderIds, orders, user?.id, clearSelection]);
+
+  const openBulkCancelDialog = useCallback(() => {
+    setBulkCancelReason(CANCELLATION_REASONS[0]);
+    setBulkCancelNote('');
+    setShowBulkCancelDialog(true);
+  }, []);
+
+  const confirmBulkCancel = useCallback(async () => {
+    const ids = [...selectedOrderIds].filter(id => {
+      const order = orders.find(o => o.id === id);
+      return ['Pending', 'Processing'].includes(order?.status);
+    });
+    if (!ids.length) return;
+    const reason = bulkCancelReason === 'Other' && bulkCancelNote
+      ? `Other: ${bulkCancelNote}` : bulkCancelReason;
+    try {
+      setBulkActionLoading(true);
+      const result = await bulkOperationsService.bulkCancelOrders(ids, reason, user?.id);
+      if (result.success) {
+        notifySuccess(`${result.count} order${result.count > 1 ? 's' : ''} cancelled`);
+        setShowBulkCancelDialog(false);
+        clearSelection();
+        window.location.reload();
+      } else {
+        setStatusActionError(result.error || 'Bulk cancel failed');
+      }
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedOrderIds, orders, user?.id, bulkCancelReason, bulkCancelNote, clearSelection]);
+
+  const handleBulkExportCsv = useCallback(() => {
+    const selected = filteredOrders.filter(o => selectedOrderIds.has(o.id));
+    if (!selected.length) return;
+    const rows = selected.map(o => ({
+      order_number: o.order_number || o.id,
+      customer: o.profiles?.full_name || 'Guest',
+      phone: o.profiles?.phone_number || '',
+      address: o.delivery_address || '',
+      status: o.status,
+      total_amount: o.total_amount,
+      delivery_fee: o.delivery_fee || 0,
+      payment_method: o.payment_method || '',
+      created_at: o.created_at,
+    }));
+    bulkOperationsService.exportToCsv(rows, 'selected-orders');
+    notifySuccess(`Exported ${rows.length} selected order${rows.length > 1 ? 's' : ''} to CSV`);
+  }, [selectedOrderIds, filteredOrders]);
+  // ────────────────────────────────────────────────────────────────────
+
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     setCurrentPage(1);
@@ -645,11 +750,61 @@ export default function Orders() {
         />
       ) : (
         <>
+          {/* Bulk Actions Bar */}
+          {selectedOrderIds.size > 0 && (
+            <div className={`flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition-colors duration-300 ${
+              isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-blue-50 border-blue-200'
+            }`}>
+              <span className={`text-sm font-semibold ${ isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                <CheckSquare size={16} className="inline mr-1" />
+                {selectedOrderIds.size} order{selectedOrderIds.size > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex flex-wrap gap-2 ml-auto">
+                <button
+                  onClick={handleBulkMarkProcessing}
+                  disabled={bulkActionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0033A0] hover:bg-blue-800 text-white text-xs font-semibold rounded-lg transition disabled:opacity-60"
+                >
+                  <Clock size={13} /> Mark Processing
+                </button>
+                <button
+                  onClick={openBulkCancelDialog}
+                  disabled={bulkActionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-60"
+                >
+                  <Trash2 size={13} /> Bulk Cancel
+                </button>
+                <button
+                  onClick={handleBulkExportCsv}
+                  disabled={bulkActionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-60"
+                >
+                  <Download size={13} /> Export Selected CSV
+                </button>
+                <button
+                  onClick={clearSelection}
+                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+                    isDarkMode ? 'border-slate-500 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-600 hover:bg-white'
+                  }`}
+                >
+                  <XCircle size={13} /> Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Orders Table */}
           <div className={`rounded-xl shadow-sm border overflow-x-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
             <table className="w-full min-w-[900px]">
               <thead className={`border-b transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
                 <tr>
+                  <th className="px-4 py-4 w-10">
+                    <button onClick={handleSelectAll} className="flex items-center justify-center">
+                      {paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrderIds.has(o.id))
+                        ? <CheckSquare size={18} className="text-[#0033A0]" />
+                        : <Square size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-400'} />}
+                    </button>
+                  </th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Order #</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Customer</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Amount</th>
@@ -662,9 +817,21 @@ export default function Orders() {
               <tbody className={`divide-y transition-colors duration-300 ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
                 {paginatedOrders.map((order) => {
                   const deliveryInfo = deliveryInfoMap[order.id];
+                  const isSelected = selectedOrderIds.has(order.id);
 
                   return (
-                    <tr key={order.id} className={`transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                    <tr key={order.id} className={`transition-colors ${
+                      isSelected
+                        ? isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50'
+                        : isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                    }`}>
+                      <td className="px-4 py-4 w-10">
+                        <button onClick={() => handleToggleSelectOrder(order.id)} className="flex items-center justify-center">
+                          {isSelected
+                            ? <CheckSquare size={18} className="text-[#0033A0]" />
+                            : <Square size={18} className={isDarkMode ? 'text-gray-500' : 'text-gray-400'} />}
+                        </button>
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatOrderNumber(order.order_number, order.id)}</span>
                       </td>
@@ -945,6 +1112,58 @@ export default function Orders() {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Cancellation Dialog */}
+      {showBulkCancelDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl w-full max-w-lg shadow-2xl transition-colors duration-300`}>
+            <div className="p-6 border-b bg-red-600 text-white">
+              <h3 className="text-lg font-bold">Bulk Cancel — {selectedOrderIds.size} Order{selectedOrderIds.size > 1 ? 's' : ''}</h3>
+              <p className="text-sm text-red-100 mt-1">Only Pending and Processing orders will be cancelled. Provide a reason for the audit trail.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Cancellation Reason</label>
+                <select
+                  value={bulkCancelReason}
+                  onChange={(e) => setBulkCancelReason(e.target.value)}
+                  className={`w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                >
+                  {CANCELLATION_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Notes {bulkCancelReason === 'Other' ? '(required)' : '(optional)'}</label>
+                <textarea
+                  value={bulkCancelNote}
+                  onChange={(e) => setBulkCancelNote(e.target.value)}
+                  rows={3}
+                  className={`w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  placeholder="Add context for the bulk cancellation"
+                />
+              </div>
+            </div>
+            <div className={`p-6 border-t flex gap-3 justify-end transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+              <button
+                onClick={() => setShowBulkCancelDialog(false)}
+                disabled={bulkActionLoading}
+                className={`px-4 py-2 border rounded-lg transition-colors duration-300 ${isDarkMode ? 'border-slate-500 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-700 hover:bg-gray-100'} disabled:opacity-50`}
+              >
+                Back
+              </button>
+              <button
+                onClick={confirmBulkCancel}
+                disabled={bulkActionLoading || (bulkCancelReason === 'Other' && !bulkCancelNote.trim())}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bulkActionLoading ? 'Cancelling...' : `Cancel ${selectedOrderIds.size} Order${selectedOrderIds.size > 1 ? 's' : ''}`}
               </button>
             </div>
           </div>
