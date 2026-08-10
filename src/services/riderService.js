@@ -57,6 +57,7 @@ export async function getAllRidersWithStats() {
       vehicle_type,
       vehicle_plate,
       is_active,
+      is_online,
       avatar_url,
       created_at,
       deliveries!deliveries_rider_id_fkey (
@@ -67,6 +68,7 @@ export async function getAllRidersWithStats() {
         order_id,
         orders (
           id,
+          status,
           delivery_fee
         )
       ),

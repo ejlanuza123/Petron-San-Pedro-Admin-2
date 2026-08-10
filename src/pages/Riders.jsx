@@ -1524,31 +1524,6 @@ export default function Riders() {
   const [statusUpdateInFlight, setStatusUpdateInFlight] = useState({});
   const [chatInFlightRiderId, setChatInFlightRiderId] = useState(null);
 
-  const toggleRiderOnlinePresence = useCallback(async (riderId, currentOnlineStatus) => {
-    try {
-      setStatusUpdateInFlight(prev => ({ ...prev, [riderId]: true }));
-      const newOnline = !currentOnlineStatus;
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          is_online: newOnline,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', riderId);
-
-      if (error) throw error;
-
-      setRiders(prev => prev.map(r => r.id === riderId ? { ...r, is_online: newOnline, updated_at: new Date().toISOString() } : r));
-      notifySuccess(`Rider presence set to ${newOnline ? 'On Duty (Online)' : 'Offline'}`);
-    } catch (err) {
-      console.error('Failed to toggle rider online presence:', err);
-      setError(`Failed to change presence status: ${err.message}`);
-    } finally {
-      setStatusUpdateInFlight(prev => ({ ...prev, [riderId]: false }));
-    }
-  }, []);
-
   useEffect(() => {
     if (!previewImageUrl) return;
 
@@ -2089,22 +2064,9 @@ export default function Riders() {
 
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
                   <button
-                    onClick={() => toggleRiderOnlinePresence(rider.id, Boolean(rider.is_online))}
-                    disabled={Boolean(statusUpdateInFlight[rider.id])}
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                      rider.is_online
-                        ? (isDarkMode ? 'bg-amber-900/30 text-amber-300 hover:bg-amber-900/50' : 'bg-amber-50 text-amber-700 hover:bg-amber-100')
-                        : (isDarkMode ? 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100')
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    title={rider.is_online ? "Force rider presence to Offline" : "Set rider presence to Online"}
-                  >
-                    {rider.is_online ? 'Set Offline 🔴' : 'Set Online 🟢'}
-                  </button>
-
-                  <button
                     onClick={() => updateRiderStatus(rider.id, !rider.is_active)}
                     disabled={Boolean(statusUpdateInFlight[rider.id])}
-                    className={`flex-1 min-w-[100px] py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                       rider.is_active
                         ? (isDarkMode ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'bg-red-50 text-red-600 hover:bg-red-100')
                         : (isDarkMode ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50' : 'bg-green-50 text-green-600 hover:bg-green-100')

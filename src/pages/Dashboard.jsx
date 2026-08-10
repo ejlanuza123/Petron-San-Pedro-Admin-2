@@ -403,13 +403,14 @@ export default function Dashboard() {
         <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex justify-between items-start mb-2">
             <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active Riders</span>
-            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-slate-700 text-emerald-600">
+            <div className={`p-2 rounded-lg ${stats.activeRiders > 0 ? 'bg-emerald-100 text-emerald-600 dark:bg-slate-700' : 'bg-gray-100 text-gray-400 dark:bg-slate-700'}`}>
               <Truck size={16} />
             </div>
           </div>
-          <p className="text-xl font-bold text-emerald-600">{stats.activeRiders}</p>
-          <p className={`text-[11px] font-medium text-emerald-500 mt-1 flex items-center gap-1`}>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Online
+          <p className={`text-xl font-bold ${stats.activeRiders > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>{stats.activeRiders}</p>
+          <p className={`text-[11px] font-medium mt-1 flex items-center gap-1 ${stats.activeRiders > 0 ? 'text-emerald-500' : 'text-gray-400'}`}>
+            <span className={`w-2 h-2 rounded-full ${stats.activeRiders > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+            {stats.activeRiders > 0 ? 'Online & Available' : 'All Riders Offline'}
           </p>
         </div>
 
