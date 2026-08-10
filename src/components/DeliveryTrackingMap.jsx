@@ -131,7 +131,7 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
   const generateMapHtml = (deliveryData, currentLocation) => {
     const destination = deliveryData?.order?.delivery_lat && deliveryData?.order?.delivery_lng
       ? { lat: Number(deliveryData.order.delivery_lat), lng: Number(deliveryData.order.delivery_lng) }
-      : { lat: 9.7534772, lng: 118.7478688 };
+      : { lat: 9.7533882, lng: 118.745289 };
 
     return `
 <!DOCTYPE html>

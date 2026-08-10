@@ -115,10 +115,10 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
 
   // Generate Leaflet HTML String for iframe map rendering
   const mapHtml = useMemo(() => {
-    const defaultCenter = { lat: 14.36, lng: 121.05 }; // San Pedro, Laguna default center
+    const defaultCenter = { lat: 9.7533882, lng: 118.745289 }; // Petron San Pedro Station, Puerto Princesa
     
     // Store origin
-    const storePin = { lat: 14.3601, lng: 121.0512, name: 'Store Hub' };
+    const storePin = { lat: 9.7533882, lng: 118.745289, name: 'Petron San Pedro Station' };
 
     // Format riders data for Leaflet
     const riderMarkers = filteredRiders
