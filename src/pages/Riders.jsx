@@ -1567,7 +1567,11 @@ export default function Riders() {
             status,
             assigned_at,
             delivered_at,
-            order_id
+            order_id,
+            orders (
+              id,
+              status
+            )
           )
         `)
         .eq('role', 'rider')
@@ -1969,17 +1973,39 @@ export default function Riders() {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     {/* Duty Status */}
-                    {(rider.is_online || (rider.deliveries || []).some(d => ['assigned', 'accepted', 'picked_up', 'in_transit'].includes(d.status))) ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        On Duty
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                        Offline
-                      </span>
-                    )}
+                    {(() => {
+                      const hasActiveDelivery = (rider.deliveries || []).some(d => {
+                        const isDeliveryActive = ['assigned', 'accepted', 'picked_up', 'in_transit'].includes(d.status);
+                        const parentOrderStatus = d.orders?.status;
+                        const isOrderFinished = ['Completed', 'Cancelled', 'Delivered', 'delivered', 'completed', 'cancelled'].includes(parentOrderStatus);
+                        return isDeliveryActive && !isOrderFinished;
+                      });
+
+                      if (hasActiveDelivery) {
+                        return (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            On Delivery
+                          </span>
+                        );
+                      }
+
+                      if (rider.is_online) {
+                        return (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            On Duty
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                          Offline
+                        </span>
+                      );
+                    })()}
 
                     {/* Account Status */}
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${rider.is_active ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}`}>
