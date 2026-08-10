@@ -115,10 +115,10 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
 
   // Generate Leaflet HTML String for iframe map rendering
   const mapHtml = useMemo(() => {
-    const defaultCenter = { lat: 9.7533882, lng: 118.745289 }; // Petron San Pedro Station, Puerto Princesa
-    
+    const defaultCenter = { lat: 9.7534245, lng: 118.7478136 }; // Petron San Pedro Station, Puerto Princesa
+
     // Store origin
-    const storePin = { lat: 9.7533882, lng: 118.745289, name: 'Petron San Pedro Station' };
+    const storePin = { lat: 9.7534245, lng: 118.7478136, name: 'Petron San Pedro Station' };
 
     // Format riders data for Leaflet
     const riderMarkers = filteredRiders
@@ -290,11 +290,10 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
                   <div
                     key={rider.id}
                     onClick={() => setSelectedRiderId(rider.id)}
-                    className={`p-3 rounded-lg border transition cursor-pointer ${
-                      selectedRiderId === rider.id
-                        ? 'border-blue-500 bg-blue-50/40 dark:bg-slate-700/60'
-                        : (isDarkMode ? 'border-slate-700 hover:bg-slate-700/30' : 'border-gray-100 hover:bg-gray-50')
-                    }`}
+                    className={`p-3 rounded-lg border transition cursor-pointer ${selectedRiderId === rider.id
+                      ? 'border-blue-500 bg-blue-50/40 dark:bg-slate-700/60'
+                      : (isDarkMode ? 'border-slate-700 hover:bg-slate-700/30' : 'border-gray-100 hover:bg-gray-50')
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <div className="flex items-center gap-2">
