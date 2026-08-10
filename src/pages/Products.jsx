@@ -1,9 +1,8 @@
 // src/pages/Products.jsx
 import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, Edit2, Trash2, Package, AlertTriangle, ImageOff, ShoppingBag, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, ImageOff } from 'lucide-react';
 import ProductModal from '../components/ProductModal';
 import ProductDetailsModal from '../components/ProductDetailsModal';
-import PurchaseOrderModal from '../components/PurchaseOrderModal';
 import ErrorAlert from '../components/common/ErrorAlert';
 import EmptyState from '../components/common/EmptyState';
 import SearchBar from '../components/common/SearchBar';
@@ -68,12 +67,10 @@ export default function Products() {
   const handledFocusNonceRef = useRef(null);
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [stockStatusFilter, setStockStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -109,14 +106,6 @@ export default function Products() {
       filtered = filtered.filter(p => p.category === categoryFilter);
     }
     
-    if (stockStatusFilter === 'LowStock') {
-      filtered = filtered.filter(p => p.stock_quantity > 0 && p.stock_quantity < 10);
-    } else if (stockStatusFilter === 'OutOfStock') {
-      filtered = filtered.filter(p => p.stock_quantity === 0);
-    } else if (stockStatusFilter === 'Healthy') {
-      filtered = filtered.filter(p => p.stock_quantity >= 10);
-    }
-    
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => 
@@ -126,7 +115,7 @@ export default function Products() {
     }
     
     return filtered;
-  }, [products, searchQuery, categoryFilter, stockStatusFilter]);
+  }, [products, searchQuery, categoryFilter]);
 
   // Memoized pagination
   const paginatedProducts = useMemo(() => {
@@ -140,7 +129,6 @@ export default function Products() {
   const stats = useMemo(() => ({
     total: products.length,
     lowStock: products.filter(p => p.stock_quantity < 10).length,
-    outOfStock: products.filter(p => p.stock_quantity === 0).length,
     categories: new Set(products.map(p => p.category)).size,
     totalValue: products.reduce((sum, p) => sum + (p.current_price * p.stock_quantity), 0)
   }), [products]);
@@ -255,23 +243,13 @@ export default function Products() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Inventory Management</h2>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsPOModalOpen(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors duration-150 shadow-lg font-semibold text-sm"
-          >
-            <ShoppingBag size={18} />
-            Generate Purchase Order (PO)
-          </button>
-          
-          <button 
-            onClick={openAdd}
-            className="bg-[#0033A0] hover:bg-[#002270] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors duration-150 shadow-lg font-semibold text-sm"
-          >
-            <Plus size={18} />
-            Add New Product
-          </button>
-        </div>
+        <button 
+          onClick={openAdd}
+          className="bg-petron-blue text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity duration-150 shadow-lg"
+        >
+          <Plus size={18} />
+          Add New Product
+        </button>
       </div>
 
       {error && <ErrorAlert message={error} />}
@@ -285,20 +263,6 @@ export default function Products() {
         />
         
         <select
-          value={stockStatusFilter}
-          onChange={(e) => {
-            setStockStatusFilter(e.target.value);
-            setCurrentPage(1);
-          }}
-          className={`border rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 font-medium ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-        >
-          <option value="All">All Stock Levels</option>
-          <option value="LowStock">⚠️ Low Stock (&lt; 10)</option>
-          <option value="OutOfStock">🚫 Out of Stock (0)</option>
-          <option value="Healthy">🟢 Healthy Stock (10+)</option>
-        </select>
-
-        <select
           value={categoryFilter}
           onChange={handleCategoryChange}
           className={`border rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#0033A0] outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
@@ -309,32 +273,6 @@ export default function Products() {
           ))}
         </select>
       </div>
-
-      {/* Low Stock Replenishment Alert Banner */}
-      {stats.lowStock > 0 && (
-        <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
-          isDarkMode ? 'bg-amber-900/20 border-amber-800/50 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500 text-white rounded-lg">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm">Inventory Replenishment Alert</h4>
-              <p className="text-xs opacity-90">
-                <strong>{stats.lowStock} products</strong> are currently below safety thresholds ({stats.outOfStock} out of stock).
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsPOModalOpen(true)}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center gap-1.5 transition-colors whitespace-nowrap"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            Generate Purchase Order (PO)
-          </button>
-        </div>
-      )}
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -500,19 +438,12 @@ export default function Products() {
         </>
       )}
 
-      {/* Modals */}
+      {/* Product Modal */}
       <ProductModal 
         isOpen={isModalOpen}
         onClose={closeModal}
-        onSave={handleSaveProduct}
         product={editingProduct}
-      />
-
-      <PurchaseOrderModal
-        isOpen={isPOModalOpen}
-        onClose={() => setIsPOModalOpen(false)}
-        products={products}
-        storeName="PETRON SAN PEDRO STATION"
+        onSave={handleSaveProduct}
       />
 
       <ProductDetailsModal
@@ -522,6 +453,7 @@ export default function Products() {
         onEdit={openEditFromDetails}
       />
 
+      {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={showDeleteDialog}
         onClose={closeDeleteDialog}
@@ -529,7 +461,6 @@ export default function Products() {
         title="Delete Product"
         message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
         confirmText="Delete"
-        cancelText="Cancel"
       />
     </div>
   );
