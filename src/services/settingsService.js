@@ -122,5 +122,46 @@ export const settingsService = {
       console.error(`Error fetching setting ${key}:`, error);
       return defaultValue;
     }
+  },
+
+  /**
+   * Get Low Stock Threshold
+   * @returns {Promise<number>} Low stock threshold count (default: 10)
+   */
+  async getLowStockThreshold() {
+    try {
+      const val = await this.getSetting('low_stock_threshold', '10');
+      const parsed = parseInt(String(val), 10);
+      return Number.isNaN(parsed) ? 10 : parsed;
+    } catch (error) {
+      console.error('Error fetching low stock threshold:', error);
+      return 10;
+    }
+  },
+
+  /**
+   * Update Low Stock Threshold
+   * @param {number} threshold - New threshold number
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateLowStockThreshold(threshold) {
+    try {
+      const val = Math.max(1, parseInt(String(threshold), 10) || 10);
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'low_stock_threshold',
+          value: String(val),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'key'
+        });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating low stock threshold:', error);
+      return false;
+    }
   }
 };
