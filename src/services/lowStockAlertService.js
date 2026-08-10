@@ -1,5 +1,5 @@
 // src/services/lowStockAlertService.js
-import { notifyError, notifyWarning } from '../utils/notifications';
+import { notifySuccess } from '../utils/successNotifier';
 
 const NOTIFIED_KEY = 'petron_low_stock_notified_v1';
 
