@@ -26,17 +26,17 @@ export const ErrorAlert = ({ errorId }) => {
   const colors = colorMap[error.type] || colorMap.error;
 
   return (
-    <div className={`${colors.bg} border ${colors.border} rounded-lg p-4 flex gap-3 items-start`}>
+    <div className={`${colors.bg} border ${colors.border} shadow-xl rounded-xl p-4 flex gap-3 items-start transform transition-all duration-200 animate-in fade-in slide-in-from-top-2`}>
       <Icon size={20} className={`${colors.icon} flex-shrink-0 mt-0.5`} />
       <div className="flex-1 min-w-0">
-        <h4 className={`font-semibold ${colors.text}`}>{error.title}</h4>
-        <p className={`text-sm ${colors.text} mt-1`}>{error.message}</p>
+        <h4 className={`font-semibold text-sm ${colors.text}`}>{error.title}</h4>
+        <p className={`text-xs ${colors.text} mt-0.5 leading-relaxed`}>{error.message}</p>
         {error.details && (
           <details className="mt-2">
             <summary className={`text-xs cursor-pointer ${colors.text} opacity-75`}>
               Details
             </summary>
-            <pre className="text-xs mt-2 overflow-auto bg-black/5 p-2 rounded">
+            <pre className="text-xs mt-2 overflow-auto bg-black/5 p-2 rounded max-h-32">
               {typeof error.details === 'string' ? error.details : JSON.stringify(error.details, null, 2)}
             </pre>
           </details>
@@ -44,9 +44,10 @@ export const ErrorAlert = ({ errorId }) => {
       </div>
       <button
         onClick={() => clearError(errorId)}
-        className={`flex-shrink-0 ${colors.icon} hover:opacity-75 transition`}
+        aria-label="Close notification"
+        className={`flex-shrink-0 ${colors.icon} hover:opacity-75 transition p-1 rounded-full hover:bg-black/5`}
       >
-        <X size={20} />
+        <X size={16} />
       </button>
     </div>
   );
@@ -59,10 +60,11 @@ export const GlobalErrorDisplay = () => {
   if (errorIds.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 max-w-md space-y-2 z-40">
+    <div className="fixed top-5 right-5 max-w-md w-full sm:w-96 space-y-3 z-[9999] pointer-events-auto">
       {errorIds.map(errorId => (
         <ErrorAlert key={errorId} errorId={errorId} />
       ))}
     </div>
   );
 };
+

@@ -6,9 +6,11 @@ import { diffObjects, formatChangesDescription } from '../utils/diff';
 import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 import { useTheme } from '../context/ThemeContext';
+import { useError } from '../context/ErrorContext';
 
 export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, availableRiders }) {
   const { logOrderAction } = useAdminLog();
+  const { showToast } = useError();
   const [selectedRider, setSelectedRider] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -157,7 +159,9 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
 
     } catch (err) {
       console.error('Error assigning rider:', err);
-      setError(err.message || 'Failed to assign rider');
+      const errMsg = err.message || 'Failed to assign rider';
+      setError(errMsg);
+      showToast(errMsg, 'error', 'Rider Assignment Failed');
     } finally {
       setLoading(false);
     }

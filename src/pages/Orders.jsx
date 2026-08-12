@@ -42,6 +42,7 @@ import { settingsService } from '../services/settingsService';
 import { notifySuccess } from '../utils/successNotifier';
 import { useTheme } from '../context/ThemeContext';
 import { exportOrdersData } from '../utils/exportUtils';
+import { useError } from '../context/ErrorContext';
 
 // Skeleton Components
 const TableRowSkeleton = ({ isDarkMode }) => (
@@ -58,6 +59,7 @@ const TableRowSkeleton = ({ isDarkMode }) => (
 
 export default function Orders() {
   const { isDarkMode } = useTheme();
+  const { showToast } = useError();
   const location = useLocation();
   const navigate = useNavigate();
   const handledFocusNonceRef = useRef(null);
