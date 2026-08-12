@@ -15,7 +15,9 @@ export const AuthProvider = ({ children }) => {
     const MAX_RETRIES = 3;
     
     try {
-      console.log(`Loading profile for ${authUser.email} (attempt ${retryCount + 1})...`);
+      if (import.meta.env.DEV) {
+        console.log(`Loading profile for ${authUser.email} (attempt ${retryCount + 1})...`);
+      }
       
       // Increase timeout to 10 seconds for Vercel
       const controller = new AbortController();
@@ -32,7 +34,9 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data?.role === 'admin') {
-        console.log('Profile loaded successfully:', data.full_name);
+        if (import.meta.env.DEV) {
+          console.log('Profile loaded successfully for authenticated admin');
+        }
         setUser(authUser);
         setProfile(data);
         setLoading(false);
@@ -44,16 +48,22 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     } catch (err) {
-      console.error(`Profile fetch attempt ${retryCount + 1} failed:`, err.message);
+      if (import.meta.env.DEV) {
+        console.error(`Profile fetch attempt ${retryCount + 1} failed:`, err.message);
+      }
       
       // Retry logic
       if (retryCount < MAX_RETRIES) {
-        console.log(`Retrying profile fetch in ${(retryCount + 1) * 2} seconds...`);
+        if (import.meta.env.DEV) {
+          console.log(`Retrying profile fetch in ${(retryCount + 1) * 2} seconds...`);
+        }
         setTimeout(() => {
           loadProfile(authUser, retryCount + 1);
         }, (retryCount + 1) * 2000); // Exponential backoff: 2s, 4s, 6s
       } else {
-        console.error('Max retries reached for profile fetch');
+        if (import.meta.env.DEV) {
+          console.error('Max retries reached for profile fetch');
+        }
         setError('Unable to load profile. Please refresh.');
         setLoading(false);
       }
@@ -74,13 +84,17 @@ export const AuthProvider = ({ children }) => {
           key.includes('supabase') || key.includes('sb-')
         );
         
-        console.log('Checking session...', { 
-          hasAuthKey: !!authKey,
-          attempt: ++checkCount 
-        });
+        if (import.meta.env.DEV) {
+          console.log('Checking session...', { 
+            hasAuthKey: !!authKey,
+            attempt: ++checkCount 
+          });
+        }
 
         if (!authKey) {
-          console.log('No auth key in localStorage');
+          if (import.meta.env.DEV) {
+            console.log('No auth key in localStorage');
+          }
           setLoading(false);
           return;
         }
@@ -91,20 +105,28 @@ export const AuthProvider = ({ children }) => {
         if (!mounted) return;
 
         if (error) {
-          console.error('Session error:', error);
+          if (import.meta.env.DEV) {
+            console.error('Session error:', error);
+          }
           setLoading(false);
           return;
         }
 
         if (session?.user) {
-          console.log('Session found, loading profile...');
+          if (import.meta.env.DEV) {
+            console.log('Session found, loading profile...');
+          }
           await loadProfile(session.user);
         } else {
-          console.log('No session found');
+          if (import.meta.env.DEV) {
+            console.log('No session found');
+          }
           setLoading(false);
         }
       } catch (err) {
-        console.error('Session check error:', err);
+        if (import.meta.env.DEV) {
+          console.error('Session check error:', err);
+        }
         if (mounted) {
           setError(err.message);
           setLoading(false);
@@ -115,7 +137,9 @@ export const AuthProvider = ({ children }) => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event, session?.user?.email);
+      if (import.meta.env.DEV) {
+        console.log('Auth event:', event);
+      }
       
       if (!mounted) return;
 
