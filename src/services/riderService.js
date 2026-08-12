@@ -101,21 +101,35 @@ export function computeRiderStats(rider, dateFilter = null) {
 
   const deliveries = dateFilter
     ? allDeliveries.filter((d) => {
-        const ts = new Date(d.assigned_at || d.created_at);
+        const rawTs = d.delivered_at || d.assigned_at || d.accepted_at;
+        if (!rawTs) return true;
+        const ts = new Date(rawTs);
+        if (isNaN(ts.getTime())) return true;
         return ts >= dateFilter.from && ts <= dateFilter.to;
       })
     : allDeliveries;
 
-  const completed = deliveries.filter((d) => d.status === 'delivered');
-  const failed = deliveries.filter((d) => d.status === 'failed');
-  const pending = deliveries.filter(
-    (d) => d.status === 'assigned' || d.status === 'accepted' || d.status === 'picked_up' || d.status === 'in_transit'
-  );
+  const completed = deliveries.filter((d) => {
+    const status = String(d.status || '').toLowerCase().trim();
+    return status === 'delivered';
+  });
+
+  const failed = deliveries.filter((d) => {
+    const status = String(d.status || '').toLowerCase().trim();
+    return status === 'failed' || status === 'declined';
+  });
+
+  const pending = deliveries.filter((d) => {
+    const status = String(d.status || '').toLowerCase().trim();
+    return status === 'assigned' || status === 'accepted' || status === 'picked_up' || status === 'in_transit' || status === 'out_for_delivery';
+  });
 
   // Average delivery time (assigned_at → delivered_at) in minutes
   const times = completed
     .filter((d) => d.delivered_at && d.assigned_at)
-    .map((d) => new Date(d.delivered_at) - new Date(d.assigned_at));
+    .map((d) => new Date(d.delivered_at) - new Date(d.assigned_at))
+    .filter((t) => !isNaN(t) && t > 0);
+
   const avgDeliveryTime =
     times.length > 0
       ? Math.round(times.reduce((a, b) => a + b, 0) / times.length / 60000)
@@ -124,7 +138,8 @@ export function computeRiderStats(rider, dateFilter = null) {
   // Earnings: sum delivery_fee from completed deliveries
   const earnings = completed.reduce((sum, d) => {
     const fee = d.orders?.delivery_fee;
-    return sum + (typeof fee === 'number' ? fee : parseFloat(fee) || 0);
+    const numFee = typeof fee === 'number' ? fee : parseFloat(fee);
+    return sum + (!isNaN(numFee) && numFee > 0 ? numFee : 0);
   }, 0);
 
   const completionRate =
