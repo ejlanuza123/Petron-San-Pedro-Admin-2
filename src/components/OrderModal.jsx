@@ -460,9 +460,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                   <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(order.total_amount)}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm text-gray-600">
+                <div className={`flex justify-between items-center text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   <span>Delivery Fee</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(order.delivery_fee || 0)}</span>
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(order.delivery_fee || 0)}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-lg font-bold">
