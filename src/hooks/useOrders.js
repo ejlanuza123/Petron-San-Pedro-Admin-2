@@ -70,10 +70,28 @@ export function useOrders() {
   }, []);
 
   const updateStatus = async (orderId, newStatus, options = {}) => {
+    const previousOrders = [...orders];
+    const previousSelectedOrder = selectedOrder ? { ...selectedOrder } : null;
+
+    const existingOrder = orders.find((o) => o.id === orderId);
+    const oldStatus = existingOrder?.status;
+
+    // 1. Optimistic local state update
+    const optimisticPatch = {
+      status: newStatus,
+      cancellation_reason: options?.cancellationReason || existingOrder?.cancellation_reason,
+      cancelled_by: options?.cancelledBy || existingOrder?.cancelled_by,
+      cancelled_at: newStatus === 'Cancelled' ? new Date().toISOString() : existingOrder?.cancelled_at,
+      updated_at: new Date().toISOString()
+    };
+
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...optimisticPatch } : o));
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(prev => prev ? { ...prev, ...optimisticPatch } : null);
+    }
+
     try {
       setError(null);
-      const existingOrder = orders.find((o) => o.id === orderId);
-      const oldStatus = existingOrder?.status;
 
       await retryAsync(() => orderService.updateStatus(orderId, newStatus, options), {
         maxRetries: 1,
@@ -106,16 +124,29 @@ export function useOrders() {
       await logOrderAction(orderId, 'update_status', changes, description);
       notifySuccess(description);
     } catch (err) {
+      // Rollback optimistic update on failure
+      setOrders(previousOrders);
+      setSelectedOrder(previousSelectedOrder);
       setError(err.message);
       throw err;
     }
   };
 
   const updateDeliveryFee = async (orderId, newFee) => {
+    const previousOrders = [...orders];
+    const previousSelectedOrder = selectedOrder ? { ...selectedOrder } : null;
+
+    const existingOrder = orders.find((o) => o.id === orderId);
+    const oldFee = existingOrder?.delivery_fee;
+
+    // 1. Optimistic local state update
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, delivery_fee: newFee } : o));
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(prev => prev ? { ...prev, delivery_fee: newFee } : null);
+    }
+
     try {
       setError(null);
-      const existingOrder = orders.find((o) => o.id === orderId);
-      const oldFee = existingOrder?.delivery_fee;
 
       await retryAsync(() => orderService.updateDeliveryFee(orderId, newFee), {
         maxRetries: 1,
@@ -128,6 +159,9 @@ export function useOrders() {
       await logOrderAction(orderId, 'update_delivery_fee', changes, description);
       notifySuccess(description);
     } catch (err) {
+      // Rollback optimistic update on failure
+      setOrders(previousOrders);
+      setSelectedOrder(previousSelectedOrder);
       setError(err.message);
       throw err;
     }
