@@ -48,6 +48,11 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           backdrop.style.background = 'transparent';
         }
 
+        clonedPanel.style.backgroundColor = '#ffffff';
+        clonedPanel.style.color = '#0f172a';
+        clonedPanel.classList.remove('dark');
+        clonedPanel.querySelectorAll('*').forEach(el => el.classList.remove('dark'));
+
         clonedPanel.style.maxHeight = 'none';
         clonedPanel.style.height = 'auto';
         clonedPanel.style.overflow = 'visible';
