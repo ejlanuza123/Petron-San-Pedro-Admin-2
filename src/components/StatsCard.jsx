@@ -22,20 +22,24 @@ export default function StatsCard({ title, value, icon: Icon, color, trend, tren
           {trend && (
             <div className="flex items-center mb-1">
               {trend > 0 ? (
-                <TrendingUp size={16} className="text-green-500 mr-1" />
+                <TrendingUp size={16} className={`${isDarkMode ? 'text-emerald-400' : 'text-emerald-500'} mr-1`} />
               ) : (
-                <TrendingDown size={16} className="text-red-500 mr-1" />
+                <TrendingDown size={16} className={`${isDarkMode ? 'text-rose-400' : 'text-red-500'} mr-1`} />
               )}
-              <span className={`text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-sm font-semibold ${
+                trend > 0 
+                  ? (isDarkMode ? 'text-emerald-400' : 'text-emerald-600') 
+                  : (isDarkMode ? 'text-rose-400' : 'text-rose-600')
+              }`}>
                 {trend > 0 ? '+' : ''}{trend}%
               </span>
               {trendValue && (
-                <span className={`text-xs ml-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{trendValue}</span>
+                <span className={`text-xs ml-2 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>{trendValue}</span>
               )}
             </div>
           )}
           {subtext && (
-            <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{subtext}</p>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>{subtext}</p>
           )}
         </div>
       )}

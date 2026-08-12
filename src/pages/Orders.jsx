@@ -832,8 +832,8 @@ export default function Orders() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <span className="font-bold text-[#0033A0] block">{formatCurrency(order.total_amount)}</span>
-                          <span className="text-xs text-gray-500 block">Delivery: {formatCurrency(order.delivery_fee || 0)}</span>
+                          <span className={`font-bold block ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{formatCurrency(order.total_amount)}</span>
+                          <span className={`text-xs block ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Delivery: {formatCurrency(order.delivery_fee || 0)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
