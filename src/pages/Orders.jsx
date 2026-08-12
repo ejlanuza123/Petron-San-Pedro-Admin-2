@@ -837,7 +837,7 @@ export default function Orders() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getOrderStatusColor(order.status)}`}>
+                        <span className={`inline-flex items-center justify-center text-center px-3 py-1.5 rounded-full text-xs font-semibold leading-none border ${getOrderStatusColor(order.status)}`}>
                           {order.status}
                         </span>
                       </td>
@@ -845,7 +845,7 @@ export default function Orders() {
                         {deliveryInfo ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <Truck size={16} className="text-gray-400" />
-                            <span className={`text-xs px-2.5 py-1 rounded-full border ${getDeliveryStatusColor(deliveryInfo.status)}`}>
+                            <span className={`inline-flex items-center justify-center text-center text-xs px-3 py-1.5 rounded-full font-semibold leading-none border ${getDeliveryStatusColor(deliveryInfo.status)}`}>
                               {deliveryInfo.status === 'assigned' ? 'Waiting for Acceptance' :
                                deliveryInfo.status === 'accepted' ? 'Accepted - Ready to Pick Up' :
                                deliveryInfo.status === 'picked_up' ? 'Picked Up' :
