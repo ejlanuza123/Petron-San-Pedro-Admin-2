@@ -27,6 +27,7 @@ import { getAllRidersWithStats, buildLeaderboard } from '../services/riderServic
 import { getProductReviews, getRiderRatings, computeReviewSummary } from '../services/reviewService';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/formatters';
+import { getOrderStatusColor } from '../utils/constants';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
@@ -634,11 +635,7 @@ export default function Dashboard() {
                     <td className="py-3 px-3 font-semibold text-[#0033A0]">#{String(order.id || '').slice(0, 8)}</td>
                     <td className={`py-3 px-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{order.profiles?.full_name || order.customer_name || 'Customer'}</td>
                     <td className="py-3 px-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                        order.status === 'completed' || order.status === 'delivered' ? (isDarkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-700') :
-                        order.status === 'processing' || order.status === 'in_transit' ? (isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700') :
-                        (isDarkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-700')
-                      }`}>
+                      <span className={`inline-flex items-center justify-center text-center text-xs px-2.5 py-1 rounded-full font-semibold leading-none border ${getOrderStatusColor(order.status)}`}>
                         {order.status}
                       </span>
                     </td>
