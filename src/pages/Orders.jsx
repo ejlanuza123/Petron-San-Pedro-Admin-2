@@ -31,7 +31,7 @@ import SearchBar from '../components/common/SearchBar';
 import Pagination from '../components/common/Pagination';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useOrders } from '../hooks/useOrders';
-import { ORDER_STATUS, ORDER_STATUS_COLORS, CANCELLATION_REASONS } from '../utils/constants';
+import { ORDER_STATUS, ORDER_STATUS_COLORS, getOrderStatusColor, getDeliveryStatusColor, CANCELLATION_REASONS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
@@ -205,20 +205,6 @@ export default function Orders() {
   const handleAssignRider = (order) => {
     setSelectedOrderForAction(order);
     setShowAssignModal(true);
-  };
-
-  // Get delivery status color
-  const getDeliveryStatusColor = (status) => {
-    switch(status) {
-      case 'assigned': return 'bg-yellow-100 text-yellow-800';
-      case 'accepted': return 'bg-green-100 text-green-800';
-      case 'picked_up': return 'bg-blue-100 text-blue-800';
-      case 'out_for_delivery': return 'bg-indigo-100 text-indigo-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'declined': return 'bg-red-100 text-red-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   // Memoized filtered orders
@@ -851,7 +837,7 @@ export default function Orders() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status]}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getOrderStatusColor(order.status)}`}>
                           {order.status}
                         </span>
                       </td>
@@ -859,7 +845,7 @@ export default function Orders() {
                         {deliveryInfo ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <Truck size={16} className="text-gray-400" />
-                            <span className={`text-xs px-2 py-1 rounded-full ${getDeliveryStatusColor(deliveryInfo.status)}`}>
+                            <span className={`text-xs px-2.5 py-1 rounded-full border ${getDeliveryStatusColor(deliveryInfo.status)}`}>
                               {deliveryInfo.status === 'assigned' ? 'Waiting for Acceptance' :
                                deliveryInfo.status === 'accepted' ? 'Accepted - Ready to Pick Up' :
                                deliveryInfo.status === 'picked_up' ? 'Picked Up' :

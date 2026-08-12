@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, MapPin, Phone, User, CreditCard, Package, Calendar, Store, Image as ImageIcon, Truck, CheckCircle2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { ORDER_STATUS_COLORS } from '../utils/constants';
+import { ORDER_STATUS_COLORS, getOrderStatusColor } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
@@ -293,7 +293,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
               <div className="flex justify-between items-center">
                 <div className="flex flex-col gap-1">
                   <p className={`text-sm mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Current Status</p>
-                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold border ${ORDER_STATUS_COLORS[order.status]}`}>
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold border ${getOrderStatusColor(order.status)}`}>
                     {order.status}
                   </span>
                 </div>
