@@ -207,27 +207,61 @@ export default function Dashboard() {
         fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
       }
 
+      // Normalize helper functions
+      const isCompletedOrder = (o) => {
+        const status = String(o.status || '').toLowerCase().trim();
+        return status === 'completed' || status === 'delivered';
+      };
+
+      const isPendingOrder = (o) => {
+        const status = String(o.status || '').toLowerCase().trim();
+        return ['pending', 'processing', 'assigned', 'accepted', 'picked_up', 'in_transit', 'out_for_delivery'].includes(status);
+      };
+
+      const getOrderGrandTotal = (o) => {
+        const amount = Number(o.total_amount || 0);
+        const fee = Number(o.delivery_fee || 0);
+        return (isNaN(amount) ? 0 : amount) + (isNaN(fee) ? 0 : fee);
+      };
+
       const filteredOrders = allOrders.filter((o) => new Date(o.created_at) >= fromDate);
 
       // Revenue & Stats Calculations
-      const completedFiltered = filteredOrders.filter((o) => o.status === 'completed' || o.status === 'delivered');
-      const periodRevenue = completedFiltered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-      const totalRevenue = allOrders.filter((o) => o.status === 'completed' || o.status === 'delivered').reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-      const pendingOrders = allOrders.filter((o) => ['pending', 'processing', 'assigned', 'accepted'].includes(o.status)).length;
+      const completedFiltered = filteredOrders.filter(isCompletedOrder);
+      const periodRevenue = completedFiltered.reduce((sum, o) => sum + getOrderGrandTotal(o), 0);
+      const totalRevenue = allOrders.filter(isCompletedOrder).reduce((sum, o) => sum + getOrderGrandTotal(o), 0);
+      const pendingOrders = allOrders.filter(isPendingOrder).length;
       const completedCount = completedFiltered.length;
 
       // Fleet & Delivery Stats (count riders who are genuinely online or on active delivery)
       const activeRidersCount = riders.filter((r) => {
         if (!r.is_active) return false;
         const hasActiveDelivery = (r.deliveries || []).some(d => {
-          const isDeliveryActive = ['assigned', 'accepted', 'picked_up', 'in_transit'].includes(d.status);
-          const parentOrderStatus = d.orders?.status;
-          const isOrderFinished = ['Completed', 'Cancelled', 'Delivered', 'delivered', 'completed', 'cancelled'].includes(parentOrderStatus);
+          const isDeliveryActive = ['assigned', 'accepted', 'picked_up', 'in_transit', 'out_for_delivery'].includes(String(d.status || '').toLowerCase());
+          const parentOrderStatus = String(d.orders?.status || '').toLowerCase();
+          const isOrderFinished = ['completed', 'cancelled', 'delivered'].includes(parentOrderStatus);
           return isDeliveryActive && !isOrderFinished;
         });
         return Boolean(r.is_online || hasActiveDelivery);
       }).length;
+
       const leaderboard = buildLeaderboard(riders);
+
+      // Dynamic average delivery time calculation from completed rider deliveries
+      let totalDeliveryMinutes = 0;
+      let deliveryCount = 0;
+      riders.forEach(r => {
+        (r.deliveries || []).forEach(d => {
+          if (String(d.status || '').toLowerCase() === 'delivered' && d.delivered_at && d.assigned_at) {
+            const durationMs = new Date(d.delivered_at) - new Date(d.assigned_at);
+            if (!isNaN(durationMs) && durationMs > 0) {
+              totalDeliveryMinutes += durationMs / (1000 * 60);
+              deliveryCount++;
+            }
+          }
+        });
+      });
+      const avgDeliveryTime = deliveryCount > 0 ? Math.round(totalDeliveryMinutes / deliveryCount) : 0;
 
       // Customer Reviews Summary
       const reviewSummary = computeReviewSummary(pReviews, rRatings);
@@ -235,17 +269,22 @@ export default function Dashboard() {
         ? parseFloat(((reviewSummary.avgProductRating + reviewSummary.avgRiderRating) / 2).toFixed(1))
         : (reviewSummary.avgProductRating || reviewSummary.avgRiderRating || 5.0);
 
-      // Build 7-day trend chart data
+      // Build 7-day trend chart data matching local day boundaries
       const trend = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(now.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayStart.getDate() + 1);
         const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
 
-        const dayOrders = allOrders.filter((o) => o.created_at?.startsWith(dateStr));
-        const dayCompleted = dayOrders.filter((o) => o.status === 'completed' || o.status === 'delivered');
-        const dayRev = dayCompleted.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const dayOrders = allOrders.filter((o) => {
+          const ts = new Date(o.created_at);
+          return ts >= dayStart && ts < dayEnd;
+        });
+        const dayCompleted = dayOrders.filter(isCompletedOrder);
+        const dayRev = dayCompleted.reduce((sum, o) => sum + getOrderGrandTotal(o), 0);
 
         trend.push({
           label: dayName,
@@ -260,7 +299,7 @@ export default function Dashboard() {
         completedOrders: completedCount,
         pendingOrders,
         activeRiders: activeRidersCount,
-        avgDeliveryTime: 24,
+        avgDeliveryTime,
         avgCustomerRating: combinedRating,
         autoDispatchActive: true,
         lowStockCount: lowStockData?.length || 0,
