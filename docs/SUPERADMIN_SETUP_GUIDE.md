@@ -14,6 +14,15 @@ This guide provides step-by-step instructions for database administrators and de
 
 ---
 
+## ⚙️ Recommended Supabase Authentication Setting: Confirm Email OFF
+
+For internal enterprise admin portals where Super Admins provision accounts directly:
+1. Go to your **Supabase Dashboard ➔ Authentication ➔ Providers ➔ Email**.
+2. Set **Confirm email** to **OFF** (Disabled).
+3. **Why this is recommended**:
+   - Super Admins can provision admin accounts instantly without needing external confirmation emails.
+   - When an account is created, a **Credentials Summary Modal** appears with a **Copy Credentials** button so the Super Admin can immediately hand off login details to the new user.
+
 ## 🛠️ 2. How to Create the INITIAL Super Admin Account
 
 Because regular users and standard admins cannot elevate themselves to Super Admin, the **very first Super Admin account** must be assigned directly by the database owner via the **Supabase Dashboard SQL Editor**.

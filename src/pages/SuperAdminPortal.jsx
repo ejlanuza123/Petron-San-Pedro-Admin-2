@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ShieldCheck, UserPlus, Search, RefreshCw, Key, UserCheck, 
   UserX, Shield, Activity, Clock, CheckCircle2, AlertCircle, X, Loader2,
-  Lock, Mail, ArrowLeft, LogOut, Sun, Moon
+  Lock, Mail, ArrowLeft, LogOut, Sun, Moon, Copy, Check
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -55,6 +55,16 @@ export default function SuperAdminPortal() {
     role: 'admin'
   });
   const [formErrors, setFormErrors] = useState({});
+  const [createdAccountInfo, setCreatedAccountInfo] = useState(null);
+  const [copiedCredentials, setCopiedCredentials] = useState(false);
+
+  const handleCopyCredentials = () => {
+    if (!createdAccountInfo) return;
+    const textToCopy = `Email: ${createdAccountInfo.email}\nPassword: ${createdAccountInfo.password}\nRole: ${createdAccountInfo.role}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedCredentials(true);
+    setTimeout(() => setCopiedCredentials(false), 2000);
+  };
 
   // Verify Personnel Passcode
   const handlePasscodeSubmit = (e) => {
@@ -171,6 +181,12 @@ export default function SuperAdminPortal() {
       setError(null);
       setSuccessMessage(null);
       await adminService.createAdminAccount(formData);
+      setCreatedAccountInfo({
+        full_name: formData.full_name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role
+      });
       setSuccessMessage(`Registered new ${formData.role === 'superadmin' ? 'Super Admin' : 'Admin'} account for ${formData.email}.`);
       setIsModalOpen(false);
       setFormData({ email: '', full_name: '', password: '', confirm_password: '', role: 'admin' });
@@ -795,6 +811,51 @@ export default function SuperAdminPortal() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Created Account Credentials Summary Modal */}
+      {createdAccountInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl transition ${
+            isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 flex items-center justify-center mx-auto mb-2 border border-emerald-300 dark:border-emerald-700 shadow-sm">
+                <CheckCircle2 size={26} />
+              </div>
+              <h3 className="text-lg font-extrabold">Account Created Successfully</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                Instant activation active. Share these credentials with the new admin.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-xl border space-y-2 text-xs font-mono mb-5 ${
+              isDarkMode ? 'bg-slate-900/70 border-slate-700' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div><span className="text-gray-400 font-sans">Full Name:</span> <strong className="font-semibold">{createdAccountInfo.full_name}</strong></div>
+              <div><span className="text-gray-400 font-sans">Email:</span> <strong className="font-semibold">{createdAccountInfo.email}</strong></div>
+              <div><span className="text-gray-400 font-sans">Password:</span> <strong className="font-semibold">{createdAccountInfo.password}</strong></div>
+              <div><span className="text-gray-400 font-sans">Role:</span> <strong className="font-semibold uppercase text-blue-500">{createdAccountInfo.role}</strong></div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCopyCredentials}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl transition shadow-md"
+              >
+                {copiedCredentials ? <Check size={16} /> : <Copy size={16} />}
+                {copiedCredentials ? 'Copied to Clipboard!' : 'Copy Credentials'}
+              </button>
+
+              <button
+                onClick={() => setCreatedAccountInfo(null)}
+                className="px-4 py-2.5 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-200 font-semibold text-xs rounded-xl hover:bg-gray-300 dark:hover:bg-slate-600 transition"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
