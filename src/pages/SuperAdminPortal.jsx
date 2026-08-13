@@ -8,6 +8,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { adminService } from '../services/adminService';
+import { supabase } from '../lib/supabase';
 import SearchBar from '../components/common/SearchBar';
 import { formatDate } from '../utils/formatters';
 import petronLogo from '../assets/images/petron-logo.png';
