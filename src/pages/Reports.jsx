@@ -227,7 +227,8 @@ export default function Reports() {
         statusDistribution: res.statusDistribution,
         topProducts: res.topProducts,
         categorySales: res.categorySales,
-        timeSeriesData: res.dailyTrend,
+        dailyTrend: res.dailyTrend,
+        rawOrders: res.allOrders || [],
         dateRange: {
           start: startDate,
           end: endDate,
@@ -271,6 +272,63 @@ export default function Reports() {
     return Math.min(100, Math.max(0, (value / total) * 100));
   }, []);
 
+  // ================== CSV EXPORT ==================
+  const exportToCSV = useCallback(async () => {
+    if (!reportData) return;
+    setExporting(true);
+
+    try {
+      const summary = reportData.summary || {};
+      const statusDist = reportData.statusDistribution || {};
+      
+      const csvRows = [
+        ['Metric', 'Value'],
+        ['Report Period', `"${reportData.dateRange?.label || 'All Time'}"`],
+        ['Total Revenue (PHP)', summary.totalSales || 0],
+        ['Total Orders', summary.totalOrdersCount || 0],
+        ['Completed Orders', summary.completedCount || 0],
+        ['Pending Orders', statusDist.Pending || 0],
+        ['Processing Orders', statusDist.Processing || 0],
+        ['Cancelled Orders', statusDist.Cancelled || 0],
+        ['Average Order Value (PHP)', summary.avgOrderValue || 0],
+        ['Completion Rate (%)', `${summary.completionRate || 0}%`],
+        [],
+        ['Category Sales Breakdown'],
+        ['Category', 'Revenue (PHP)', 'Quantity Sold']
+      ];
+
+      (reportData.categorySales || []).forEach(cat => {
+        csvRows.push([`"${cat.category || 'General'}"`, cat.revenue || 0, cat.quantity || 0]);
+      });
+
+      if (Array.isArray(reportData.rawOrders) && reportData.rawOrders.length > 0) {
+        csvRows.push([]);
+        csvRows.push(['Order Records']);
+        csvRows.push(['Order ID', 'Order Number', 'Date', 'Total Amount (PHP)', 'Delivery Fee', 'Payment Method', 'Status']);
+        reportData.rawOrders.forEach(o => {
+          csvRows.push([
+            `"${o.id || ''}"`,
+            `"${o.order_number || o.id || ''}"`,
+            `"${new Date(o.created_at).toLocaleString()}"`,
+            o.total_amount || 0,
+            o.delivery_fee || 0,
+            `"${o.payment_method || 'COD'}"`,
+            `"${o.status || 'Pending'}"`
+          ]);
+        });
+      }
+
+      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, `petron-report-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`);
+    } catch (err) {
+      console.error('CSV export error:', err);
+      setError('Failed to export CSV: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }, [reportData, dateRange]);
+
   // ================== EXCEL EXPORT ==================
   const exportToExcel = useCallback(async () => {
     if (!reportData) return;
@@ -280,6 +338,9 @@ export default function Reports() {
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Petron Admin';
       workbook.created = new Date();
+
+      const summary = reportData.summary || {};
+      const statusDist = reportData.statusDistribution || {};
 
       // Sheet 1: Executive Summary
       const summarySheet = workbook.addWorksheet('Executive Summary', {
@@ -300,26 +361,24 @@ export default function Reports() {
 
       summarySheet.mergeCells('A2:D2');
       const dateCell = summarySheet.getCell('A2');
-      dateCell.value = `Report Period: ${reportData.dateRange.label}`;
+      dateCell.value = `Report Period: ${reportData.dateRange?.label || 'All Time'}`;
       dateCell.font = { size: 12, bold: true };
       dateCell.alignment = { horizontal: 'center' };
       summarySheet.getRow(2).height = 30;
 
       const statsData = [
         ['Metric', 'Value', '', ''],
-        ['Total Revenue', formatCurrency(reportData.summary.totalRevenue), '', ''],
-        ['Total Orders', reportData.summary.totalOrders, '', ''],
-        ['Completed Orders', reportData.summary.completedOrders, '', ''],
-        ['Pending Orders', reportData.summary.pendingOrders, '', ''],
-        ['Processing Orders', reportData.summary.processingOrders, '', ''],
-        ['Cancelled Orders', reportData.summary.cancelledOrders, '', ''],
-        ['Average Order Value', formatCurrency(reportData.summary.averageOrderValue), '', ''],
-        ['Unique Customers', reportData.summary.uniqueCustomers, '', ''],
-        ['Success Rate', `${reportData.summary.totalOrders > 0 ? Math.round((reportData.summary.completedOrders / reportData.summary.totalOrders) * 100) : 0}%`, '', ''],
+        ['Total Revenue', formatCurrency(summary.totalSales || 0), '', ''],
+        ['Total Orders', summary.totalOrdersCount || 0, '', ''],
+        ['Completed Orders', summary.completedCount || 0, '', ''],
+        ['Pending Orders', statusDist.Pending || 0, '', ''],
+        ['Processing Orders', statusDist.Processing || 0, '', ''],
+        ['Cancelled Orders', statusDist.Cancelled || 0, '', ''],
+        ['Average Order Value', formatCurrency(summary.avgOrderValue || 0), '', ''],
+        ['Completion Rate', `${summary.completionRate || 0}%`, '', ''],
       ];
 
       statsData.forEach((row, index) => {
-        const rowNum = index + 4;
         const excelRow = summarySheet.addRow(row);
         
         if (index === 0) {
@@ -346,68 +405,69 @@ export default function Reports() {
       summarySheet.getColumn(2).width = 25;
 
       // Sheet 2: Sales Timeline
-      const timelineSheet = workbook.addWorksheet('Sales Timeline', {
-        properties: { tabColor: { argb: 'FF00A86B' } }
-      });
-
-      const timelineHeaders = ['Date', 'Revenue'];
-      timelineSheet.addRow(timelineHeaders);
-      const headerRow2 = timelineSheet.getRow(1);
-      headerRow2.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow2.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF00A86B' }
-      };
-      headerRow2.height = 25;
-
-      reportData.timeSeriesData.forEach(({ date, amount }) => {
-        const row = timelineSheet.addRow([date, amount]);
-        row.getCell(2).numFmt = '"Php"#,##0.00';
-        row.height = 20;
-        row.eachCell(cell => {
-          cell.border = {
-            top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
-          };
+      if (Array.isArray(reportData.dailyTrend) && reportData.dailyTrend.length > 0) {
+        const timelineSheet = workbook.addWorksheet('Sales Timeline', {
+          properties: { tabColor: { argb: 'FF00A86B' } }
         });
-      });
 
-      const totalRow = timelineSheet.addRow(['TOTAL', reportData.summary.totalRevenue]);
-      totalRow.font = { bold: true };
-      totalRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE5EEFF' }
-      };
-      totalRow.getCell(2).numFmt = '"Php"#,##0.00';
+        const timelineHeaders = ['Date', 'Revenue (PHP)', 'Orders'];
+        timelineSheet.addRow(timelineHeaders);
+        const headerRow2 = timelineSheet.getRow(1);
+        headerRow2.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow2.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF00A86B' }
+        };
+        headerRow2.height = 25;
 
-      timelineSheet.getColumn(1).width = 25;
-      timelineSheet.getColumn(2).width = 20;
+        reportData.dailyTrend.forEach(({ date, sales, orders }) => {
+          const row = timelineSheet.addRow([date, sales || 0, orders || 0]);
+          row.getCell(2).numFmt = '"Php"#,##0.00';
+          row.height = 20;
+          row.eachCell(cell => {
+            cell.border = {
+              top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+          });
+        });
+
+        const totalRow = timelineSheet.addRow(['TOTAL', summary.totalSales || 0, summary.totalOrdersCount || 0]);
+        totalRow.font = { bold: true };
+        totalRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE5EEFF' }
+        };
+        totalRow.getCell(2).numFmt = '"Php"#,##0.00';
+
+        timelineSheet.getColumn(1).width = 25;
+        timelineSheet.getColumn(2).width = 20;
+        timelineSheet.getColumn(3).width = 15;
+      }
 
       // Sheet 3: Category Breakdown
-      const categorySheet = workbook.addWorksheet('Category Breakdown', {
-        properties: { tabColor: { argb: 'FFED1C24' } }
-      });
+      if (Array.isArray(reportData.categorySales) && reportData.categorySales.length > 0) {
+        const categorySheet = workbook.addWorksheet('Category Breakdown', {
+          properties: { tabColor: { argb: 'FFED1C24' } }
+        });
 
-      const categoryHeaders = ['Category', 'Revenue', 'Quantity', 'Orders'];
-      categorySheet.addRow(categoryHeaders);
-      const headerRow3 = categorySheet.getRow(1);
-      headerRow3.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow3.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFED1C24' }
-      };
-      headerRow3.height = 25;
+        const categoryHeaders = ['Category', 'Revenue (PHP)', 'Quantity Sold'];
+        categorySheet.addRow(categoryHeaders);
+        const headerRow3 = categorySheet.getRow(1);
+        headerRow3.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow3.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFED1C24' }
+        };
+        headerRow3.height = 25;
 
-      Object.entries(reportData.categorySales)
-        .sort(([,a], [,b]) => b.revenue - a.revenue)
-        .forEach(([category, data]) => {
+        reportData.categorySales.forEach(data => {
           const row = categorySheet.addRow([
-            category,
-            data.revenue,
-            data.quantity,
-            data.orderCount
+            data.category || 'General',
+            data.revenue || 0,
+            data.quantity || 0
           ]);
           row.getCell(2).numFmt = '"Php"#,##0.00';
           row.height = 20;
@@ -418,20 +478,20 @@ export default function Reports() {
           });
         });
 
-      categorySheet.getColumn(1).width = 30;
-      categorySheet.getColumn(2).width = 20;
-      categorySheet.getColumn(3).width = 15;
-      categorySheet.getColumn(4).width = 15;
+        categorySheet.getColumn(1).width = 30;
+        categorySheet.getColumn(2).width = 20;
+        categorySheet.getColumn(3).width = 15;
+      }
 
-      // Sheet 4: Top Customers
-      if (reportData.topCustomers.length > 0) {
-        const customerSheet = workbook.addWorksheet('Top Customers', {
+      // Sheet 4: Top Products
+      if (Array.isArray(reportData.topProducts) && reportData.topProducts.length > 0) {
+        const productSheet = workbook.addWorksheet('Top Products', {
           properties: { tabColor: { argb: 'FFFFA500' } }
         });
 
-        const customerHeaders = ['Customer', 'Total Spent', 'Orders'];
-        customerSheet.addRow(customerHeaders);
-        const headerRow4 = customerSheet.getRow(1);
+        const productHeaders = ['Product Name', 'Category', 'Quantity Sold', 'Revenue (PHP)'];
+        productSheet.addRow(productHeaders);
+        const headerRow4 = productSheet.getRow(1);
         headerRow4.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         headerRow4.fill = {
           type: 'pattern',
@@ -440,13 +500,14 @@ export default function Reports() {
         };
         headerRow4.height = 25;
 
-        reportData.topCustomers.forEach(customer => {
-          const row = customerSheet.addRow([
-            customer.name,
-            customer.totalSpent,
-            customer.orderCount
+        reportData.topProducts.forEach(prod => {
+          const row = productSheet.addRow([
+            prod.name || 'Product',
+            prod.category || 'General',
+            prod.quantity || 0,
+            prod.revenue || 0
           ]);
-          row.getCell(2).numFmt = '"Php"#,##0.00';
+          row.getCell(4).numFmt = '"Php"#,##0.00';
           row.height = 20;
           row.eachCell(cell => {
             cell.border = {
@@ -455,9 +516,10 @@ export default function Reports() {
           });
         });
 
-        customerSheet.getColumn(1).width = 35;
-        customerSheet.getColumn(2).width = 20;
-        customerSheet.getColumn(3).width = 15;
+        productSheet.getColumn(1).width = 35;
+        productSheet.getColumn(2).width = 20;
+        productSheet.getColumn(3).width = 15;
+        productSheet.getColumn(4).width = 20;
       }
 
       const buffer = await workbook.xlsx.writeBuffer();
@@ -844,10 +906,12 @@ export default function Reports() {
   const handleExport = useCallback((format) => {
     if (format === 'excel') {
       exportToExcel();
+    } else if (format === 'csv') {
+      exportToCSV();
     } else if (format === 'pdf') {
       exportToPDF();
     }
-  }, [exportToExcel, exportToPDF]);
+  }, [exportToExcel, exportToCSV, exportToPDF]);
 
   if (loading) {
     return (
