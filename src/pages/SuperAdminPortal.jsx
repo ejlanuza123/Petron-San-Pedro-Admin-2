@@ -24,13 +24,9 @@ export default function SuperAdminPortal() {
   // Phase 1: Personnel Verification Code Gate
   const [passcode, setPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
-  const [isPasscodeVerified, setIsPasscodeVerified] = useState(() => {
-    try {
-      return window.sessionStorage.getItem(SUPERADMIN_SESSION_STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [passcodeSuccess, setPasscodeSuccess] = useState('');
+  const [verifyingPasscode, setVerifyingPasscode] = useState(false);
+  const [isPasscodeVerified, setIsPasscodeVerified] = useState(false);
 
   // Phase 2: Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -63,17 +59,24 @@ export default function SuperAdminPortal() {
   // Verify Personnel Passcode
   const handlePasscodeSubmit = (e) => {
     e.preventDefault();
+    if (!passcode.trim()) return;
     setPasscodeError('');
-    if (passcode.trim() === SUPERADMIN_PASSCODE) {
-      try {
-        window.sessionStorage.setItem(SUPERADMIN_SESSION_STORAGE_KEY, 'true');
-      } catch (err) {
-        console.warn('Session storage error:', err);
+    setPasscodeSuccess('');
+    setVerifyingPasscode(true);
+
+    setTimeout(() => {
+      if (passcode.trim() === SUPERADMIN_PASSCODE) {
+        setVerifyingPasscode(false);
+        setPasscodeSuccess('Passcode Verified! Accessing Super Admin Portal...');
+        setTimeout(() => {
+          setIsPasscodeVerified(true);
+          setPasscodeSuccess('');
+        }, 1000);
+      } else {
+        setVerifyingPasscode(false);
+        setPasscodeError('Invalid Personnel Verification Passcode.');
       }
-      setIsPasscodeVerified(true);
-    } else {
-      setPasscodeError('Invalid Personnel Verification Passcode.');
-    }
+    }, 1300);
   };
 
   // Super Admin Login
@@ -197,34 +200,57 @@ export default function SuperAdminPortal() {
             Enter the Personnel Verification Passcode to unlock the Super Admin Login.
           </p>
 
-          {passcodeError && (
-            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
-              {passcodeError}
+          {verifyingPasscode ? (
+            <div className="py-8 flex flex-col items-center justify-center space-y-3">
+              <Loader2 size={38} className="animate-spin text-[#0033A0] dark:text-blue-400" />
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                Analyzing Personnel Credentials...
+              </p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Verifying security passcode authorization
+              </p>
             </div>
+          ) : passcodeSuccess ? (
+            <div className="py-8 flex flex-col items-center justify-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 flex items-center justify-center border border-emerald-300 dark:border-emerald-700 shadow-md">
+                <CheckCircle2 size={30} />
+              </div>
+              <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                {passcodeSuccess}
+              </p>
+            </div>
+          ) : (
+            <>
+              {passcodeError && (
+                <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
+                  {passcodeError}
+                </div>
+              )}
+
+              <form onSubmit={handlePasscodeSubmit} className="space-y-4">
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
+                  <input
+                    type="password"
+                    required
+                    value={passcode}
+                    onChange={(e) => setPasscode(e.target.value)}
+                    placeholder="Enter Personnel Passcode"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition ${
+                      isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    }`}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-[#0033A0] hover:bg-blue-800 text-white font-bold text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  Verify Passcode
+                </button>
+              </form>
+            </>
           )}
-
-          <form onSubmit={handlePasscodeSubmit} className="space-y-4">
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
-              <input
-                type="password"
-                required
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter Personnel Passcode"
-                className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition ${
-                  isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                }`}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-[#0033A0] hover:bg-blue-800 text-white font-bold text-sm rounded-xl transition shadow-lg"
-            >
-              Verify Passcode
-            </button>
-          </form>
         </div>
       </div>
     );
