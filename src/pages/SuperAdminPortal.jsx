@@ -14,7 +14,7 @@ import { formatDate } from '../utils/formatters';
 import petronLogo from '../assets/images/petron-logo.png';
 import '../styles/SuperAdminPortal.css';
 
-const DEFAULT_SUPERADMIN_PASSCODE = import.meta.env.VITE_SUPERADMIN_VERIFICATION_CODE || 'SUPER2026';
+const SUPERADMIN_PASSCODE = import.meta.env.VITE_SUPERADMIN_VERIFICATION_CODE || import.meta.env.VITE_ADMIN_VERIFICATION_CODE || 'SUPER2026';
 const SUPERADMIN_SESSION_STORAGE_KEY = 'petron-superadmin-passcode-verified';
 
 export default function SuperAdminPortal() {
@@ -63,7 +63,7 @@ export default function SuperAdminPortal() {
   const handlePasscodeSubmit = (e) => {
     e.preventDefault();
     setPasscodeError('');
-    if (passcode.trim() === DEFAULT_SUPERADMIN_PASSCODE || passcode.trim() === 'PETRON2026') {
+    if (passcode.trim() === SUPERADMIN_PASSCODE) {
       try {
         window.sessionStorage.setItem(SUPERADMIN_SESSION_STORAGE_KEY, 'true');
       } catch (err) {
@@ -209,7 +209,7 @@ export default function SuperAdminPortal() {
                 required
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter Passcode (Default: SUPER2026)"
+                placeholder="Enter Personnel Passcode"
                 className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition ${
                   isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                 }`}
