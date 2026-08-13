@@ -80,10 +80,16 @@ export default function SuperAdminPortal() {
     setLoginError('');
     setLoginLoading(true);
     try {
-      const { profile: authProfile } = await signIn(loginEmail, loginPassword);
-      if (authProfile?.role !== 'superadmin') {
+      const { user: authUser } = await signIn(loginEmail, loginPassword);
+      const { data: userProfile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileErr || userProfile?.role !== 'superadmin') {
         await signOut();
-        setLoginError('Access Denied: Super Admin privilege required.');
+        setLoginError('Access Denied: Super Admin privilege required. Run SQL Migration 024 in Supabase to promote your email to superadmin.');
       }
     } catch (err) {
       setLoginError(err.message || 'Invalid Super Admin credentials.');
