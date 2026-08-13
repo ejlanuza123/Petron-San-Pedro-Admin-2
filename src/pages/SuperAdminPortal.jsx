@@ -80,7 +80,7 @@ export default function SuperAdminPortal() {
     setLoginError('');
     setLoginLoading(true);
     try {
-      const { user: authUser, profile: authProfile } = await signIn(loginEmail, loginPassword);
+      const { profile: authProfile } = await signIn(loginEmail, loginPassword);
       if (authProfile?.role !== 'superadmin') {
         await signOut();
         setLoginError('Access Denied: Super Admin privilege required.');
@@ -93,7 +93,7 @@ export default function SuperAdminPortal() {
   };
 
   const loadData = useCallback(async () => {
-    if (!isAuthenticated || !isSuperAdmin) return;
+    if (!isAuthenticated) return;
     try {
       setLoading(true);
       setError(null);
@@ -109,13 +109,13 @@ export default function SuperAdminPortal() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, isSuperAdmin]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && isSuperAdmin) {
+    if (isAuthenticated && (isSuperAdmin || profile?.role === 'superadmin')) {
       loadData();
     }
-  }, [isAuthenticated, isSuperAdmin, loadData]);
+  }, [isAuthenticated, isSuperAdmin, profile?.role, loadData]);
 
   const handleRoleToggle = async (adminId, currentRole) => {
     const newRole = currentRole === 'superadmin' ? 'admin' : 'superadmin';
@@ -175,33 +175,37 @@ export default function SuperAdminPortal() {
   if (!isPasscodeVerified) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-300 ${
-        isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-900 text-white'
+        isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
-        <div className="max-w-md w-full p-8 rounded-2xl bg-slate-800 border border-slate-700 text-center shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-blue-900/60 text-blue-400 flex items-center justify-center mx-auto mb-4 border border-blue-700/50 shadow-inner">
+        <div className={`max-w-md w-full p-8 rounded-2xl border text-center shadow-2xl transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
+          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-4 border border-blue-200 dark:border-blue-700/50 shadow-inner">
             <Lock size={32} />
           </div>
           <h2 className="text-2xl font-extrabold mb-1">Personnel Security Gate</h2>
-          <p className="text-xs text-slate-400 mb-6">
+          <p className={`text-xs mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-600'}`}>
             Enter the Personnel Verification Passcode to unlock the Super Admin Login.
           </p>
 
           {passcodeError && (
-            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold">
+            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
               {passcodeError}
             </div>
           )}
 
           <form onSubmit={handlePasscodeSubmit} className="space-y-4">
             <div className="relative">
-              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
               <input
                 type="password"
                 required
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 placeholder="Enter Passcode (Default: SUPER2026)"
-                className="w-full pl-10 pr-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition ${
+                  isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                }`}
               />
             </div>
 
@@ -218,53 +222,59 @@ export default function SuperAdminPortal() {
   }
 
   // PHASE 2: Super Admin Login Screen (if not logged in as superadmin)
-  if (!isAuthenticated || !isSuperAdmin) {
+  if (!isAuthenticated || (!isSuperAdmin && profile?.role !== 'superadmin')) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-300 ${
-        isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-900 text-white'
+        isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
-        <div className="max-w-md w-full p-8 rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl">
+        <div className={`max-w-md w-full p-8 rounded-2xl border shadow-2xl transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-white rounded-xl mx-auto mb-3 flex items-center justify-center p-2 shadow-md">
+            <div className="w-16 h-16 bg-white rounded-xl mx-auto mb-3 flex items-center justify-center p-2 shadow-md border border-gray-100">
               <img src={petronLogo} alt="Petron Logo" className="w-full h-full object-contain" />
             </div>
-            <h2 className="text-2xl font-extrabold text-white">Super Admin Portal</h2>
-            <p className="text-xs text-slate-400 mt-1">Sign in with Super Admin credentials</p>
+            <h2 className="text-2xl font-extrabold">Super Admin Portal</h2>
+            <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-600'}`}>Sign in with Super Admin credentials</p>
           </div>
 
           {loginError && (
-            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold">
+            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
               {loginError}
             </div>
           )}
 
           <form onSubmit={handleSuperAdminLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Super Admin Email</label>
+              <label className="block text-xs font-semibold mb-1">Super Admin Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
                 <input
                   type="email"
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   placeholder="superadmin@petron.com"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm outline-none transition ${
+                    isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+              <label className="block text-xs font-semibold mb-1">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
                 <input
                   type="password"
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm outline-none transition ${
+                    isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
                 />
               </div>
             </div>
@@ -299,17 +309,21 @@ export default function SuperAdminPortal() {
   };
 
   return (
-    <div className={`super-admin-portal-container p-6 transition-colors duration-300 ${isDarkMode ? 'dark text-slate-100' : 'text-slate-900'}`}>
+    <div className={`min-h-screen p-6 transition-colors duration-300 ${
+      isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-slate-900'
+    }`}>
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md">
+          <div className="p-3 rounded-xl bg-[#0033A0] text-white shadow-md">
             <ShieldCheck size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Super Admin Control Center</h1>
-            <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-              Secret Management Portal & Admin Registration
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Super Admin Control Center
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
+              Secret Management Portal & Admin Account Control
             </p>
           </div>
         </div>
@@ -317,8 +331,10 @@ export default function SuperAdminPortal() {
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition border ${
-              isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition border shadow-sm ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -343,7 +359,7 @@ export default function SuperAdminPortal() {
 
       {/* Alert Notices */}
       {error && (
-        <div className="flex items-center justify-between p-4 mb-6 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-medium">
+        <div className="flex items-center justify-between p-4 mb-6 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-sm font-medium">
           <div className="flex items-center gap-2">
             <AlertCircle size={18} />
             <span>{error}</span>
@@ -353,7 +369,7 @@ export default function SuperAdminPortal() {
       )}
 
       {successMessage && (
-        <div className="flex items-center justify-between p-4 mb-6 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+        <div className="flex items-center justify-between p-4 mb-6 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={18} />
             <span>{successMessage}</span>
@@ -364,36 +380,44 @@ export default function SuperAdminPortal() {
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-5 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Total Accounts</span>
-            <Shield size={18} className="text-blue-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Total Accounts</span>
+            <Shield size={20} className="text-blue-600 dark:text-blue-400" />
           </div>
-          <div className="text-2xl font-extrabold text-[#0033A0] dark:text-blue-400">{stats.total}</div>
+          <div className="text-3xl font-extrabold text-[#0033A0] dark:text-blue-400">{stats.total}</div>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-5 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Super Admins</span>
-            <Key size={18} className="text-indigo-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Super Admins</span>
+            <Key size={20} className="text-indigo-600 dark:text-indigo-400" />
           </div>
-          <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.superAdmins}</div>
+          <div className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.superAdmins}</div>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-5 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Active Status</span>
-            <UserCheck size={18} className="text-emerald-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Active Status</span>
+            <UserCheck size={20} className="text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{stats.active}</div>
+          <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">{stats.active}</div>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-5 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Suspended</span>
-            <UserX size={18} className="text-amber-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Suspended</span>
+            <UserX size={20} className="text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{stats.suspended}</div>
+          <div className="text-3xl font-extrabold text-amber-600 dark:text-amber-400">{stats.suspended}</div>
         </div>
       </div>
 
@@ -401,10 +425,10 @@ export default function SuperAdminPortal() {
       <div className="flex items-center gap-2 border-b mb-6 border-gray-200 dark:border-slate-700">
         <button
           onClick={() => setActiveTab('accounts')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition ${
             activeTab === 'accounts'
               ? 'border-[#0033A0] text-[#0033A0] dark:border-blue-400 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
           }`}
         >
           <ShieldCheck size={18} /> Admin Accounts ({filteredAdmins.length})
@@ -412,10 +436,10 @@ export default function SuperAdminPortal() {
 
         <button
           onClick={() => setActiveTab('audit')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition ${
             activeTab === 'audit'
               ? 'border-[#0033A0] text-[#0033A0] dark:border-blue-400 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
           }`}
         >
           <Activity size={18} /> Security Audit Feed
@@ -424,8 +448,10 @@ export default function SuperAdminPortal() {
 
       {/* Accounts Tab */}
       {activeTab === 'accounts' && (
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className={`p-6 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <SearchBar
               onSearch={setSearchQuery}
               placeholder="Search admin name or email..."
@@ -435,8 +461,8 @@ export default function SuperAdminPortal() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className={`px-3 py-2 border rounded-xl font-medium text-sm outline-none transition ${
-                isDarkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-900'
+              className={`px-4 py-2.5 border rounded-xl font-semibold text-sm outline-none transition ${
+                isDarkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'
               }`}
             >
               <option value="ALL">All Roles</option>
@@ -446,29 +472,29 @@ export default function SuperAdminPortal() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className={`border-b text-xs font-semibold uppercase tracking-wider ${
-                  isDarkMode ? 'border-slate-700 text-slate-400 bg-slate-900/40' : 'border-gray-200 text-gray-500 bg-gray-50'
+                <tr className={`border-b text-xs font-bold uppercase tracking-wider ${
+                  isDarkMode ? 'border-slate-700 text-slate-300 bg-slate-900/60' : 'border-gray-200 text-gray-700 bg-gray-100/80'
                 }`}>
-                  <th className="p-3.5">Admin User</th>
-                  <th className="p-3.5">Role</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5">Last Sign In</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="p-4">Admin User</th>
+                  <th className="p-4">Role</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Last Sign In</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700/60">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700/60">
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-gray-500">
-                      <Loader2 size={24} className="animate-spin inline mr-2 text-blue-500" /> Loading admin accounts...
+                    <td colSpan="5" className="p-8 text-center text-gray-500 dark:text-slate-400">
+                      <Loader2 size={24} className="animate-spin inline mr-2 text-blue-600 dark:text-blue-400" /> Loading admin accounts...
                     </td>
                   </tr>
                 ) : filteredAdmins.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="p-8 text-center text-gray-500 dark:text-slate-400">
-                      No admin accounts match your query.
+                      No admin accounts match your search.
                     </td>
                   </tr>
                 ) : (
@@ -478,50 +504,52 @@ export default function SuperAdminPortal() {
                     const isActive = admin.is_active !== false;
 
                     return (
-                      <tr key={admin.id} className={`transition ${isDarkMode ? 'hover:bg-slate-700/40' : 'hover:bg-gray-50'}`}>
-                        <td className="p-3.5">
-                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <tr key={admin.id} className={`transition ${
+                        isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-gray-50/80'
+                      }`}>
+                        <td className="p-4">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-base">
                             {admin.full_name || 'Admin User'}
                             {isSelf && (
-                              <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
+                              <span className="text-[10px] bg-blue-100 dark:bg-blue-900/80 text-blue-800 dark:text-blue-200 font-bold px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-700">
                                 You
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-slate-400 font-mono">{admin.email}</div>
+                          <div className="text-xs text-gray-600 dark:text-slate-400 font-mono mt-0.5">{admin.email}</div>
                         </td>
 
-                        <td className="p-3.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        <td className="p-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
                             isSuper
                               ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
                               : 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
                           }`}>
-                            <Shield size={12} />
+                            <Shield size={13} />
                             {isSuper ? 'Super Admin' : 'Admin'}
                           </span>
                         </td>
 
-                        <td className="p-3.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        <td className="p-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
                             isActive
-                              ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                              : 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                           }`}>
                             {isActive ? 'Active' : 'Suspended'}
                           </span>
                         </td>
 
-                        <td className="p-3.5 text-xs text-gray-500 dark:text-slate-400">
+                        <td className="p-4 text-xs font-medium text-gray-600 dark:text-slate-400">
                           {admin.last_sign_in_at ? formatDate(admin.last_sign_in_at) : 'N/A'}
                         </td>
 
-                        <td className="p-3.5 text-right">
+                        <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleRoleToggle(admin.id, admin.role)}
                               disabled={isSelf}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition disabled:opacity-40 ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition disabled:opacity-40 ${
                                 isSuper
                                   ? 'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                                   : 'border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950'
@@ -533,7 +561,7 @@ export default function SuperAdminPortal() {
                             <button
                               onClick={() => handleStatusToggle(admin.id, isActive)}
                               disabled={isSelf}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition disabled:opacity-40 ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition disabled:opacity-40 ${
                                 isActive
                                   ? 'border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950'
                                   : 'border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950'
@@ -555,9 +583,11 @@ export default function SuperAdminPortal() {
 
       {/* Security Audit Feed Tab */}
       {activeTab === 'audit' && (
-        <div className={`p-4 rounded-2xl border shadow-sm transition ${isDarkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <h3 className="text-base font-bold mb-3 flex items-center gap-2">
-            <Clock size={18} className="text-blue-500" /> Security Audit Action Log
+        <div className={`p-6 rounded-2xl border shadow-sm transition ${
+          isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
+        }`}>
+          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
+            <Clock size={18} className="text-blue-600 dark:text-blue-400" /> Security Audit Action Log
           </h3>
 
           {auditLogs.length === 0 ? (
@@ -567,17 +597,17 @@ export default function SuperAdminPortal() {
           ) : (
             <div className="space-y-3">
               {auditLogs.map((log) => (
-                <div key={log.id} className={`p-3 rounded-xl border flex items-start justify-between gap-3 text-xs ${
-                  isDarkMode ? 'bg-slate-900/50 border-slate-700/70' : 'bg-gray-50 border-gray-200'
+                <div key={log.id} className={`p-4 rounded-xl border flex items-start justify-between gap-3 text-xs ${
+                  isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-gray-50 border-gray-200'
                 }`}>
                   <div>
-                    <span className="font-bold text-slate-900 dark:text-white mr-2">
+                    <span className="font-bold text-slate-900 dark:text-white mr-2 text-sm">
                       {log.profiles?.full_name || 'Admin'}
                     </span>
-                    <span className="text-gray-500 dark:text-slate-400 mr-2">({log.action || 'Action'})</span>
+                    <span className="text-gray-500 dark:text-slate-400 mr-2 font-medium">({log.action || 'Action'})</span>
                     <span className="font-mono text-gray-700 dark:text-slate-300">{log.details || log.target || ''}</span>
                   </div>
-                  <span className="text-gray-400 font-mono whitespace-nowrap">{formatDate(log.created_at)}</span>
+                  <span className="text-gray-500 dark:text-slate-400 font-mono whitespace-nowrap">{formatDate(log.created_at)}</span>
                 </div>
               ))}
             </div>
@@ -593,7 +623,7 @@ export default function SuperAdminPortal() {
           }`}>
             <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-slate-700 mb-4">
               <h3 className="text-lg font-bold flex items-center gap-2">
-                <UserPlus size={20} className="text-blue-500" /> Register Admin Account
+                <UserPlus size={20} className="text-blue-600 dark:text-blue-400" /> Register Admin Account
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
                 <X size={20} />

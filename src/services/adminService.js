@@ -6,10 +6,16 @@ export const adminService = {
    * Fetches all admin profiles and auth sign-in status
    */
   async getAdminAccounts() {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_admin_accounts_list');
-    
-    if (!rpcError && rpcData) {
-      return rpcData;
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_admin_accounts_list');
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+        return rpcData;
+      }
+      if (rpcError) {
+        console.warn('RPC get_admin_accounts_list warning:', rpcError.message);
+      }
+    } catch (e) {
+      console.warn('RPC call exception, using direct fallback:', e);
     }
 
     const { data, error } = await supabase
@@ -18,7 +24,10 @@ export const adminService = {
       .in('role', ['admin', 'superadmin'])
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Failed to fetch profiles table:', error);
+      throw error;
+    }
     return data || [];
   },
 
@@ -97,16 +106,20 @@ export const adminService = {
    * Fetches recent security audit logs
    */
   async getAdminAuditLogs() {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*, profiles:user_id(full_name, email, role)')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*, profiles:user_id(full_name, email, role)')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-    if (error) {
-      console.warn('Audit logs table query warning:', error.message);
+      if (error) {
+        console.warn('Audit logs table query warning:', error.message);
+        return [];
+      }
+      return data || [];
+    } catch {
       return [];
     }
-    return data || [];
   }
 };
