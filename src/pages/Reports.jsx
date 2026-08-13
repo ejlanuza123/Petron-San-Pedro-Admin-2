@@ -474,9 +474,7 @@ export default function Reports() {
     }
   }, [reportData, dateRange]);
 
-  // ================== PDF EXPORT (Document Mode) ==================
-  // ================== PDF EXPORT (Document Mode - Fixed) ==================
-  // ================== PDF EXPORT (Document Mode - Fully Fixed) ==================
+  // ================== PDF EXPORT (Document Mode - Robust Fix) ==================
   const exportToPDF = useCallback(async () => {
     if (!reportData) return;
     setExporting(true);
@@ -494,26 +492,25 @@ export default function Reports() {
       const contentWidth = pageWidth - (margin * 2);
       let yPos = margin;
 
-      // CRITICAL FIX: Sanitize text for jsPDF to prevent &0&.&0&0& issues
+      // Safe string converter to prevent 'Cannot read properties of undefined (reading toString)'
+      const safeStr = (val, fallback = '0') => {
+        if (val === null || val === undefined) return fallback;
+        return String(val);
+      };
+
+      // CRITICAL FIX: Sanitize text for jsPDF to prevent formatting character issues
       const sanitizeText = (text) => {
         if (text === null || text === undefined) return '';
-        let str = String(text);
-        
-        // Remove ALL special characters that jsPDF might interpret as formatting
-        // This includes: &, %, #, @, etc.
+        let str = typeof text === 'string' ? text : String(text);
         str = str.replace(/[&%#@]/g, '');
-        
-        // Replace commas with spaces for thousands separators
         str = str.replace(/,/g, ' ');
-        
         return str;
       };
 
-      // Format currency WITHOUT the ₱ symbol - use "PHP" instead
+      // Format currency WITHOUT special symbols - use "PHP" instead
       const formatCurrencyForPDF = (amount) => {
-        if (typeof amount !== 'number') amount = 0;
-        // Use PHP prefix instead of ₱ symbol to avoid special character issues
-        return `PHP ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
+        const num = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+        return `PHP ${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
       };
 
       // Helper to add new page
@@ -555,7 +552,7 @@ export default function Reports() {
       pdf.setTextColor(100, 100, 100);
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Report Period: ${reportData.dateRange.label}`, margin, yPos);
+      pdf.text(`Report Period: ${sanitizeText(reportData.dateRange?.label || 'All Time')}`, margin, yPos);
       pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - margin - 50, yPos);
       yPos += 12;
 
@@ -578,25 +575,28 @@ export default function Reports() {
       const cardWidth = (contentWidth - 12) / 4;
       const cardHeight = 40;
       
+      const totalOrdersCount = reportData.summary?.totalOrders || 0;
+      const completedOrdersCount = reportData.summary?.completedOrders || 0;
+
       const summaryItems = [
         { 
           label: 'Total Revenue', 
-          value: formatCurrencyForPDF(reportData.summary.totalRevenue), 
+          value: formatCurrencyForPDF(reportData.summary?.totalRevenue ?? 0), 
           color: [0, 51, 160] 
         },
         { 
           label: 'Total Orders', 
-          value: reportData.summary.totalOrders.toString(), 
+          value: safeStr(totalOrdersCount), 
           color: [237, 28, 36] 
         },
         { 
           label: 'Avg Order Value', 
-          value: formatCurrencyForPDF(reportData.summary.averageOrderValue), 
+          value: formatCurrencyForPDF(reportData.summary?.averageOrderValue ?? 0), 
           color: [22, 163, 74] 
         },
         { 
           label: 'Success Rate', 
-          value: `${reportData.summary.totalOrders > 0 ? Math.round((reportData.summary.completedOrders / reportData.summary.totalOrders) * 100) : 0}%`, 
+          value: `${totalOrdersCount > 0 ? Math.round((completedOrdersCount / totalOrdersCount) * 100) : 0}%`, 
           color: [128, 90, 213] 
         }
       ];
@@ -604,22 +604,18 @@ export default function Reports() {
       summaryItems.forEach((item, index) => {
         const x = margin + (index * (cardWidth + 4));
         
-        // Card background
         pdf.setFillColor(248, 250, 252);
         pdf.rect(x, yPos, cardWidth, cardHeight, 'F');
         
-        // Border
         pdf.setDrawColor(220, 220, 220);
         pdf.setLineWidth(0.5);
         pdf.rect(x, yPos, cardWidth, cardHeight, 'S');
         
-        // Label
         pdf.setTextColor(100, 100, 100);
         pdf.setFontSize(8);
         pdf.setFont('helvetica', 'normal');
         pdf.text(item.label, x + 5, yPos + 8);
-        
-        // Value - using sanitized text
+
         pdf.setTextColor(item.color[0], item.color[1], item.color[2]);
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
@@ -642,22 +638,21 @@ export default function Reports() {
       pdf.line(margin, yPos, margin + 50, yPos);
       yPos += 10;
 
-      // Status table
-      const totalOrders = reportData.summary.totalOrders || 1;
+      const calcTotal = totalOrdersCount > 0 ? totalOrdersCount : 1;
       const statusData = [
         ['Status', 'Count', 'Percentage'],
         ['Completed', 
-          reportData.summary.completedOrders.toString(),
-          `${Math.round((reportData.summary.completedOrders / totalOrders) * 100)}%`],
+          safeStr(reportData.summary?.completedOrders),
+          `${Math.round(((reportData.summary?.completedOrders || 0) / calcTotal) * 100)}%`],
         ['Pending', 
-          reportData.summary.pendingOrders.toString(),
-          `${Math.round((reportData.summary.pendingOrders / totalOrders) * 100)}%`],
+          safeStr(reportData.summary?.pendingOrders),
+          `${Math.round(((reportData.summary?.pendingOrders || 0) / calcTotal) * 100)}%`],
         ['Processing', 
-          reportData.summary.processingOrders.toString(),
-          `${Math.round((reportData.summary.processingOrders / totalOrders) * 100)}%`],
+          safeStr(reportData.summary?.processingOrders),
+          `${Math.round(((reportData.summary?.processingOrders || 0) / calcTotal) * 100)}%`],
         ['Cancelled', 
-          reportData.summary.cancelledOrders.toString(),
-          `${Math.round((reportData.summary.cancelledOrders / totalOrders) * 100)}%`]
+          safeStr(reportData.summary?.cancelledOrders),
+          `${Math.round(((reportData.summary?.cancelledOrders || 0) / calcTotal) * 100)}%`]
       ];
 
       const colWidths = [50, 30, 35];
@@ -672,7 +667,6 @@ export default function Reports() {
           xPos = margin;
         }
 
-        // Draw row background
         if (!isHeader && rowIndex % 2 === 0) {
           pdf.setFillColor(248, 250, 252);
           pdf.rect(xPos, yPos - 4, colWidths.reduce((a, b) => a + b, 0), rowHeight + 4, 'F');
@@ -681,12 +675,10 @@ export default function Reports() {
         row.forEach((cell, cellIndex) => {
           const x = xPos + colWidths.slice(0, cellIndex).reduce((a, b) => a + b, 0);
           
-          // Cell border
           pdf.setDrawColor(200, 200, 200);
           pdf.setLineWidth(0.3);
           pdf.rect(x, yPos - 4, colWidths[cellIndex], rowHeight + 4, 'S');
 
-          // Cell text
           if (isHeader) {
             pdf.setTextColor(0, 51, 160);
             pdf.setFontSize(9);
@@ -696,7 +688,7 @@ export default function Reports() {
             pdf.setFontSize(9);
             pdf.setFont('helvetica', 'normal');
           }
-          pdf.text(sanitizeText(cell.toString()), x + 3, yPos + 4);
+          pdf.text(sanitizeText(safeStr(cell, '')), x + 3, yPos + 4);
         });
 
         yPos += rowHeight + 4;
@@ -705,7 +697,7 @@ export default function Reports() {
       yPos += 10;
 
       // ========== CATEGORY BREAKDOWN ==========
-      if (Object.keys(reportData.categorySales).length > 0) {
+      if (reportData.categorySales && Object.keys(reportData.categorySales).length > 0) {
         checkPageBreak(80);
         
         pdf.setTextColor(0, 51, 160);
@@ -720,7 +712,7 @@ export default function Reports() {
         yPos += 10;
 
         const sortedCategories = Object.entries(reportData.categorySales)
-          .sort(([,a], [,b]) => b.revenue - a.revenue);
+          .sort(([,a], [,b]) => (b?.revenue || 0) - (a?.revenue || 0));
 
         const maxRevenue = sortedCategories[0]?.[1]?.revenue || 1;
 
@@ -730,34 +722,33 @@ export default function Reports() {
             yPos = margin + 10;
           }
 
-          const percentage = (data.revenue / maxRevenue) * 100;
+          const catRev = data?.revenue || 0;
+          const catQty = data?.quantity || 0;
+          const catCount = data?.orderCount || 0;
+
+          const percentage = (catRev / maxRevenue) * 100;
           const barWidth = (percentage / 100) * (contentWidth - 80);
 
-          // Category name
           pdf.setTextColor(50, 50, 50);
           pdf.setFontSize(9);
           pdf.setFont('helvetica', 'bold');
-          pdf.text(category, margin, yPos + 3);
+          pdf.text(sanitizeText(category || 'Uncategorized'), margin, yPos + 3);
 
-          // Revenue - using sanitized currency
           pdf.setTextColor(0, 51, 160);
           pdf.setFontSize(9);
           pdf.setFont('helvetica', 'bold');
-          pdf.text(sanitizeText(formatCurrencyForPDF(data.revenue)), margin + 60, yPos + 3);
+          pdf.text(sanitizeText(formatCurrencyForPDF(catRev)), margin + 60, yPos + 3);
 
-          // Bar background
           pdf.setFillColor(240, 240, 240);
           pdf.rect(margin + 65, yPos - 2, contentWidth - 80, 12, 'F');
 
-          // Bar fill
           pdf.setFillColor(0, 51, 160);
-          pdf.rect(margin + 65, yPos - 2, barWidth, 12, 'F');
+          pdf.rect(margin + 65, yPos - 2, Math.max(1, barWidth), 12, 'F');
 
-          // Quantity info
           pdf.setTextColor(150, 150, 150);
           pdf.setFontSize(7);
           pdf.setFont('helvetica', 'normal');
-          pdf.text(`${data.quantity} units • ${data.orderCount} orders`, margin + 68, yPos + 14);
+          pdf.text(`${catQty} units • ${catCount} orders`, margin + 68, yPos + 14);
 
           yPos += 22;
         });
@@ -766,7 +757,7 @@ export default function Reports() {
       }
 
       // ========== TOP CUSTOMERS ==========
-      if (reportData.topCustomers.length > 0) {
+      if (Array.isArray(reportData.topCustomers) && reportData.topCustomers.length > 0) {
         checkPageBreak(60 + (reportData.topCustomers.length * 12));
         
         pdf.setTextColor(0, 51, 160);
@@ -783,7 +774,6 @@ export default function Reports() {
         const customerCols = [70, 50, 35];
         let cx = margin;
 
-        // Header
         ['Customer', 'Total Spent', 'Orders'].forEach((header, i) => {
           pdf.setTextColor(0, 51, 160);
           pdf.setFontSize(9);
@@ -801,7 +791,6 @@ export default function Reports() {
 
           cx = margin;
           
-          // Row background (alternating)
           if (index % 2 === 0) {
             pdf.setFillColor(248, 250, 252);
             pdf.rect(cx, yPos - 2, customerCols.reduce((a, b) => a + b, 0), 10, 'F');
@@ -810,17 +799,17 @@ export default function Reports() {
           pdf.setTextColor(50, 50, 50);
           pdf.setFontSize(9);
           pdf.setFont('helvetica', 'normal');
-          pdf.text(customer.name, cx + 3, yPos + 6);
+          pdf.text(sanitizeText(customer?.name || 'Anonymous'), cx + 3, yPos + 6);
           cx += customerCols[0];
 
           pdf.setTextColor(0, 51, 160);
           pdf.setFont('helvetica', 'bold');
-          pdf.text(sanitizeText(formatCurrencyForPDF(customer.totalSpent)), cx + 3, yPos + 6);
+          pdf.text(sanitizeText(formatCurrencyForPDF(customer?.totalSpent || 0)), cx + 3, yPos + 6);
           cx += customerCols[1];
 
           pdf.setTextColor(50, 50, 50);
           pdf.setFont('helvetica', 'normal');
-          pdf.text(customer.orderCount.toString(), cx + 3, yPos + 6);
+          pdf.text(safeStr(customer?.orderCount), cx + 3, yPos + 6);
 
           yPos += 12;
         });
@@ -831,7 +820,6 @@ export default function Reports() {
         addNewPage();
       }
 
-      // Footer line
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineWidth(0.5);
       pdf.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25);
