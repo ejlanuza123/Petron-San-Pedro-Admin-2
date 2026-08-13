@@ -1,6 +1,11 @@
 // src/pages/Customers.jsx
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Users, Mail, Phone, MapPin, Calendar, Eye, Edit2, X, Package, DollarSign, Clock, Save } from 'lucide-react';
+import { 
+  Users, Mail, Phone, MapPin, Calendar, Eye, Edit2, X, Package, DollarSign, Clock, Save,
+  UserCheck, UserX, Crown, ShieldAlert, Download, ChevronDown, FileSpreadsheet, FileText, ExternalLink
+} from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import ErrorAlert from '../components/common/ErrorAlert';
 import SearchBar from '../components/common/SearchBar';
 import Pagination from '../components/common/Pagination';
@@ -11,6 +16,83 @@ import { notifySuccess } from '../utils/successNotifier';
 import { useAdminLog } from '../hooks/useAdminLog';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+
+// Export Dropdown Component
+const ExportDropdown = ({ onExport, disabled, exporting, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={disabled || exporting}
+        className="bg-petron-blue text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 text-sm font-semibold shadow-sm"
+      >
+        {exporting ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            Exporting...
+          </>
+        ) : (
+          <>
+            <Download size={18} />
+            Export Directory
+            <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </>
+        )}
+      </button>
+
+      {isOpen && !exporting && (
+        <div className={`absolute right-0 mt-2 w-56 rounded-xl shadow-xl border py-1.5 z-50 transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+        }`}>
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onExport('excel');
+            }}
+            className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors ${
+              isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-blue-50'
+            }`}
+          >
+            <FileSpreadsheet size={18} className="text-green-600" />
+            <div>
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Excel Directory (.xlsx)</p>
+              <p className="text-xs text-gray-400">Download formatted sheet</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onExport('csv');
+            }}
+            className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors border-t ${
+              isDarkMode ? 'border-slate-700 hover:bg-slate-700' : 'border-gray-100 hover:bg-blue-50'
+            }`}
+          >
+            <FileText size={18} className="text-blue-600" />
+            <div>
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>CSV Raw Data (.csv)</p>
+              <p className="text-xs text-gray-400">Download comma-separated list</p>
+            </div>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Skeleton Components (keep as is)
 const TableRowSkeleton = ({ isDarkMode }) => (
@@ -228,11 +310,11 @@ const StatCardSkeleton = ({ isDarkMode }) => (
 EditCustomerModal.displayName = 'EditCustomerModal';
 
 // Customer Details Modal Component
-  const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick, isDarkMode }) => {
+  const CustomerDetailsModal = React.memo(({ customer, onClose, onAvatarClick, onNavigateToOrders, isDarkMode }) => {
     const stats = useMemo(() => {
       const orders = customer.orders || [];
       const totalSpent = orders.reduce((sum, order) => 
-        order.status === 'Completed' ? sum + order.total_amount : sum, 0
+        order.status === 'Completed' || order.status === 'delivered' ? sum + Number(order.total_amount || 0) : sum, 0
       );
       const lastOrder = orders.length > 0 
         ? new Date(Math.max(...orders.map(o => new Date(o.created_at))))
@@ -242,7 +324,7 @@ EditCustomerModal.displayName = 'EditCustomerModal';
         totalOrders: orders.length,
         totalSpent,
         lastOrder,
-        completedOrders: orders.filter(o => o.status === 'Completed').length,
+        completedOrders: orders.filter(o => o.status === 'Completed' || o.status === 'delivered').length,
         pendingOrders: orders.filter(o => o.status === 'Pending').length
       };
     }, [customer]);
@@ -284,10 +366,19 @@ EditCustomerModal.displayName = 'EditCustomerModal';
               )}
               <div>
                 <h4 className={`text-xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.full_name}</h4>
-                <p className={`flex items-center mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <Mail size={14} className="mr-1" />
-                  {customer.email}
-                </p>
+                {customer.email ? (
+                  <a
+                    href={`mailto:${customer.email}`}
+                    className="flex items-center mt-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <Mail size={14} className="mr-1" />
+                    {customer.email}
+                  </a>
+                ) : (
+                  <p className={`flex items-center mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <Mail size={14} className="mr-1" /> No Email Provided
+                  </p>
+                )}
               </div>
             </div>
 
@@ -316,7 +407,16 @@ EditCustomerModal.displayName = 'EditCustomerModal';
                 <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Phone size={14} className="mr-1" /> Phone Number
                 </p>
-                <p className={`font-medium mt-1 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.phone_number || 'N/A'}</p>
+                {customer.phone_number ? (
+                  <a
+                    href={`tel:${customer.phone_number}`}
+                    className="font-medium mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {customer.phone_number}
+                  </a>
+                ) : (
+                  <p className={`font-medium mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>N/A</p>
+                )}
               </div>
               <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'} p-4 rounded-lg transition-colors duration-300`}>
                 <p className={`text-sm flex items-center transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -338,7 +438,15 @@ EditCustomerModal.displayName = 'EditCustomerModal';
 
             {/* Order History */}
             <div>
-              <h5 className={`font-semibold mb-3 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Recent Orders</h5>
+              <div className="flex justify-between items-center mb-3">
+                <h5 className={`font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Recent Orders</h5>
+                <button
+                  onClick={() => onNavigateToOrders?.(customer.id)}
+                  className="text-xs font-semibold text-[#0033A0] dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink size={14} /> View All in Orders Tab
+                </button>
+              </div>
               {customer.orders && customer.orders.length > 0 ? (
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {customer.orders.slice(0, 5).map(order => (
@@ -381,9 +489,11 @@ export default function Customers() {
   const { isDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const { logCustomerAction } = useAdminLog();
   const handledFocusNonceRef = useRef(null);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -426,7 +536,7 @@ export default function Customers() {
   // Fetch customers
   const fetchCustomers = useCallback(async (isSilent = false) => {
     try {
-      if (!isSilent) setLoading(true); // Only show skeletons if NOT silent
+      if (!isSilent) setLoading(true);
       setError(null);
       
       const { data, error } = await supabase
@@ -467,16 +577,46 @@ export default function Customers() {
     };
   }, [fetchCustomers]);
 
+  // Memoized customer stats calculator
+  const getCustomerStats = useCallback((customer) => {
+    const orders = customer.orders || [];
+    const totalSpent = orders.reduce((sum, order) => 
+      order.status === 'Completed' || order.status === 'delivered' ? sum + Number(order.total_amount || 0) : sum, 0
+    );
+    const lastOrder = orders.length > 0 
+      ? new Date(Math.max(...orders.map(o => new Date(o.created_at))))
+      : null;
+
+    const isVip = totalSpent >= 5000;
+    const isNew = customer.created_at && (new Date() - new Date(customer.created_at)) <= 30 * 24 * 60 * 60 * 1000;
+    const isActive = customer.is_active !== false;
+
+    return {
+      totalOrders: orders.length,
+      totalSpent,
+      lastOrder,
+      completedOrders: orders.filter(o => o.status === 'Completed' || o.status === 'delivered').length,
+      pendingOrders: orders.filter(o => o.status === 'Pending').length,
+      isVip,
+      isNew,
+      isActive
+    };
+  }, []);
+
   // Memoized filtered customers
   const filteredCustomers = useMemo(() => {
     let result = customers;
 
-    if (filterStatus === 'active') {
+    if (filterStatus === 'vip') {
+      result = result.filter(c => getCustomerStats(c).isVip);
+    } else if (filterStatus === 'active') {
       result = result.filter(c => (c.orders || []).length > 0);
     } else if (filterStatus === 'new') {
       const now = new Date();
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       result = result.filter(c => new Date(c.created_at) >= firstOfMonth);
+    } else if (filterStatus === 'suspended') {
+      result = result.filter(c => c.is_active === false);
     }
 
     if (searchQuery.trim()) {
@@ -489,7 +629,7 @@ export default function Customers() {
     }
 
     return result;
-  }, [customers, searchQuery, filterStatus]);
+  }, [customers, searchQuery, filterStatus, getCustomerStats]);
 
   // Memoized pagination
   const paginatedCustomers = useMemo(() => {
@@ -498,25 +638,6 @@ export default function Customers() {
   }, [filteredCustomers, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-
-  // Memoized customer stats calculator
-  const getCustomerStats = useCallback((customer) => {
-    const orders = customer.orders || [];
-    const totalSpent = orders.reduce((sum, order) => 
-      order.status === 'Completed' ? sum + order.total_amount : sum, 0
-    );
-    const lastOrder = orders.length > 0 
-      ? new Date(Math.max(...orders.map(o => new Date(o.created_at))))
-      : null;
-
-    return {
-      totalOrders: orders.length,
-      totalSpent,
-      lastOrder,
-      completedOrders: orders.filter(o => o.status === 'Completed').length,
-      pendingOrders: orders.filter(o => o.status === 'Pending').length
-    };
-  }, []);
 
   // Memoized stats for summary cards
   const summaryStats = useMemo(() => {
@@ -550,6 +671,96 @@ export default function Customers() {
     };
   }, [customers, getCustomerStats]);
 
+  const handleToggleCustomerStatus = useCallback(async (customer) => {
+    const currentActive = customer.is_active !== false;
+    const newStatus = !currentActive;
+    const actionLabel = newStatus ? 'Activated' : 'Suspended';
+
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ is_active: newStatus })
+        .eq('id', customer.id);
+
+      if (updateError) throw updateError;
+
+      await logCustomerAction(customer.id, newStatus ? 'activate_customer' : 'suspend_customer', { is_active: newStatus }, `${actionLabel} customer account for ${customer.full_name || 'Customer'}`);
+      notifySuccess(`Successfully ${actionLabel.toLowerCase()} account for ${customer.full_name || 'Customer'}`);
+      fetchCustomers(true);
+    } catch (err) {
+      setError(err.message || `Failed to ${actionLabel.toLowerCase()} customer`);
+    }
+  }, [logCustomerAction, fetchCustomers]);
+
+  const handleExportCustomers = useCallback(async (format) => {
+    if (!filteredCustomers.length) return;
+    setExporting(true);
+
+    try {
+      if (format === 'csv') {
+        const headers = ['Customer ID', 'Full Name', 'Email', 'Phone Number', 'Status', 'Total Orders', 'Total Spent (PHP)', 'Member Since'];
+        const rows = filteredCustomers.map(c => {
+          const stats = getCustomerStats(c);
+          return [
+            `"${c.id || ''}"`,
+            `"${c.full_name || ''}"`,
+            `"${c.email || ''}"`,
+            `"${c.phone_number || ''}"`,
+            stats.isActive ? 'Active' : 'Suspended',
+            stats.totalOrders,
+            stats.totalSpent,
+            `"${c.created_at ? formatDate(c.created_at) : 'N/A'}"`
+          ];
+        });
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, `petron-customers-${new Date().toISOString().split('T')[0]}.csv`);
+      } else if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Customer Directory');
+
+        sheet.addRow(['PETRON SAN PEDRO - CUSTOMER DIRECTORY']);
+        sheet.addRow([`Generated: ${new Date().toLocaleString()}`]);
+        sheet.addRow([]);
+
+        const headerRow = sheet.addRow(['Full Name', 'Email', 'Phone Number', 'Status', 'Total Orders', 'Total Spent (PHP)', 'Member Since']);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0033A0' } };
+
+        filteredCustomers.forEach(c => {
+          const stats = getCustomerStats(c);
+          const row = sheet.addRow([
+            c.full_name || '',
+            c.email || '',
+            c.phone_number || 'N/A',
+            stats.isActive ? 'Active' : 'Suspended',
+            stats.totalOrders,
+            stats.totalSpent,
+            c.created_at ? formatDate(c.created_at) : 'N/A'
+          ]);
+          row.getCell(6).numFmt = '"Php"#,##0.00';
+        });
+
+        sheet.getColumn(1).width = 30;
+        sheet.getColumn(2).width = 30;
+        sheet.getColumn(3).width = 20;
+        sheet.getColumn(4).width = 15;
+        sheet.getColumn(5).width = 15;
+        sheet.getColumn(6).width = 20;
+        sheet.getColumn(7).width = 20;
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `petron-customers-${new Date().toISOString().split('T')[0]}.xlsx`);
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      setError('Failed to export customer directory: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }, [filteredCustomers, getCustomerStats]);
+
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     setCurrentPage(1);
@@ -579,6 +790,11 @@ export default function Customers() {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  const handleNavigateToOrders = useCallback((customerId) => {
+    handleCloseModal();
+    navigate('/orders', { state: { filterCustomerId: customerId } });
+  }, [handleCloseModal, navigate]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -599,7 +815,7 @@ export default function Customers() {
           <table className="w-full min-w-[900px]">
             <thead className={`transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
               <tr>
-                {[1,2,3,4,5,6].map(i => (
+                {[1,2,3,4,5,6,7].map(i => (
                   <th key={i} className="px-6 py-4">
                     <div className={`h-4 w-20 rounded ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
                   </th>
@@ -619,6 +835,12 @@ export default function Customers() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Customer Management</h2>
+        <ExportDropdown
+          onExport={handleExportCustomers}
+          disabled={filteredCustomers.length === 0}
+          exporting={exporting}
+          isDarkMode={isDarkMode}
+        />
       </div>
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
@@ -637,8 +859,10 @@ export default function Customers() {
           className={`border rounded-lg px-4 py-2.5 text-sm outline-none transition-colors duration-300 w-full sm:w-auto ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
         >
           <option value="all">All Customers</option>
-          <option value="active">Active Buyers 🛍️</option>
-          <option value="new">New This Month 🌟</option>
+          <option value="vip">VIP Buyers (👑 ₱5,000+)</option>
+          <option value="active">Active Buyers (🛍️ 1+ Orders)</option>
+          <option value="new">New This Month (🌟)</option>
+          <option value="suspended">Suspended Accounts (🚫)</option>
         </select>
       </div>
 
@@ -672,24 +896,25 @@ export default function Customers() {
           <Users size={48} className={`mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
           <h3 className={`text-lg font-medium mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No customers found</h3>
           <p className={`transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            {searchQuery ? "Try adjusting your search" : "No customers have registered yet"}
+            {searchQuery ? "Try adjusting your search" : "No customers match the selected filter"}
           </p>
         </div>
       ) : (
         <>
           <div className={`rounded-xl shadow-sm border overflow-x-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[950px]">
               <thead className={`border-b transition-colors duration-300 ${isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
                 <tr>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Customer</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Contact</th>
+                  <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Account Status</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Orders</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Total Spent</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Last Order</th>
                   <th className={`px-6 py-4 text-left text-xs font-medium uppercase transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>Actions</th>
                 </tr>
               </thead>
-            <tbody className={`divide-y transition-colors duration-300 ${isDarkMode ? 'divide-slate-700' : 'divide-gray-200'}`}>
+              <tbody className={`divide-y transition-colors duration-300 ${isDarkMode ? 'divide-slate-700' : 'divide-gray-200'}`}>
                 {paginatedCustomers.map((customer) => {
                   const stats = getCustomerStats(customer);
                   return (
@@ -715,8 +940,25 @@ export default function Customers() {
                             </div>
                           )}
                           <div>
-                            <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.full_name || 'Unnamed'}</p>
-                            <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{customer.email || 'No email'}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className={`font-medium transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{customer.full_name || 'Unnamed'}</p>
+                              {stats.isVip && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                  <Crown size={10} className="text-amber-500 fill-amber-400" /> VIP
+                                </span>
+                              )}
+                              {stats.isNew && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                                  🌟 NEW
+                                </span>
+                              )}
+                              {stats.totalOrders >= 1 && !stats.isVip && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                                  🛍️ Regular
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-xs mt-0.5 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{customer.email || 'No email'}</p>
                           </div>
                         </div>
                       </td>
@@ -733,6 +975,16 @@ export default function Customers() {
                             </p>
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          stats.isActive 
+                            ? (isDarkMode ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200')
+                            : (isDarkMode ? 'bg-red-950/80 text-red-300 border border-red-800' : 'bg-red-100 text-red-800 border border-red-200')
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${stats.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                          {stats.isActive ? 'Active' : 'Suspended'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div>
@@ -760,7 +1012,7 @@ export default function Customers() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                           <button
                             onClick={() => handleViewDetails(customer)}
                             className="p-2 text-[#0033A0] hover:bg-[#E5EEFF] rounded-lg transition-colors duration-150"
@@ -774,6 +1026,17 @@ export default function Customers() {
                             title="Edit Customer"
                           >
                             <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleToggleCustomerStatus(customer)}
+                            className={`p-2 rounded-lg transition-colors duration-150 ${
+                              stats.isActive 
+                                ? (isDarkMode ? 'hover:bg-red-950/50 text-red-400' : 'hover:bg-red-50 text-red-600')
+                                : (isDarkMode ? 'hover:bg-emerald-950/50 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600')
+                            }`}
+                            title={stats.isActive ? 'Suspend Account' : 'Activate Account'}
+                          >
+                            {stats.isActive ? <UserX size={18} /> : <UserCheck size={18} />}
                           </button>
                         </div>
                       </td>
@@ -801,6 +1064,7 @@ export default function Customers() {
           customer={selectedCustomer}
           onClose={handleCloseModal}
           onAvatarClick={setPreviewImageUrl}
+          onNavigateToOrders={handleNavigateToOrders}
           isDarkMode={isDarkMode}
         />
       )}
