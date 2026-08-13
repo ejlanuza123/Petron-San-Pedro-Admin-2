@@ -1,0 +1,15 @@
+/* src/styles/SuperAdminPortal.css */
+
+.super-admin-portal-container {
+  min-height: calc(100vh - 4rem);
+}
+
+.super-admin-portal-container table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.super-admin-portal-container td,
+.super-admin-portal-container th {
+  white-space: nowrap;
+}

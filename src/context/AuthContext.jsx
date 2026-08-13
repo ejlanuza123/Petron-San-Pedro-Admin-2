@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      if (data?.role === 'admin') {
+      if (data?.role === 'admin' || data?.role === 'superadmin') {
         if (import.meta.env.DEV) {
           console.log('Profile loaded successfully for authenticated admin');
         }
@@ -231,6 +231,8 @@ export const AuthProvider = ({ children }) => {
     signOut,
     updateProfile,
     isAuthenticated: !!user,
+    isSuperAdmin: profile?.role === 'superadmin',
+    role: profile?.role || null,
   };
 
   return (

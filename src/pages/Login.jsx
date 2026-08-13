@@ -28,15 +28,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationError, setVerificationError] = useState('');
-  const [isVerified, setIsVerified] = useState(() => {
-    if (!PERSONNEL_VERIFICATION_CODE) return true;
-
-    try {
-      return window.sessionStorage.getItem(PERSONNEL_VERIFICATION_STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isVerified, setIsVerified] = useState(true);
   const { isDarkMode } = useTheme();
   const { signIn } = useAuth();
   const navigate = useNavigate();

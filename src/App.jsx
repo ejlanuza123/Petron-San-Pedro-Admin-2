@@ -21,6 +21,7 @@ import Products from './pages/Products';
 import Reviews from './pages/Reviews';
 import ChatInbox from './pages/ChatInbox';
 import ChatThread from './pages/ChatThread';
+import SuperAdminPortal from './pages/SuperAdminPortal';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PasswordResetSuccess from './pages/PasswordResetSuccess';
@@ -71,6 +72,7 @@ function App() {
                     <Route path="/register" element={<Register />} />
                     <Route path="/password-recovery" element={<PasswordRecovery />} />
                     <Route path="/password-reset-success" element={<PasswordResetSuccess />} />
+                    <Route path="/super-admin" element={<SuperAdminPortal />} />
 
                     <Route path="/" element={
                       <ProtectedRoute>
