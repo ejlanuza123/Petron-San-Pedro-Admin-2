@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ShieldCheck, UserPlus, Search, RefreshCw, Key, UserCheck, 
   UserX, Shield, Activity, Clock, CheckCircle2, AlertCircle, X, Loader2,
-  Lock, Mail, ArrowLeft, LogOut
+  Lock, Mail, ArrowLeft, LogOut, Sun, Moon
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +18,7 @@ const SUPERADMIN_PASSCODE = import.meta.env.VITE_SUPERADMIN_VERIFICATION_CODE ||
 const SUPERADMIN_SESSION_STORAGE_KEY = 'petron-superadmin-passcode-verified';
 
 export default function SuperAdminPortal() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const { user: currentUser, profile, isAuthenticated, isSuperAdmin, signIn, signOut } = useAuth();
   
   // Phase 1: Personnel Verification Code Gate
@@ -186,9 +186,23 @@ export default function SuperAdminPortal() {
   // PHASE 1: Personnel Verification Passcode Gate
   if (!isPasscodeVerified) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-300 ${
+      <div className={`min-h-screen relative flex items-center justify-center p-6 transition-colors duration-300 ${
         isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
+        {/* Top Right Theme Toggle */}
+        <button
+          onClick={toggleDarkMode}
+          className={`absolute top-6 right-6 p-3 rounded-2xl border transition-all shadow-md flex items-center gap-2 text-xs font-bold ${
+            isDarkMode 
+              ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
+              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+
         <div className={`max-w-md w-full p-8 rounded-2xl border text-center shadow-2xl transition-colors duration-300 ${
           isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
         }`}>
@@ -259,9 +273,23 @@ export default function SuperAdminPortal() {
   // PHASE 2: Super Admin Login Screen (if not logged in as superadmin)
   if (!isAuthenticated || (!isSuperAdmin && profile?.role !== 'superadmin')) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-300 ${
+      <div className={`min-h-screen relative flex items-center justify-center p-6 transition-colors duration-300 ${
         isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
+        {/* Top Right Theme Toggle */}
+        <button
+          onClick={toggleDarkMode}
+          className={`absolute top-6 right-6 p-3 rounded-2xl border transition-all shadow-md flex items-center gap-2 text-xs font-bold ${
+            isDarkMode 
+              ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
+              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+
         <div className={`max-w-md w-full p-8 rounded-2xl border shadow-2xl transition-colors duration-300 ${
           isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
         }`}>
@@ -364,6 +392,19 @@ export default function SuperAdminPortal() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleDarkMode}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition border shadow-sm ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+
           <button
             onClick={loadData}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition border shadow-sm ${
