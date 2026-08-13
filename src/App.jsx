@@ -73,6 +73,7 @@ function App() {
                     <Route path="/password-recovery" element={<PasswordRecovery />} />
                     <Route path="/password-reset-success" element={<PasswordResetSuccess />} />
                     <Route path="/super-admin" element={<SuperAdminPortal />} />
+                    <Route path="/admin-management" element={<SuperAdminPortal />} />
 
                     <Route path="/" element={
                       <ProtectedRoute>
