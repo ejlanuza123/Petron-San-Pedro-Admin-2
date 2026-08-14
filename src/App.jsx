@@ -19,6 +19,7 @@ import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Products from './pages/Products';
 import Reviews from './pages/Reviews';
+import SalesHeatmap from './pages/SalesHeatmap';
 import ChatInbox from './pages/ChatInbox';
 import ChatThread from './pages/ChatThread';
 import SuperAdminPortal from './pages/SuperAdminPortal';
@@ -88,6 +89,7 @@ function App() {
                       <Route path="riders" element={<Riders />} />
                       <Route path="reviews" element={<Reviews />} />
                       <Route path="reports" element={<Reports />} />
+                      <Route path="heatmap" element={<SalesHeatmap />} />
                       <Route path="reservations" element={<Reservations />} />
                       <Route path="chat" element={<ChatInbox />} />
                       <Route path="chat/:conversationId" element={<ChatThread />} />

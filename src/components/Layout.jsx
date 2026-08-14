@@ -26,7 +26,8 @@ import {
   Star,
   Settings,
   Volume2,
-  VolumeX
+  VolumeX,
+  Flame
 } from 'lucide-react';
 import { AnimatedThemeToggle } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -446,6 +447,7 @@ const Sidebar = memo(({
     { to: '/riders', icon: Truck, label: 'Riders' },
     { to: '/reviews', icon: Star, label: 'Reviews' },
     { to: '/reports', icon: FileText, label: 'Reports' },
+    { to: '/heatmap', icon: Flame, label: 'Sales Heatmap' },
     { to: '/audit-logs', icon: FileText, label: 'Audit Logs' }
   ];
 
@@ -748,6 +750,7 @@ const MobileHeader = memo(({
                   { to: '/riders', icon: Truck, label: 'Riders' },
                   { to: '/reviews', icon: Star, label: 'Reviews' },
                   { to: '/reports', icon: FileText, label: 'Reports' },
+                  { to: '/heatmap', icon: Flame, label: 'Sales Heatmap' },
                   { to: '/audit-logs', icon: FileText, label: 'Audit Logs' }
                 ].map((item, index) => (
                   <motion.div
