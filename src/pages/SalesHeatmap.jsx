@@ -30,36 +30,60 @@ import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import ErrorAlert from '../components/common/ErrorAlert';
 
-// Known San Pedro, Laguna key barangays & zones with centroid coordinates for fallback matching
-const SAN_PEDRO_BARANGAYS = [
-  { name: 'Pacita Complex', aliases: ['pacita', 'pacita 1', 'pacita 2', 'pacita complex'], lat: 14.3490, lng: 121.0570 },
-  { name: 'San Antonio', aliases: ['san antonio', 'st. anthony', 'antonio'], lat: 14.3620, lng: 121.0560 },
-  { name: 'Cuyab', aliases: ['cuyab'], lat: 14.3640, lng: 121.0660 },
-  { name: 'Landayan', aliases: ['landayan'], lat: 14.3720, lng: 121.0590 },
-  { name: 'Chrysanthemum', aliases: ['chrysanthemum', 'chrysa', 'chrysanthemum village'], lat: 14.3450, lng: 121.0520 },
-  { name: 'San Vicente', aliases: ['san vicente', 'vicente'], lat: 14.3580, lng: 121.0480 },
-  { name: 'Nueva', aliases: ['nueva', 'poblacion'], lat: 14.3610, lng: 121.0450 },
-  { name: 'Magsaysay', aliases: ['magsaysay'], lat: 14.3550, lng: 121.0550 },
-  { name: 'Rosario', aliases: ['rosario', 'rosario complex'], lat: 14.3480, lng: 121.0450 },
-  { name: 'San Roque', aliases: ['san roque', 'roque'], lat: 14.3670, lng: 121.0510 },
-  { name: 'Fatima', aliases: ['fatima', 'our lady of fatima'], lat: 14.3520, lng: 121.0410 },
-  { name: 'Calendola', aliases: ['calendola', 'calendola village'], lat: 14.3410, lng: 121.0490 },
-  { name: 'Sampaguita Village', aliases: ['sampaguita', 'sampaguita village'], lat: 14.3380, lng: 121.0540 },
-  { name: 'Estrella', aliases: ['estrella'], lat: 14.3530, lng: 121.0600 },
-  { name: 'United Bayanihan', aliases: ['united bayanihan', 'bayanihan'], lat: 14.3500, lng: 121.0630 },
-  { name: 'Laram', aliases: ['laram'], lat: 14.3560, lng: 121.0380 },
-  { name: 'Riverside', aliases: ['riverside'], lat: 14.3680, lng: 121.0420 },
-  { name: 'Bagong Silang', aliases: ['bagong silang', 'silang'], lat: 14.3430, lng: 121.0360 },
-  { name: 'LangIntersection / Biñan Border', aliases: ['biñan', 'binan', 'san pedro border'], lat: 14.3350, lng: 121.0650 },
-  { name: 'Other / Central San Pedro', aliases: ['san pedro', 'laguna'], lat: 14.3583, lng: 121.0583 }
+// Comprehensive official list of Barangays in Puerto Princesa City, Palawan with centroid coordinates
+const PUERTO_PRINCESA_BARANGAYS = [
+  // Core Urban / Commercial & High-Density Hubs
+  { name: 'San Pedro', aliases: ['san pedro', 'petron san pedro', 'san pedro national highway'], lat: 9.7535, lng: 118.7479 },
+  { name: 'San Miguel', aliases: ['san miguel', 'airport', 'rizal ave', 'miguel'], lat: 9.7460, lng: 118.7520 },
+  { name: 'San Jose', aliases: ['san jose', 'new market', 'terminal', 'san jose terminal'], lat: 9.7750, lng: 118.7480 },
+  { name: 'Tiniguiban', aliases: ['tiniguiban', 'psu', 'coliseum', 'palawan state'], lat: 9.7680, lng: 118.7420 },
+  { name: 'San Manuel', aliases: ['san manuel', 'manuel', 'bm road'], lat: 9.7610, lng: 118.7620 },
+  { name: 'Santa Monica', aliases: ['santa monica', 'sta. monica', 'sta monica', 'mitra', 'city hall'], lat: 9.7890, lng: 118.7360 },
+  { name: 'Bancao-Bancao', aliases: ['bancao-bancao', 'bancao bancao', 'bancao', 'pristine beach'], lat: 9.7320, lng: 118.7450 },
+  { name: 'Mandaragat', aliases: ['mandaragat', 'lacao', 'manalo'], lat: 9.7430, lng: 118.7370 },
+  { name: 'Sicsican', aliases: ['sicsican', 'fariñas'], lat: 9.8050, lng: 118.7200 },
+  { name: 'Irawan', aliases: ['irawan', 'chattoc', 'flora and fauna'], lat: 9.8150, lng: 118.6850 },
+  { name: 'Tagburos', aliases: ['tagburos', 'fisheries'], lat: 9.8250, lng: 118.7480 },
+  { name: 'Santa Lourdes', aliases: ['santa lourdes', 'sta. lourdes', 'sta lourdes', 'honda bay', 'honda bay wharf'], lat: 9.8450, lng: 118.7350 },
+
+  // Poblacion / Downtown Districts
+  { name: 'Bagong Silang', aliases: ['bagong silang'], lat: 9.7400, lng: 118.7380 },
+  { name: 'Bagong Sikat', aliases: ['bagong sikat'], lat: 9.7390, lng: 118.7320 },
+  { name: 'Bagong Pag-asa', aliases: ['bagong pag-asa', 'bagong pagasa'], lat: 9.7420, lng: 118.7350 },
+  { name: 'Pagkakaisa', aliases: ['pagkakaisa', 'baywalk', 'port'], lat: 9.7410, lng: 118.7300 },
+  { name: 'Mabuhay', aliases: ['mabuhay'], lat: 9.7440, lng: 118.7340 },
+  { name: 'Model', aliases: ['model', 'barracks'], lat: 9.7450, lng: 118.7390 },
+  { name: 'Milagrosa', aliases: ['milagrosa'], lat: 9.7470, lng: 118.7430 },
+  { name: 'Maningning', aliases: ['maningning'], lat: 9.7450, lng: 118.7410 },
+  { name: 'Maunlad', aliases: ['maunlad'], lat: 9.7460, lng: 118.7370 },
+  { name: 'Manggahan', aliases: ['manggahan'], lat: 9.7480, lng: 118.7380 },
+  { name: 'Masipag', aliases: ['masipag'], lat: 9.7490, lng: 118.7390 },
+  { name: 'Matiyaga', aliases: ['matiyaga'], lat: 9.7470, lng: 118.7360 },
+  { name: 'Princesa', aliases: ['princesa', 'cathedral'], lat: 9.7430, lng: 118.7290 },
+  { name: 'Tagumpay', aliases: ['tagumpay'], lat: 9.7440, lng: 118.7310 },
+  { name: 'Liwanag', aliases: ['liwanag'], lat: 9.7400, lng: 118.7330 },
+  { name: 'Tanglaw', aliases: ['tanglaw'], lat: 9.7390, lng: 118.7350 },
+  { name: 'Maligaya', aliases: ['maligaya'], lat: 9.7430, lng: 118.7360 },
+
+  // South & North City Corridors
+  { name: 'Iwahig', aliases: ['iwahig', 'penal colony'], lat: 9.7420, lng: 118.6700 },
+  { name: 'Montible', aliases: ['montible'], lat: 9.7150, lng: 118.6400 },
+  { name: 'Luzviminda', aliases: ['luzviminda'], lat: 9.6650, lng: 118.6780 },
+  { name: 'Mangingisda', aliases: ['mangingisda'], lat: 9.7020, lng: 118.7180 },
+  { name: 'Santa Cruz', aliases: ['santa cruz', 'sta. cruz', 'sta cruz'], lat: 9.6350, lng: 118.6650 },
+  { name: 'Bacungan', aliases: ['bacungan', 'nagtabon'], lat: 9.9050, lng: 118.7050 },
+  { name: 'San Rafael', aliases: ['san rafael', 'rafael'], lat: 9.9650, lng: 118.7800 },
+  { name: 'Cabayugan', aliases: ['cabayugan', 'sabang', 'underground river'], lat: 10.1950, lng: 118.8950 },
+  { name: 'Inagawan', aliases: ['inagawan'], lat: 9.5500, lng: 118.6200 },
+  { name: 'Other / Puerto Princesa Proper', aliases: ['puerto princesa', 'palawan', 'ppc'], lat: 9.7535, lng: 118.7479 }
 ];
 
-// Helper to detect barangay from delivery address string and coordinates
+// Helper to detect barangay from delivery address string and coordinates in Puerto Princesa City
 function detectBarangay(address, lat, lng) {
   const addrStr = (address || '').toLowerCase();
   
   // 1. Check direct address string keyword aliases
-  for (const b of SAN_PEDRO_BARANGAYS) {
+  for (const b of PUERTO_PRINCESA_BARANGAYS) {
     if (b.aliases.some(alias => addrStr.includes(alias))) {
       return b.name;
     }
@@ -67,23 +91,23 @@ function detectBarangay(address, lat, lng) {
 
   // 2. If valid coordinates, find nearest centroid
   if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-    let nearest = SAN_PEDRO_BARANGAYS[0];
+    let nearest = PUERTO_PRINCESA_BARANGAYS[0];
     let minDistance = Infinity;
     
-    for (const b of SAN_PEDRO_BARANGAYS) {
+    for (const b of PUERTO_PRINCESA_BARANGAYS) {
       const d = Math.hypot(b.lat - lat, b.lng - lng);
       if (d < minDistance) {
         minDistance = d;
         nearest = b;
       }
     }
-    // If within ~5km proximity
-    if (minDistance < 0.05) {
+    // If within ~10km proximity
+    if (minDistance < 0.1) {
       return nearest.name;
     }
   }
 
-  return 'Other / Central San Pedro';
+  return 'Other / Puerto Princesa Proper';
 }
 
 // Generate Leaflet Heatmap HTML for the iframe canvas
@@ -93,7 +117,7 @@ function generateHeatmapHtml({ points, markers, isDarkMode, heatMode, heatRadius
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
-  const defaultCenter = focusLocation || { lat: 14.3583, lng: 121.0583, zoom: 14 };
+  const defaultCenter = focusLocation || { lat: 9.7535, lng: 118.7479, zoom: 14 };
 
   const pointsJson = JSON.stringify(points || []);
   const markersJson = JSON.stringify(markers || []);
@@ -166,7 +190,7 @@ function generateHeatmapHtml({ points, markers, isDarkMode, heatMode, heatRadius
       subdomains: 'abcd'
     }).addTo(map);
 
-    // Add Petron Hub Marker
+    // Add Petron Hub Marker (Barangay San Pedro, Puerto Princesa City)
     const storeIcon = L.divIcon({
       html: '<div class="store-pin">⛽</div>',
       className: '',
@@ -174,9 +198,9 @@ function generateHeatmapHtml({ points, markers, isDarkMode, heatMode, heatRadius
       iconAnchor: [16, 16]
     });
 
-    L.marker([14.3583, 121.0583], { icon: storeIcon, zIndexOffset: 2000 })
+    L.marker([9.7535, 118.7479], { icon: storeIcon, zIndexOffset: 2000 })
       .addTo(map)
-      .bindPopup('<div class="custom-popup" style="font-size:13px;line-height:1.4"><b>📍 Petron San Pedro Hub</b><br/><span style="color:#64748b">Central Distribution Station</span></div>');
+      .bindPopup('<div class="custom-popup" style="font-size:13px;line-height:1.4"><b>📍 Petron San Pedro Hub</b><br/><span style="color:#64748b">Barangay San Pedro, Puerto Princesa City</span></div>');
 
     // Heatmap Layer
     let heatLayer = null;
@@ -378,8 +402,8 @@ export default function SalesHeatmap() {
     const markers = [];
     const bMap = {};
 
-    // Initialize all known barangays
-    SAN_PEDRO_BARANGAYS.forEach(b => {
+    // Initialize all known Puerto Princesa City barangays
+    PUERTO_PRINCESA_BARANGAYS.forEach(b => {
       bMap[b.name] = {
         name: b.name,
         orderCount: 0,
@@ -404,7 +428,7 @@ export default function SalesHeatmap() {
       let lng = o.delivery_lng || o.profiles?.address_lng;
 
       const detectedName = detectBarangay(address, lat, lng);
-      const bObj = SAN_PEDRO_BARANGAYS.find(b => b.name === detectedName) || SAN_PEDRO_BARANGAYS[SAN_PEDRO_BARANGAYS.length - 1];
+      const bObj = PUERTO_PRINCESA_BARANGAYS.find(b => b.name === detectedName) || PUERTO_PRINCESA_BARANGAYS[PUERTO_PRINCESA_BARANGAYS.length - 1];
 
       // If no GPS coordinates in DB, add slight random jitter around barangay centroid for visual realism
       if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
@@ -561,7 +585,7 @@ export default function SalesHeatmap() {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Sales Density Heatmap');
 
-        sheet.addRow(['PETRON SAN PEDRO - GEOGRAPHIC SALES DENSITY REPORT']);
+        sheet.addRow(['PETRON SAN PEDRO - PUERTO PRINCESA CITY GEOGRAPHIC SALES DENSITY REPORT']);
         sheet.addRow([`Period: ${dateRange.toUpperCase()} | Generated: ${new Date().toLocaleString()}`]);
         sheet.addRow([]);
 
@@ -614,7 +638,7 @@ export default function SalesHeatmap() {
             Geographic Sales Density Heatmap
           </h2>
           <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Thermographic visualizer of order density, high-revenue corridors, and barangay market penetration in San Pedro.
+            Thermographic visualizer of order density, high-revenue corridors, and barangay market penetration in Puerto Princesa City.
           </p>
         </div>
 
