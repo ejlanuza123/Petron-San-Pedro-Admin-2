@@ -244,7 +244,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         .select('id')
         .eq('order_id', order.id);
 
-      if (deliveryError) throw deliveryError;
+      if (deliveryError) {
+        console.warn('[Admin][OrderModal] Error querying deliveries for order:', deliveryError);
+      }
 
       let allProofs = [];
 
@@ -257,12 +259,30 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           .in('delivery_id', deliveryIds)
           .order('delivered_at', { ascending: false });
 
-        if (!proofsError && proofs) {
+        if (proofsError) {
+          console.warn('[Admin][OrderModal] Error querying delivery_proofs by delivery_id:', proofsError);
+        } else if (proofs) {
           allProofs = [...proofs];
         }
       }
 
-      // 3. Fallback: also check if delivery_proofs has direct order_id
+      // 3. Fallback: query delivery_proofs joining deliveries!inner(order_id)
+      if (allProofs.length === 0) {
+        try {
+          const { data: joinedProofs, error: joinError } = await supabase
+            .from('delivery_proofs')
+            .select('*, delivery:deliveries!inner(id, order_id)')
+            .eq('delivery.order_id', order.id);
+
+          if (!joinError && joinedProofs && joinedProofs.length > 0) {
+            allProofs = joinedProofs;
+          }
+        } catch (e) {
+          // ignore join failure
+        }
+      }
+
+      // 4. Fallback: check if delivery_proofs has direct order_id column
       if (allProofs.length === 0) {
         try {
           const { data: fallbackProofs } = await supabase
@@ -277,9 +297,10 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
         }
       }
 
+      console.log('[Admin][OrderModal] Loaded delivery proofs:', { orderId: order.id, count: allProofs.length, proofs: allProofs });
       setDeliveryProofs(allProofs);
     } catch (error) {
-      console.error('Error fetching delivery proofs:', error);
+      console.error('[Admin][OrderModal] Error fetching delivery proofs:', error);
       setDeliveryProofs([]);
     } finally {
       setLoadingProofs(false);
