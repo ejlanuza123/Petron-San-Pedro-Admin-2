@@ -223,12 +223,22 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
     }
   }, [order?.id]);
 
+  const getProofImageUrl = (photoUrl) => {
+    if (!photoUrl) return null;
+    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://') || photoUrl.startsWith('data:')) {
+      return photoUrl;
+    }
+    const cleanPath = photoUrl.replace(/^delivery-proofs\//, '');
+    const { data } = supabase.storage.from('delivery-proofs').getPublicUrl(cleanPath);
+    return data?.publicUrl || photoUrl;
+  };
+
   const fetchDeliveryProofs = useCallback(async () => {
     if (!order?.id) return;
     
     try {
       setLoadingProofs(true);
-      // Get delivery associated with this order
+      // 1. Get deliveries associated with this order
       const { data: deliveries, error: deliveryError } = await supabase
         .from('deliveries')
         .select('id')
@@ -236,7 +246,9 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
 
       if (deliveryError) throw deliveryError;
 
-      // If there are deliveries, fetch proofs for them
+      let allProofs = [];
+
+      // 2. Fetch proofs by delivery_id
       if (deliveries && deliveries.length > 0) {
         const deliveryIds = deliveries.map(d => d.id);
         const { data: proofs, error: proofsError } = await supabase
@@ -245,11 +257,27 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
           .in('delivery_id', deliveryIds)
           .order('delivered_at', { ascending: false });
 
-        if (proofsError) throw proofsError;
-        setDeliveryProofs(proofs || []);
-      } else {
-        setDeliveryProofs([]);
+        if (!proofsError && proofs) {
+          allProofs = [...proofs];
+        }
       }
+
+      // 3. Fallback: also check if delivery_proofs has direct order_id
+      if (allProofs.length === 0) {
+        try {
+          const { data: fallbackProofs } = await supabase
+            .from('delivery_proofs')
+            .select('*')
+            .eq('order_id', order.id);
+          if (fallbackProofs && fallbackProofs.length > 0) {
+            allProofs = fallbackProofs;
+          }
+        } catch (e) {
+          // column order_id might not exist in some migrations
+        }
+      }
+
+      setDeliveryProofs(allProofs);
     } catch (error) {
       console.error('Error fetching delivery proofs:', error);
       setDeliveryProofs([]);
@@ -480,7 +508,7 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
             </div>
 
             {/* Delivery Proof Section */}
-            {order.status === 'Completed' && (
+            {(['completed', 'delivered'].includes(order.status?.toLowerCase()) || (deliveryProofs && deliveryProofs.length > 0)) && (
               <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-white border-gray-200'}`}>
                 <h3 className={`font-semibold mb-3 flex items-center transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   <ImageIcon size={18} className="mr-2 text-blue-600" />
@@ -493,54 +521,62 @@ export default function OrderModal({ isOpen, onClose, order, onStatusChange }) {
                   </div>
                 ) : deliveryProofs && deliveryProofs.length > 0 ? (
                   <div className="space-y-4">
-                    {deliveryProofs.map((proof, index) => (
-                      <div key={proof.id} className={`border rounded-lg p-4 transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700' : 'border-gray-200 bg-gray-50'}`}>
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className={`text-sm font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Proof #{index + 1}</p>
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/40">
-                                <CheckCircle2 size={12} /> Verified
-                              </span>
+                    {deliveryProofs.map((proof, index) => {
+                      const resolvedPhotoUrl = getProofImageUrl(proof.photo_url);
+
+                      return (
+                        <div key={proof.id || index} className={`border rounded-lg p-4 transition-colors duration-300 ${isDarkMode ? 'border-slate-600 bg-slate-700' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className={`text-sm font-semibold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Proof #{index + 1}</p>
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/40">
+                                  <CheckCircle2 size={12} /> Verified
+                                </span>
+                              </div>
+                              <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {formatDate(proof.delivered_at || proof.created_at)}
+                              </p>
                             </div>
-                            <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {formatDate(proof.delivered_at)}
-                            </p>
+                            {proof.recipient_name && (
+                              <span className={`text-xs px-2 py-1 rounded transition-colors duration-300 ${isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'}`}>
+                                {proof.recipient_name}
+                              </span>
+                            )}
                           </div>
-                          {proof.recipient_name && (
-                            <span className={`text-xs px-2 py-1 rounded transition-colors duration-300 ${isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'}`}>
-                              {proof.recipient_name}
-                            </span>
+
+                          {resolvedPhotoUrl ? (
+                            <div className="mb-3">
+                              <img
+                                src={resolvedPhotoUrl}
+                                alt={`Delivery proof ${index + 1}`}
+                                className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200/10 shadow-sm"
+                                onClick={() => setSelectedProofImage(resolvedPhotoUrl)}
+                              />
+                            </div>
+                          ) : (
+                            <div className={`mb-3 p-4 rounded-lg border text-center text-xs ${isDarkMode ? 'bg-slate-800 border-slate-600 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'}`}>
+                              No photo attached
+                            </div>
+                          )}
+
+                          {proof.notes && (
+                            <div>
+                              <p className={`text-xs font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Notes</p>
+                              <p className={`text-sm p-2 rounded border transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-500 text-gray-200' : 'bg-white border-gray-200 text-gray-600'}`}>
+                                {proof.notes}
+                              </p>
+                            </div>
+                          )}
+
+                          {(proof.delivery_lat || proof.delivery_lng) && (
+                            <div className="mt-3 text-xs text-gray-600 bg-white p-2 rounded border border-gray-200">
+                              <p className={`text-xs p-2 rounded border transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-500 text-gray-300' : 'bg-white border-gray-200 text-gray-600'}`}>Coordinates: {proof.delivery_lat || 'N/A'}, {proof.delivery_lng || 'N/A'}</p>
+                            </div>
                           )}
                         </div>
-
-                        {proof.photo_url && (
-                          <div className="mb-3">
-                            <img
-                              src={proof.photo_url}
-                              alt={`Delivery proof ${index + 1}`}
-                              className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200/10"
-                              onClick={() => setSelectedProofImage(proof.photo_url)}
-                            />
-                          </div>
-                        )}
-
-                        {proof.notes && (
-                          <div>
-                            <p className={`text-xs font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Notes</p>
-                            <p className={`text-sm p-2 rounded border transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-500 text-gray-200' : 'bg-white border-gray-200 text-gray-600'}`}>
-                              {proof.notes}
-                            </p>
-                          </div>
-                        )}
-
-                        {(proof.delivery_lat || proof.delivery_lng) && (
-                          <div className="mt-3 text-xs text-gray-600 bg-white p-2 rounded border border-gray-200">
-                            <p className={`text-xs p-2 rounded border transition-colors duration-300 ${isDarkMode ? 'bg-slate-600 border-slate-500 text-gray-300' : 'bg-white border-gray-200 text-gray-600'}`}>Coordinates: {proof.delivery_lat || 'N/A'}, {proof.delivery_lng || 'N/A'}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className={`text-center py-4 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No delivery proofs available</p>
