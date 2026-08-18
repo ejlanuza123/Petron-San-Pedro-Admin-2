@@ -1,10 +1,14 @@
 // src/components/FleetLiveMap.jsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Truck, MapPin, Navigation, Phone, User, RefreshCw, Layers, CheckCircle, Clock, ShieldCheck } from 'lucide-react';
+import { Truck, MapPin, Navigation, Phone, User, RefreshCw, Layers, CheckCircle, Clock, ShieldCheck, Moon, Sun } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatPhoneNumber } from '../utils/formatters';
+import { useTheme } from '../context/ThemeContext';
 
-export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
+export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder }) {
+  const { isDarkMode: themeDarkMode } = useTheme();
+  const isDarkMode = typeof isDarkModeProp === 'boolean' ? isDarkModeProp : !!themeDarkMode;
+
   const [loading, setLoading] = useState(true);
   const [riders, setRiders] = useState([]);
   const [activeOrders, setActiveOrders] = useState([]);
@@ -113,12 +117,12 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
     return riders;
   }, [riders, filterRiderStatus]);
 
-  // Generate Leaflet HTML String for iframe map rendering
+  // Generate Leaflet HTML String for iframe map rendering with dark mode & tile layer support
   const mapHtml = useMemo(() => {
-    const defaultCenter = { lat: 9.7534245, lng: 118.7478136 }; // Petron San Pedro Station, Puerto Princesa
+    const defaultCenter = { lat: 9.7534772, lng: 118.7478688 }; // Petron San Pedro Hub
 
     // Store origin
-    const storePin = { lat: 9.7534245, lng: 118.7478136, name: 'Petron San Pedro Station' };
+    const storePin = { lat: 9.7534772, lng: 118.7478688, name: 'Petron San Pedro Hub' };
 
     // Format riders data for Leaflet
     const riderMarkers = filteredRiders
@@ -154,17 +158,123 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; }
-    .leaflet-popup-content-wrapper { border-radius: 12px; padding: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .rider-pin { width: 34px; height: 34px; border-radius: 50%; background: #0033A0; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 4px 12px rgba(0,51,160,0.4); font-size: 16px; }
-    .rider-pin.busy { background: #eab308; box-shadow: 0 4px 12px rgba(234,179,8,0.4); }
-    .order-pin { width: 28px; height: 28px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 3px 8px rgba(239,68,68,0.4); }
-    .store-pin { width: 38px; height: 38px; border-radius: 12px; background: #16a34a; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 14px rgba(22,163,74,0.5); }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: ${isDarkMode ? '#0f172a' : '#f8fafc'}; 
+    }
+    .leaflet-container {
+      background: ${isDarkMode ? '#0f172a' : '#f8fafc'} !important;
+    }
+    .leaflet-popup-content-wrapper { 
+      background: ${isDarkMode ? '#1e293b' : '#ffffff'} !important;
+      color: ${isDarkMode ? '#f8fafc' : '#0f172a'} !important;
+      border: ${isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0'} !important;
+      border-radius: 12px; 
+      padding: 4px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,${isDarkMode ? '0.5' : '0.15'}); 
+    }
+    .leaflet-popup-tip {
+      background: ${isDarkMode ? '#1e293b' : '#ffffff'} !important;
+    }
+    .leaflet-popup-close-button {
+      color: ${isDarkMode ? '#94a3b8' : '#64748b'} !important;
+    }
+    .leaflet-control-zoom a {
+      background: ${isDarkMode ? '#1e293b' : '#ffffff'} !important;
+      color: ${isDarkMode ? '#f8fafc' : '#0f172a'} !important;
+      border-color: ${isDarkMode ? '#334155' : '#e2e8f0'} !important;
+    }
+    .rider-pin { 
+      width: 34px; 
+      height: 34px; 
+      border-radius: 50%; 
+      background: #0033A0; 
+      border: 3px solid #fff; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      font-weight: bold; 
+      box-shadow: 0 4px 12px rgba(0,51,160,0.4); 
+      font-size: 16px; 
+    }
+    .rider-pin.busy { 
+      background: #eab308; 
+      box-shadow: 0 4px 12px rgba(234,179,8,0.4); 
+    }
+    .order-pin { 
+      width: 28px; 
+      height: 28px; 
+      border-radius: 50%; 
+      background: #ef4444; 
+      border: 2px solid #fff; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      font-weight: bold; 
+      font-size: 12px; 
+      box-shadow: 0 3px 8px rgba(239,68,68,0.4); 
+    }
+    .store-pin { 
+      width: 38px; 
+      height: 38px; 
+      border-radius: 12px; 
+      background: #16a34a; 
+      border: 3px solid #fff; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      font-weight: bold; 
+      font-size: 18px; 
+      box-shadow: 0 4px 14px rgba(22,163,74,0.5); 
+    }
+    .map-layer-control {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: ${isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)'};
+      backdrop-filter: blur(8px);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid ${isDarkMode ? '#334155' : '#e2e8f0'};
+      display: flex;
+      gap: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .map-layer-btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+      color: ${isDarkMode ? '#94a3b8' : '#64748b'};
+      transition: all 0.2s ease;
+    }
+    .map-layer-btn:hover {
+      background: ${isDarkMode ? '#334155' : '#f1f5f9'};
+      color: ${isDarkMode ? '#f8fafc' : '#0f172a'};
+    }
+    .map-layer-btn.active {
+      background: #0033A0;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,51,160,0.4);
+    }
   </style>
 </head>
 <body>
+  <div class="map-layer-control">
+    <button class="map-layer-btn ${!isDarkMode ? 'active' : ''}" data-layer="street" onclick="setLayer('street')">🗺️ Street</button>
+    <button class="map-layer-btn ${isDarkMode ? 'active' : ''}" data-layer="dark" onclick="setLayer('dark')">🌙 Dark</button>
+    <button class="map-layer-btn" data-layer="satellite" onclick="setLayer('satellite')">🛰️ Satellite</button>
+  </div>
   <div id="map"></div>
   <script>
+    const isDark = ${isDarkMode};
     const store = ${JSON.stringify(storePin)};
     const riders = ${JSON.stringify(riderMarkers)};
     const orders = ${JSON.stringify(orderMarkers)};
@@ -172,12 +282,39 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
     const centerLat = riders.length > 0 ? riders[0].lat : store.lat;
     const centerLng = riders.length > 0 ? riders[0].lng : store.lng;
 
-    const map = L.map('map').setView([centerLat, centerLng], 13);
+    const map = L.map('map', { zoomControl: true }).setView([centerLat, centerLng], 13);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '©OpenStreetMap ©CartoDB',
-      maxZoom: 19
-    }).addTo(map);
+    const tileLayers = {
+      street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '©OpenStreetMap ©CartoDB',
+        maxZoom: 19
+      }),
+      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '©OpenStreetMap ©CartoDB',
+        maxZoom: 19
+      }),
+      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '©Esri',
+        maxZoom: 19
+      })
+    };
+
+    let currentLayerKey = isDark ? 'dark' : 'street';
+    let currentTileLayer = tileLayers[currentLayerKey];
+    currentTileLayer.addTo(map);
+
+    function setLayer(layerKey) {
+      if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+      }
+      currentLayerKey = layerKey;
+      currentTileLayer = tileLayers[layerKey] || (isDark ? tileLayers.dark : tileLayers.street);
+      currentTileLayer.addTo(map);
+
+      document.querySelectorAll('.map-layer-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.layer === layerKey);
+      });
+    }
 
     // Store marker
     L.marker([store.lat, store.lng], {
@@ -212,7 +349,7 @@ export default function FleetLiveMap({ isDarkMode, onSelectOrder }) {
 </body>
 </html>
     `;
-  }, [filteredRiders, activeOrders]);
+  }, [filteredRiders, activeOrders, isDarkMode]);
 
   return (
     <div className="space-y-4">
