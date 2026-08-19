@@ -211,10 +211,10 @@ export default function Reviews() {
 
         <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-1">
-            <Package size={16} className="text-[#0033A0]" />
+            <Package size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`} />
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Product Reviews</p>
           </div>
-          <p className="text-2xl font-bold text-[#0033A0]">{summary.totalProductReviews}</p>
+          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{summary.totalProductReviews}</p>
         </div>
 
         <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
@@ -391,9 +391,9 @@ export default function Reviews() {
                 {/* Official Store Response */}
                 {review.admin_reply && (
                   <div className={`p-3 rounded-lg border flex items-start gap-2 mt-2 ${isDarkMode ? 'bg-blue-950/40 border-blue-800/60 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
-                    <ShieldCheck size={16} className="text-[#0033A0] mt-0.5 flex-shrink-0" />
+                    <ShieldCheck size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mt-0.5 flex-shrink-0`} />
                     <div>
-                      <p className="text-xs font-bold text-[#0033A0]">Official Store Response</p>
+                      <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>Official Store Response</p>
                       <p className="text-xs mt-0.5">{review.admin_reply}</p>
                     </div>
                   </div>
@@ -477,9 +477,9 @@ export default function Reviews() {
               {/* Official Store Response */}
               {item.admin_reply && (
                 <div className={`p-3 rounded-lg border flex items-start gap-2 mt-2 ${isDarkMode ? 'bg-blue-950/40 border-blue-800/60 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
-                  <ShieldCheck size={16} className="text-[#0033A0] mt-0.5 flex-shrink-0" />
+                  <ShieldCheck size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mt-0.5 flex-shrink-0`} />
                   <div>
-                    <p className="text-xs font-bold text-[#0033A0]">Official Store Response</p>
+                    <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>Official Store Response</p>
                     <p className="text-xs mt-0.5">{item.admin_reply}</p>
                   </div>
                 </div>

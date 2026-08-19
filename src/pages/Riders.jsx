@@ -890,9 +890,9 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
             {/* Quick Stats */}
             <div className="grid grid-cols-4 gap-3">
               <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-blue-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
-                <Package size={18} className="text-[#0033A0] mx-auto mb-1" />
+                <Package size={18} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mx-auto mb-1`} />
                 <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total</p>
-                <p className="font-bold text-[#0033A0] text-lg">{stats.total}</p>
+                <p className={`font-bold text-lg ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{stats.total}</p>
               </div>
               <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-green-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
                 <CheckCircle size={18} className="text-green-600 mx-auto mb-1" />
@@ -942,7 +942,7 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
             {/* Earnings & Performance */}
             <div className={`rounded-xl p-4 border transition-colors duration-300 ${isDarkMode ? 'bg-slate-700/60 border-slate-600' : 'bg-blue-50/60 border-blue-100'}`}>
               <h5 className={`font-semibold mb-3 flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                <TrendingUp size={16} className="text-[#0033A0]" />
+                <TrendingUp size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`} />
                 Earnings &amp; Performance
               </h5>
               <div className="grid grid-cols-3 gap-3 mb-4">
@@ -952,9 +952,9 @@ const RiderDetailsModal = React.memo(({ rider, onClose, onTrackLive, onChatRider
                   <p className="font-bold text-amber-500 text-sm">{perfStats.avgRating > 0 ? `${perfStats.avgRating} ★` : '—'}</p>
                 </div>
                 <div className={`rounded-lg p-3 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-600' : 'bg-white'}`}>
-                  <CheckCircle size={16} className="text-[#0033A0] mx-auto mb-1" />
+                  <CheckCircle size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mx-auto mb-1`} />
                   <p className={`text-xs mb-0.5 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Completion Rate</p>
-                  <p className="font-bold text-[#0033A0] text-sm">{perfStats.completionRate}%</p>
+                  <p className={`font-bold text-sm ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{perfStats.completionRate}%</p>
                 </div>
                 <div className={`rounded-lg p-3 text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-600' : 'bg-white'}`}>
                   <Clock size={16} className="text-orange-500 mx-auto mb-1" />
@@ -1895,7 +1895,7 @@ export default function Riders() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
               <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Riders</p>
-              <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{stats.total}</p>
             </div>
             <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
               <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active Riders</p>
@@ -2018,7 +2018,7 @@ export default function Riders() {
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className={`p-2 rounded-lg text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-blue-50'}`}>
                     <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total</p>
-                    <p className="font-bold text-[#0033A0] text-lg">{riderStats.total}</p>
+                    <p className={`font-bold text-lg ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{riderStats.total}</p>
                   </div>
                   <div className={`p-2 rounded-lg text-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-700' : 'bg-green-50'}`}>
                     <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Completed</p>

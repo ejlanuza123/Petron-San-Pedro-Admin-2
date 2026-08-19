@@ -446,7 +446,7 @@ export default function Products() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className={`p-4 rounded-lg border min-w-0 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Products</p>
-          <p className="text-2xl font-bold text-[#0033A0]">{stats.total}</p>
+          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{stats.total}</p>
         </div>
         <div 
           onClick={() => setStockFilter('low_stock')}
@@ -497,7 +497,7 @@ export default function Products() {
                 <div 
                   key={product.id} 
                   className={`rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-all duration-150 group cursor-pointer relative ${
-                    isOutOfStock
+                    isOutOfStock 
                       ? isDarkMode ? 'bg-slate-800 border-red-800 ring-1 ring-red-800' : 'bg-white border-red-300 ring-1 ring-red-300'
                       : isLowStock
                         ? isDarkMode ? 'bg-slate-800 border-amber-800 ring-1 ring-amber-800' : 'bg-white border-amber-300 ring-1 ring-amber-300'
@@ -582,7 +582,7 @@ export default function Products() {
                     <div className="flex justify-between items-center mt-3">
                       <div>
                         <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Price</p>
-                        <p className="font-bold text-[#0033A0] text-lg">
+                        <p className={`font-bold text-lg ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>
                           {formatCurrency(product.current_price)}
                         </p>
                       </div>

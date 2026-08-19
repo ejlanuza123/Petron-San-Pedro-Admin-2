@@ -385,9 +385,9 @@ EditCustomerModal.displayName = 'EditCustomerModal';
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-blue-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
-                <Package size={20} className="text-[#0033A0] mx-auto mb-1" />
+                <Package size={20} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mx-auto mb-1`} />
                 <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Orders</p>
-                <p className="font-bold text-[#0033A0]">{stats.totalOrders}</p>
+                <p className={`font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{stats.totalOrders}</p>
               </div>
               <div className={`${isDarkMode ? 'bg-slate-700' : 'bg-green-50'} p-3 rounded-lg text-center transition-colors duration-300`}>
                 <DollarSign size={20} className="text-green-600 mx-auto mb-1" />
@@ -456,7 +456,7 @@ EditCustomerModal.displayName = 'EditCustomerModal';
                         <p className={`text-xs transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{formatDate(order.created_at)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-[#0033A0]">{formatCurrency(order.total_amount)}</p>
+                        <p className={`font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{formatCurrency(order.total_amount)}</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           order.status === 'Completed' ? (isDarkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-700') :
                           order.status === 'Pending' ? (isDarkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-700') :
@@ -870,7 +870,7 @@ export default function Customers() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Customers</p>
-          <p className="text-2xl font-bold text-[#0033A0]">{summaryStats.total}</p>
+          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{summaryStats.total}</p>
         </div>
         <div className={`p-4 rounded-lg border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Active This Month</p>
@@ -918,13 +918,20 @@ export default function Customers() {
                 {paginatedCustomers.map((customer) => {
                   const stats = getCustomerStats(customer);
                   return (
-                    <tr key={customer.id} className={`transition-colors duration-150 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-50'}`}>
+                    <tr 
+                      key={customer.id} 
+                      onClick={() => handleViewDetails(customer)}
+                      className={`cursor-pointer transition-colors duration-150 ${isDarkMode ? 'hover:bg-slate-700/70' : 'hover:bg-blue-50/60'}`}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           {customer.avatar_url ? (
                             <button
                               type="button"
-                              onClick={() => setPreviewImageUrl(customer.avatar_url)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewImageUrl(customer.avatar_url);
+                              }}
                               className="mr-3 rounded-lg"
                               title="View full image"
                             >
@@ -995,7 +1002,7 @@ export default function Customers() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-[#0033A0]">{formatCurrency(stats.totalSpent)}</p>
+                        <p className={`font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{formatCurrency(stats.totalSpent)}</p>
                       </td>
                       <td className="px-6 py-4">
                         {stats.lastOrder ? (
@@ -1013,22 +1020,21 @@ export default function Customers() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-1.5">
-                          <button
-                            onClick={() => handleViewDetails(customer)}
-                            className="p-2 text-[#0033A0] hover:bg-[#E5EEFF] rounded-lg transition-colors duration-150"
-                            title="View Details"
-                          >
-                            <Eye size={18} />
-                          </button>
                           <button 
-                            onClick={() => handleEditClick(customer)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(customer);
+                            }}
                             className={`p-2 rounded-lg transition-colors duration-150 ${isDarkMode ? 'text-gray-400 hover:bg-slate-700' : 'text-gray-600 hover:bg-gray-100'}`}
                             title="Edit Customer"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
-                            onClick={() => handleToggleCustomerStatus(customer)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleCustomerStatus(customer);
+                            }}
                             className={`p-2 rounded-lg transition-colors duration-150 ${
                               stats.isActive 
                                 ? (isDarkMode ? 'hover:bg-red-950/50 text-red-400' : 'hover:bg-red-50 text-red-600')

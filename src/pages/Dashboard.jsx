@@ -394,7 +394,7 @@ export default function Dashboard() {
       {/* Quick Actions Shortcuts Bar */}
       <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${isDarkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-blue-50/60 border-blue-100'}`}>
         <div className="flex items-center gap-2">
-          <Zap size={18} className="text-[#0033A0]" />
+          <Zap size={18} className="text-[#0033A0] dark:text-blue-400" />
           <span className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Quick Shortcuts</span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -419,11 +419,11 @@ export default function Dashboard() {
         <div className={`p-4 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex justify-between items-start mb-2">
             <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Period Revenue</span>
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-slate-700 text-[#0033A0]">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-slate-700 text-[#0033A0] dark:text-blue-400">
               <DollarSign size={16} />
             </div>
           </div>
-          <p className="text-xl font-bold text-[#0033A0]">{formatCurrency(stats.periodRevenue)}</p>
+          <p className={`text-xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>{formatCurrency(stats.periodRevenue)}</p>
           <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total: {formatCurrency(stats.totalRevenue)}</p>
         </div>
 
@@ -505,7 +505,7 @@ export default function Dashboard() {
               <Award size={18} className="text-amber-500" />
               <h3 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Top Riders</h3>
             </div>
-            <Link to="/riders" className="text-xs text-[#0033A0] hover:underline font-semibold flex items-center gap-1">
+            <Link to="/riders" className="text-xs text-[#0033A0] dark:text-blue-400 hover:underline font-semibold flex items-center gap-1">
               View All <ArrowRight size={12} />
             </Link>
           </div>
@@ -537,10 +537,10 @@ export default function Dashboard() {
         <div className={`p-6 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-[#0033A0]" />
+              <MessageSquare size={18} className="text-[#0033A0] dark:text-blue-400" />
               <h3 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Customer Feedback</h3>
             </div>
-            <Link to="/reviews" className="text-xs text-[#0033A0] hover:underline font-semibold flex items-center gap-1">
+            <Link to="/reviews" className="text-xs text-[#0033A0] dark:text-blue-400 hover:underline font-semibold flex items-center gap-1">
               View All <ArrowRight size={12} />
             </Link>
           </div>
@@ -608,10 +608,10 @@ export default function Dashboard() {
       <div className={`p-6 rounded-xl border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
-            <ShoppingBag size={18} className="text-[#0033A0]" />
+            <ShoppingBag size={18} className="text-[#0033A0] dark:text-blue-400" />
             <h3 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Recent Orders</h3>
           </div>
-          <Link to="/orders" className="text-xs text-[#0033A0] hover:underline font-semibold flex items-center gap-1">
+          <Link to="/orders" className="text-xs text-[#0033A0] dark:text-blue-400 hover:underline font-semibold flex items-center gap-1">
             View All Orders <ArrowRight size={12} />
           </Link>
         </div>
@@ -632,7 +632,7 @@ export default function Dashboard() {
               <tbody>
                 {recentOrders.map((order) => (
                   <tr key={order.id} className={`border-b ${isDarkMode ? 'border-slate-700/50 hover:bg-slate-700/40' : 'border-gray-50 hover:bg-gray-50'}`}>
-                    <td className="py-3 px-3 font-semibold text-[#0033A0]">#{String(order.id || '').slice(0, 8)}</td>
+                    <td className="py-3 px-3 font-semibold text-[#0033A0] dark:text-blue-400">#{String(order.id || '').slice(0, 8)}</td>
                     <td className={`py-3 px-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{order.profiles?.full_name || order.customer_name || 'Customer'}</td>
                     <td className="py-3 px-3">
                       <span className={`inline-flex items-center justify-center text-center text-xs px-2.5 py-1 rounded-full font-semibold leading-none border ${getOrderStatusColor(order.status)}`}>
