@@ -1044,8 +1044,8 @@ export default function Reports() {
             <div className={`p-6 rounded-xl shadow-sm border transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'} hover:shadow-md transition-shadow`}>
               <div className="flex items-center justify-between mb-2">
                 <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Revenue</p>
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <DollarSign className="text-[#0033A0]" size={18} />
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-blue-950/60 text-blue-400' : 'bg-blue-100 text-[#0033A0]'}`}>
+                  <DollarSign size={18} />
                 </div>
               </div>
               <p className={`text-2xl font-bold transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>

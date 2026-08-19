@@ -214,7 +214,7 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
                 <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{order?.delivery_address}</p>
                 <div className={`flex justify-between mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`}>
                   <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Amount:</span>
-                  <span className="font-bold text-[#0033A0]">
+                  <span className={`font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>
                     ₱{order?.total_amount?.toFixed(2)}
                   </span>
                 </div>
@@ -241,13 +241,13 @@ export default function AssignRiderModal({ isOpen, onClose, order, onAssigned, a
                     <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>No active riders available</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {riders.map((rider) => (
                       <label
                         key={rider.id}
                         className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors duration-300 ${
                           selectedRider === rider.id
-                            ? 'border-[#0033A0] bg-[#E5EEFF]'
+                            ? (isDarkMode ? 'border-blue-500 bg-blue-950/50 ring-1 ring-blue-500' : 'border-[#0033A0] bg-[#E5EEFF]')
                             : (isDarkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-200 hover:bg-gray-50')
                         }`}
                       >

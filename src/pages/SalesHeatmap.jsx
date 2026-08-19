@@ -845,7 +845,7 @@ export default function SalesHeatmap() {
         {/* Map Toolbar */}
         <div className={`px-4 py-3 border-b flex flex-wrap justify-between items-center gap-3 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
           <div className="flex items-center gap-2">
-            <Layers size={18} className="text-[#0033A0]" />
+            <Layers size={18} className="text-[#0033A0] dark:text-blue-400" />
             <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
               Interactive Thermographic Canvas ({heatmapPoints.length} Data Points)
             </span>
@@ -926,7 +926,7 @@ export default function SalesHeatmap() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left text-xs">
             <thead className={`border-b uppercase font-semibold ${isDarkMode ? 'bg-slate-700/60 border-slate-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
               <tr>
@@ -989,7 +989,7 @@ export default function SalesHeatmap() {
                       <div className="flex items-center gap-2">
                         <div className="w-16 bg-gray-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                           <div 
-                            className="bg-[#0033A0] h-full rounded-full" 
+                            className="bg-[#0033A0] dark:bg-blue-500 h-full rounded-full" 
                             style={{ width: `${Math.min(100, Math.max(0, Number(sharePercent)))}%` }}
                           ></div>
                         </div>

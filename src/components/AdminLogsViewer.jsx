@@ -528,7 +528,7 @@ export default function AdminLogsViewer({
   if (loading) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0033A0] mx-auto"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0033A0] dark:border-blue-400 mx-auto"></div>
         <p className={`text-sm mt-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading audit logs...</p>
       </div>
     );
@@ -543,7 +543,7 @@ export default function AdminLogsViewer({
   }
 
   return (
-    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky top-0 pb-2 z-10 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
         <div className={`text-xs font-medium px-3 py-1 rounded-full transition-colors duration-300 ${isDarkMode ? 'text-gray-400 bg-slate-700' : 'text-gray-500 bg-gray-100'}`}>
           Showing {logs.length} of {totalCount} record{totalCount === 1 ? '' : 's'}
@@ -553,7 +553,7 @@ export default function AdminLogsViewer({
             type="checkbox"
             checked={showSystemDetails}
             onChange={(e) => setShowSystemDetails(e.target.checked)}
-            className={`h-4 w-4 text-[#0033A0] rounded focus:ring-[#0033A0] ${isDarkMode ? 'border-slate-600 bg-slate-700' : 'border-gray-300'}`}
+            className={`h-4 w-4 text-[#0033A0] rounded focus:ring-[#0033A0] dark:focus:ring-blue-500 ${isDarkMode ? 'border-slate-600 bg-slate-700' : 'border-gray-300'}`}
           />
           Show raw system metadata
         </label>

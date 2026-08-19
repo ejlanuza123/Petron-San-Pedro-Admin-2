@@ -401,25 +401,25 @@ export default function DeliveryTrackingMap({ isOpen, onClose, deliveryId }) {
               />
             )}
           </div>
-
-          <div className="w-full md:w-96 bg-white border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto">
+          {/* Details Sidebar */}
+          <div className="w-full md:w-96 bg-white dark:bg-slate-900 border-t md:border-t-0 md:border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar">
             <div className="p-4 space-y-4">
               {lastUpdated && (
-                <div className="text-xs text-gray-500 text-center bg-gray-50 p-2 rounded">Last updated: {lastUpdated.toLocaleTimeString()}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 text-center bg-gray-50 dark:bg-slate-800 p-2 rounded">Last updated: {lastUpdated.toLocaleTimeString()}</div>
               )}
 
-              <div className="bg-indigo-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-2 flex items-center"><Route size={16} className="mr-2 text-[#0033A0]" />Road Route Metrics</h4>
-                <div className="text-sm text-gray-700 space-y-1">
+              <div className="bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-lg border border-transparent dark:border-indigo-900/40">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center"><Route size={16} className="mr-2 text-[#0033A0] dark:text-blue-400" />Road Route Metrics</h4>
+                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                   <p>ETA: <span className="font-semibold">{routeEtaMinutes ? `${routeEtaMinutes} min` : 'Calculating...'}</span></p>
                   <p>Distance: <span className="font-semibold">{routeDistanceKm ? `${routeDistanceKm} km` : 'Calculating...'}</span></p>
                 </div>
               </div>
 
               {delivery?.rider && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center"><User size={16} className="mr-2 text-[#0033A0]" />Rider Information</h4>
-                  <div className="space-y-2 text-sm">
+                <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg border border-transparent dark:border-blue-900/40">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center"><User size={16} className="mr-2 text-[#0033A0] dark:text-blue-400" />Rider Information</h4>
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                     <p><span className="font-medium">Name:</span> {delivery.rider.full_name}</p>
                     <p><span className="font-medium">Contact:</span> {delivery.rider.phone_number}</p>
                     {delivery.rider.vehicle_type && (

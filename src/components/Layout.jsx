@@ -510,7 +510,7 @@ const Sidebar = memo(({
                 requestNotificationPermission={requestNotificationPermission}
                 placement="right-start"
                 className="translate-x-2 flex-shrink-0"
-                buttonClassName={isDarkMode ? 'bg-slate-800 text-[#0033A0] hover:bg-slate-700' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF]'}
+                buttonClassName={isDarkMode ? 'bg-slate-800 text-blue-400 hover:bg-slate-700' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF]'}
                 isDarkMode={isDarkMode}
               />
             </>
@@ -526,7 +526,7 @@ const Sidebar = memo(({
               requestNotificationPermission={requestNotificationPermission}
               placement="right-start"
               className="flex-shrink-0"
-              buttonClassName={isDarkMode ? 'bg-slate-800 text-[#0033A0] hover:bg-slate-700 p-1.5' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF] p-1.5'}
+              buttonClassName={isDarkMode ? 'bg-slate-800 text-blue-400 hover:bg-slate-700 p-1.5' : 'bg-white text-[#0033A0] hover:bg-[#E5EEFF] p-1.5'}
               isDarkMode={isDarkMode}
             />
           )}
