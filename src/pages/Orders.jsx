@@ -875,18 +875,6 @@ export default function Orders() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          {/* View Details Button - Always shown */}
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              viewOrderDetails(order.id);
-                            }}
-                            className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-blue-400 hover:bg-slate-700' : 'text-[#0033A0] hover:bg-[#E5EEFF]'}`}
-                            title="View Details"
-                          >
-                            <Eye size={18} />
-                          </button>
-                           
                           {/* Assign rider when processing and rider is not yet assigned, or reassignment is needed */}
                           {order.status === 'Processing' && (
                             !deliveryInfo ||
