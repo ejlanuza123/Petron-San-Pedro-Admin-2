@@ -232,6 +232,35 @@ export const settingsService = {
       ];
       const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
       if (error) throw error;
+
+      // Broadcast instant update to all connected mobile clients (< 100ms)
+      try {
+        const broadcastChannel = supabase.channel('store_operations_realtime_sync');
+        broadcastChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            broadcastChannel.send({
+              type: 'broadcast',
+              event: 'store_pause_changed',
+              payload: {
+                isPaused: !!isPaused,
+                mode: mode || 'open',
+                title: title || '',
+                reason: reason || '',
+                reopenAt: reopenAt || '',
+                allowPreorders: !!allowPreorders,
+                autoReopen: autoReopen !== false,
+              },
+            }).then(() => {
+              setTimeout(() => {
+                supabase.removeChannel(broadcastChannel);
+              }, 1200);
+            });
+          }
+        });
+      } catch (broadcastErr) {
+        console.warn('Broadcast send error:', broadcastErr);
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Error updating store pause settings:', error);
