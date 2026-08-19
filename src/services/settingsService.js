@@ -163,5 +163,79 @@ export const settingsService = {
       console.error('Error updating low stock threshold:', error);
       return false;
     }
+  },
+
+  /**
+   * Get Store Pause / Holiday Mode Settings
+   * @returns {Promise<{ isPaused: boolean, mode: string, title: string, reason: string, reopenAt: string, allowPreorders: boolean, autoReopen: boolean }>}
+   */
+  async getStorePauseSettings() {
+    try {
+      const isPausedVal = await this.getSetting('store_is_paused', 'false');
+      const modeVal = await this.getSetting('store_pause_mode', 'open');
+      const titleVal = await this.getSetting('store_pause_title', '');
+      const reasonVal = await this.getSetting('store_pause_reason', '');
+      const reopenAtVal = await this.getSetting('store_pause_reopen_at', '');
+      const allowPreordersVal = await this.getSetting('store_allow_preorders', 'false');
+      const autoReopenVal = await this.getSetting('store_auto_reopen', 'true');
+
+      let isPaused = isPausedVal === 'true' || isPausedVal === true;
+      const autoReopen = autoReopenVal === 'true' || autoReopenVal === true;
+      const reopenAt = reopenAtVal || '';
+
+      // Auto-reopen expiration check
+      if (isPaused && autoReopen && reopenAt) {
+        const reopenTime = new Date(reopenAt).getTime();
+        if (!Number.isNaN(reopenTime) && reopenTime <= Date.now()) {
+          isPaused = false;
+        }
+      }
+
+      return {
+        isPaused,
+        mode: modeVal || 'open',
+        title: titleVal || '',
+        reason: reasonVal || '',
+        reopenAt,
+        allowPreorders: allowPreordersVal === 'true' || allowPreordersVal === true,
+        autoReopen,
+      };
+    } catch (error) {
+      console.error('Error fetching store pause settings:', error);
+      return {
+        isPaused: false,
+        mode: 'open',
+        title: '',
+        reason: '',
+        reopenAt: '',
+        allowPreorders: false,
+        autoReopen: true,
+      };
+    }
+  },
+
+  /**
+   * Update Store Pause / Holiday Mode Settings
+   * @param {{ isPaused: boolean, mode: string, title: string, reason: string, reopenAt: string, allowPreorders: boolean, autoReopen: boolean }} settings
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateStorePauseSettings({ isPaused, mode, title, reason, reopenAt, allowPreorders, autoReopen }) {
+    try {
+      const updates = [
+        { key: 'store_is_paused', value: String(!!isPaused), updated_at: new Date().toISOString() },
+        { key: 'store_pause_mode', value: String(mode || 'open'), updated_at: new Date().toISOString() },
+        { key: 'store_pause_title', value: String(title || ''), updated_at: new Date().toISOString() },
+        { key: 'store_pause_reason', value: String(reason || ''), updated_at: new Date().toISOString() },
+        { key: 'store_pause_reopen_at', value: String(reopenAt || ''), updated_at: new Date().toISOString() },
+        { key: 'store_allow_preorders', value: String(!!allowPreorders), updated_at: new Date().toISOString() },
+        { key: 'store_auto_reopen', value: String(autoReopen !== false), updated_at: new Date().toISOString() },
+      ];
+      const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating store pause settings:', error);
+      return false;
+    }
   }
 };

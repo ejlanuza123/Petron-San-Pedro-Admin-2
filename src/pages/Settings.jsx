@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Settings as SettingsIcon, Bell, BellOff, Save, User, BookOpen, Search, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, BellOff, Save, User, BookOpen, Search, ChevronDown, ChevronUp, Zap, Clock, ShieldAlert, AlertTriangle, Palmtree, Store, CheckCircle, XCircle } from 'lucide-react';
 import ErrorAlert from '../components/common/ErrorAlert';
 import { notifySuccess } from '../utils/successNotifier';
 import { pushNotificationService } from '../services/pushNotificationService';
@@ -128,11 +128,23 @@ export default function Settings() {
   const [autoDispatchTimeoutMins, setAutoDispatchTimeoutMins] = useState(5);
   const [autoDispatchStrategy, setAutoDispatchStrategy] = useState('nearest');
   const [savingDispatch, setSavingDispatch] = useState(false);
+
+  // Store Holiday / Emergency Pause state
+  const [storePaused, setStorePaused] = useState(false);
+  const [storePauseMode, setStorePauseMode] = useState('open'); // 'open' | 'emergency' | 'holiday' | 'maintenance'
+  const [storePauseTitle, setStorePauseTitle] = useState('');
+  const [storePauseReason, setStorePauseReason] = useState('');
+  const [storeReopenAt, setStoreReopenAt] = useState('');
+  const [storeAllowPreorders, setStoreAllowPreorders] = useState(false);
+  const [storeAutoReopen, setStoreAutoReopen] = useState(true);
+  const [savingStorePause, setSavingStorePause] = useState(false);
+
   const avatarInputRef = useRef(null);
 
   useEffect(() => {
     fetchNotificationSettings();
     fetchDispatchSettings();
+    fetchStorePauseSettings();
   }, []);
 
   useEffect(() => {
@@ -190,6 +202,84 @@ export default function Settings() {
       setError(err.message || 'Failed to update dispatch settings.');
     } finally {
       setSavingDispatch(false);
+    }
+  };
+
+  const fetchStorePauseSettings = async () => {
+    try {
+      const data = await settingsService.getStorePauseSettings();
+      setStorePaused(data.isPaused);
+      setStorePauseMode(data.isPaused ? data.mode : 'open');
+      setStorePauseTitle(data.title);
+      setStorePauseReason(data.reason);
+      setStoreReopenAt(data.reopenAt);
+      setStoreAllowPreorders(data.allowPreorders);
+      setStoreAutoReopen(data.autoReopen);
+    } catch (err) {
+      console.error('Error fetching store pause settings:', err);
+    }
+  };
+
+  const handleSetMode = (mode) => {
+    setStorePauseMode(mode);
+    if (mode === 'open') {
+      setStorePaused(false);
+      setStorePauseTitle('');
+      setStorePauseReason('');
+      setStoreReopenAt('');
+    } else if (mode === 'emergency') {
+      setStorePaused(true);
+      if (!storePauseTitle) setStorePauseTitle('Severe Weather / Emergency Advisory');
+      if (!storePauseReason) setStorePauseReason('Deliveries are temporarily paused due to inclement weather and road safety conditions in San Pedro. All active in-progress deliveries will be fulfilled safely.');
+    } else if (mode === 'holiday') {
+      setStorePaused(true);
+      if (!storePauseTitle) setStorePauseTitle('Holiday Operations Notice');
+      if (!storePauseReason) setStorePauseReason('Our station is observing a scheduled holiday closure. We look forward to refueling your journey upon reopening!');
+    } else if (mode === 'maintenance') {
+      setStorePaused(true);
+      if (!storePauseTitle) setStorePauseTitle('Scheduled System & Station Maintenance');
+      if (!storePauseReason) setStorePauseReason('We are currently conducting routine station safety checks and inventory counts.');
+    }
+  };
+
+  const handleApplyReopenPreset = (hours) => {
+    const d = new Date();
+    if (hours === 'tomorrow_8am') {
+      d.setDate(d.getDate() + 1);
+      d.setHours(8, 0, 0, 0);
+    } else {
+      d.setHours(d.getHours() + hours);
+    }
+    // Format to YYYY-MM-DDTHH:MM for datetime-local input
+    const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setStoreReopenAt(localIso);
+  };
+
+  const handleSaveStorePauseSettings = async () => {
+    try {
+      setSavingStorePause(true);
+      setError(null);
+      const isPaused = storePauseMode !== 'open';
+      const success = await settingsService.updateStorePauseSettings({
+        isPaused,
+        mode: storePauseMode,
+        title: storePauseTitle,
+        reason: storePauseReason,
+        reopenAt: storeReopenAt,
+        allowPreorders: storeAllowPreorders,
+        autoReopen: storeAutoReopen,
+      });
+      if (success) {
+        setStorePaused(isPaused);
+        notifySuccess('Store status & holiday settings updated.');
+      } else {
+        setError('Failed to update store status settings.');
+      }
+    } catch (err) {
+      console.error('Error saving store status:', err);
+      setError(err.message || 'Failed to update store status settings.');
+    } finally {
+      setSavingStorePause(false);
     }
   };
 
@@ -604,6 +694,223 @@ export default function Settings() {
                 >
                   <Save size={16} />
                   {savingDispatch ? 'Saving...' : 'Save Dispatch Settings'}
+                </button>
+              </div>
+            </div>
+
+            {/* Store Status & Holiday / Emergency Mode Section */}
+            <div className={`border-b pb-6 transition-colors duration-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className={`text-lg font-semibold flex items-center gap-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <Store size={18} className="text-emerald-500" />
+                    Store Status &amp; Holiday / Emergency Mode
+                  </h2>
+                  <p className={`text-sm mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Manage store operations status, announce scheduled holiday closures or emergency weather pauses, and configure auto-reopen countdowns for mobile customers.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mode Selection Pills */}
+              <div className="mb-6">
+                <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Operational Mode
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSetMode('open')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition ${
+                      storePauseMode === 'open'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <CheckCircle size={16} />
+                    Open (Normal)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetMode('emergency')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition ${
+                      storePauseMode === 'emergency'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ShieldAlert size={16} />
+                    Emergency Pause
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetMode('holiday')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition ${
+                      storePauseMode === 'holiday'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Palmtree size={16} />
+                    Holiday Mode
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetMode('maintenance')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition ${
+                      storePauseMode === 'maintenance'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <AlertTriangle size={16} />
+                    Maintenance
+                  </button>
+                </div>
+              </div>
+
+              {/* Pause Configuration Details */}
+              {storePauseMode !== 'open' && (
+                <div className={`p-4 rounded-xl border mb-4 space-y-4 transition-colors duration-300 ${
+                  storePauseMode === 'emergency'
+                    ? isDarkMode ? 'bg-rose-950/30 border-rose-800/60' : 'bg-rose-50/80 border-rose-200'
+                    : storePauseMode === 'holiday'
+                    ? isDarkMode ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50/80 border-amber-200'
+                    : isDarkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/80 border-blue-200'
+                }`}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Announcement Title
+                      </label>
+                      <input
+                        type="text"
+                        value={storePauseTitle}
+                        onChange={(e) => setStorePauseTitle(e.target.value)}
+                        placeholder="e.g. Severe Weather Closure Notice"
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Auto-Reopen Date &amp; Time (Optional)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={storeReopenAt}
+                        onChange={(e) => setStoreReopenAt(e.target.value)}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Customer Reason &amp; Operational Details (Displayed on Mobile App)
+                      </label>
+                      <textarea
+                        rows="3"
+                        value={storePauseReason}
+                        onChange={(e) => setStorePauseReason(e.target.value)}
+                        placeholder="Explain why deliveries are paused and what customers can expect..."
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div>
+                    <span className={`text-xs font-semibold block mb-2 transition-colors duration-300 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Quick Auto-Reopen Timers:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReopenPreset(1)}
+                        className={`px-3 py-1 text-xs border rounded-lg font-medium transition ${isDarkMode ? 'border-slate-600 bg-slate-800 text-gray-300 hover:bg-slate-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        +1 Hour
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReopenPreset(2)}
+                        className={`px-3 py-1 text-xs border rounded-lg font-medium transition ${isDarkMode ? 'border-slate-600 bg-slate-800 text-gray-300 hover:bg-slate-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        +2 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReopenPreset(4)}
+                        className={`px-3 py-1 text-xs border rounded-lg font-medium transition ${isDarkMode ? 'border-slate-600 bg-slate-800 text-gray-300 hover:bg-slate-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        +4 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReopenPreset('tomorrow_8am')}
+                        className={`px-3 py-1 text-xs border rounded-lg font-medium transition ${isDarkMode ? 'border-slate-600 bg-slate-800 text-gray-300 hover:bg-slate-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        Tomorrow 8:00 AM
+                      </button>
+                      {storeReopenAt && (
+                        <button
+                          type="button"
+                          onClick={() => setStoreReopenAt('')}
+                          className="px-3 py-1 text-xs border border-rose-300 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-lg font-medium hover:bg-rose-100 transition"
+                        >
+                          Clear Timer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Checkbox options */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-slate-700">
+                    <label className={`flex items-center gap-2 text-xs font-medium cursor-pointer transition ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <input
+                        type="checkbox"
+                        checked={storeAutoReopen}
+                        onChange={(e) => setStoreAutoReopen(e.target.checked)}
+                        className="h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      Automatically reopen store when scheduled time is reached
+                    </label>
+
+                    <label className={`flex items-center gap-2 text-xs font-medium cursor-pointer transition ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <input
+                        type="checkbox"
+                        checked={storeAllowPreorders}
+                        onChange={(e) => setStoreAllowPreorders(e.target.checked)}
+                        className="h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      Allow scheduled pre-orders during closure (queued for dispatch upon reopen)
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveStorePauseSettings}
+                  disabled={savingStorePause}
+                  className={`inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
+                    storePauseMode === 'open' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  <Save size={16} />
+                  {savingStorePause ? 'Saving...' : 'Save Store Status'}
                 </button>
               </div>
             </div>
