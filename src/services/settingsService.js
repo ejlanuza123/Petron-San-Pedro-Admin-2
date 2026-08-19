@@ -232,10 +232,10 @@ export const settingsService = {
       ];
       const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
       if (error) throw error;
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error updating store pause settings:', error);
-      return false;
+      return { success: false, error: error.message || 'Database error updating store settings.' };
     }
   }
 };

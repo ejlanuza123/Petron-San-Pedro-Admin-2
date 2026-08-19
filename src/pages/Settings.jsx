@@ -260,7 +260,7 @@ export default function Settings() {
       setSavingStorePause(true);
       setError(null);
       const isPaused = storePauseMode !== 'open';
-      const success = await settingsService.updateStorePauseSettings({
+      const res = await settingsService.updateStorePauseSettings({
         isPaused,
         mode: storePauseMode,
         title: storePauseTitle,
@@ -269,11 +269,11 @@ export default function Settings() {
         allowPreorders: storeAllowPreorders,
         autoReopen: storeAutoReopen,
       });
-      if (success) {
+      if (res?.success) {
         setStorePaused(isPaused);
         notifySuccess('Store status & holiday settings updated.');
       } else {
-        setError('Failed to update store status settings.');
+        setError(res?.error || 'Failed to update store status settings.');
       }
     } catch (err) {
       console.error('Error saving store status:', err);
