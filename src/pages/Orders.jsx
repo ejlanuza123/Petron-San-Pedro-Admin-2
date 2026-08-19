@@ -808,13 +808,23 @@ export default function Orders() {
                   const isSelected = selectedOrderIds.has(order.id);
 
                   return (
-                    <tr key={order.id} className={`transition-colors ${
-                      isSelected
-                        ? isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50'
-                        : isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                    }`}>
+                    <tr 
+                      key={order.id} 
+                      onClick={() => viewOrderDetails(order.id)}
+                      className={`cursor-pointer transition-colors ${
+                        isSelected
+                          ? isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50'
+                          : isDarkMode ? 'hover:bg-slate-700/60' : 'hover:bg-blue-50/60'
+                      }`}
+                    >
                       <td className="px-4 py-4 w-10">
-                        <button onClick={() => handleToggleSelectOrder(order.id)} className="flex items-center justify-center">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelectOrder(order.id);
+                          }} 
+                          className="flex items-center justify-center"
+                        >
                           {isSelected
                             ? <CheckSquare size={18} className="text-[#0033A0]" />
                             : <Square size={18} className={isDarkMode ? 'text-gray-500' : 'text-gray-400'} />}
@@ -867,7 +877,10 @@ export default function Orders() {
                         <div className="flex items-center gap-2">
                           {/* View Details Button - Always shown */}
                           <button 
-                            onClick={() => viewOrderDetails(order.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewOrderDetails(order.id);
+                            }}
                             className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-blue-400 hover:bg-slate-700' : 'text-[#0033A0] hover:bg-[#E5EEFF]'}`}
                             title="View Details"
                           >
@@ -881,7 +894,10 @@ export default function Orders() {
                             ['declined', 'failed'].includes(deliveryInfo.status)
                           ) && (
                             <button
-                              onClick={() => handleAssignRider(order)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAssignRider(order);
+                              }}
                               className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-green-400 hover:bg-slate-700' : 'text-green-600 hover:bg-green-50'}`}
                               title="Assign Rider"
                             >
@@ -891,7 +907,10 @@ export default function Orders() {
 
                           {!deliveryInfoLoading && deliveryInfo && ['assigned', 'accepted', 'picked_up', 'out_for_delivery'].includes(deliveryInfo.status) && (
                             <button
-                              onClick={() => handleOpenTrackingMap(order)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTrackingMap(order);
+                              }}
                               className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-purple-400 hover:bg-slate-700' : 'text-purple-600 hover:bg-purple-50'}`}
                               title="Track Specific Order"
                             >
@@ -903,14 +922,20 @@ export default function Orders() {
                           {order.status === 'Pending' && (
                             <>
                               <button
-                                onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.PROCESSING)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusUpdate(order.id, ORDER_STATUS.PROCESSING);
+                                }}
                                 className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-blue-400 hover:bg-slate-700' : 'text-blue-600 hover:bg-blue-50'}`}
                                 title="Process Order"
                               >
                                 <Clock size={18} />
                               </button>
                               <button
-                                onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.CANCELLED)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusUpdate(order.id, ORDER_STATUS.CANCELLED);
+                                }}
                                 className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-red-400 hover:bg-slate-700' : 'text-red-600 hover:bg-red-50'}`}
                                 title="Cancel Order"
                               >
@@ -922,7 +947,10 @@ export default function Orders() {
                           {order.status === 'Processing' && (
                             <>
                               <button
-                                onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.CANCELLED)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusUpdate(order.id, ORDER_STATUS.CANCELLED);
+                                }}
                                 className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-red-400 hover:bg-slate-700' : 'text-red-600 hover:bg-red-50'}`}
                                 title="Cancel Order"
                               >
@@ -934,7 +962,10 @@ export default function Orders() {
                           {order.status === 'Out for Delivery' && (
                             <>
                               <button
-                                onClick={() => handleStatusUpdate(order.id, ORDER_STATUS.COMPLETED)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusUpdate(order.id, ORDER_STATUS.COMPLETED);
+                                }}
                                 className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'text-green-400 hover:bg-slate-700' : 'text-green-600 hover:bg-green-50'}`}
                                 title="Mark as Completed"
                               >
