@@ -185,17 +185,17 @@ export default function Settings() {
     try {
       setSavingDispatch(true);
       setError(null);
-      const success = await settingsService.updateAutoDispatchSettings({
+      const res = await settingsService.updateAutoDispatchSettings({
         enabled: autoDispatchEnabled,
         maxOrders: autoDispatchMaxOrders,
         radiusKm: autoDispatchRadiusKm,
         timeoutMins: autoDispatchTimeoutMins,
         strategy: autoDispatchStrategy,
       });
-      if (success) {
+      if (res?.success) {
         notifySuccess('Dispatch settings saved successfully.');
       } else {
-        setError('Failed to update dispatch settings.');
+        setError(res?.error || 'Failed to update dispatch settings.');
       }
     } catch (err) {
       console.error('Error updating dispatch settings:', err);

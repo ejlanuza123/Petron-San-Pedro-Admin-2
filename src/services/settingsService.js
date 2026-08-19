@@ -12,7 +12,7 @@ export const settingsService = {
         .from('app_settings')
         .select('value')
         .eq('key', 'default_delivery_fee')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.warn('Could not fetch default delivery fee, using fallback:', error);
@@ -29,7 +29,7 @@ export const settingsService = {
   /**
    * Update the default delivery fee
    * @param {number} fee - New delivery fee amount
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<{ success: boolean, error?: string }>} Success status
    */
   async updateDefaultDeliveryFee(fee) {
     try {
@@ -44,10 +44,10 @@ export const settingsService = {
         });
 
       if (error) throw error;
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error updating default delivery fee:', error);
-      return false;
+      return { success: false, error: error.message || 'Failed to update delivery fee.' };
     }
   },
 
@@ -79,7 +79,7 @@ export const settingsService = {
   /**
    * Update Auto-Dispatch configuration settings
    * @param {{ enabled: boolean, maxOrders: number, radiusKm: number, timeoutMins: number, strategy: string }} settings
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<{ success: boolean, error?: string }>} Success status
    */
   async updateAutoDispatchSettings({ enabled, maxOrders, radiusKm, timeoutMins, strategy }) {
     try {
@@ -92,10 +92,10 @@ export const settingsService = {
       ];
       const { error } = await supabase.from('app_settings').upsert(updates, { onConflict: 'key' });
       if (error) throw error;
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error updating auto dispatch settings:', error);
-      return false;
+      return { success: false, error: error.message || 'Failed to update auto dispatch settings.' };
     }
   },
 
@@ -111,7 +111,7 @@ export const settingsService = {
         .from('app_settings')
         .select('value')
         .eq('key', key)
-        .single();
+        .maybeSingle();
 
       if (error) {
         return defaultValue;
@@ -142,7 +142,7 @@ export const settingsService = {
   /**
    * Update Low Stock Threshold
    * @param {number} threshold - New threshold number
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<{ success: boolean, error?: string }>} Success status
    */
   async updateLowStockThreshold(threshold) {
     try {
@@ -158,10 +158,10 @@ export const settingsService = {
         });
 
       if (error) throw error;
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error updating low stock threshold:', error);
-      return false;
+      return { success: false, error: error.message || 'Failed to update low stock threshold.' };
     }
   },
 
