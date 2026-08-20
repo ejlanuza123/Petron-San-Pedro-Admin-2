@@ -9,11 +9,8 @@ export default defineConfig({
     setupFiles: './src/test/setup.js',
     include: ['src/__tests__/**/*.{test,spec}.{js,jsx}'],
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    fileParallelism: false,
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

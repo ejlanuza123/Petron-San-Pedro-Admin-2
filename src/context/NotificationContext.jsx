@@ -259,7 +259,9 @@ export const NotificationProvider = ({ children }) => {
 
   // Subscribe to real-time incoming orders to play audio chime and browser notification
   useEffect(() => {
-    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts((newOrder) => {
+    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts(async (newOrder) => {
+      if (!newOrder?.id) return;
+
       if (soundEnabled) {
         playNotificationChime();
       }
@@ -273,7 +275,24 @@ export const NotificationProvider = ({ children }) => {
         clickUrl: '/orders'
       });
 
-      const inAppItem = {
+      let dbNotification = null;
+      if (user?.id) {
+        try {
+          const res = await pushNotificationService.createNotification(user.id, {
+            type: 'order_created',
+            title: orderTitle,
+            message: orderMessage,
+            data: { order_id: newOrder.id }
+          });
+          if (res?.success && res?.data) {
+            dbNotification = res.data;
+          }
+        } catch (err) {
+          console.warn('Could not persist order notification to database:', err);
+        }
+      }
+
+      const inAppItem = dbNotification || {
         id: `order-alert-${newOrder.id}-${Date.now()}`,
         type: 'order_created',
         title: orderTitle,
@@ -283,14 +302,21 @@ export const NotificationProvider = ({ children }) => {
         data: { order_id: newOrder.id }
       };
 
-      setNotifications(prev => [inAppItem, ...prev]);
+      setNotifications(prev => {
+        const isDuplicate = prev.some(n => 
+          n.id === inAppItem.id || 
+          (n.data?.order_id && String(n.data.order_id) === String(newOrder.id) && (Date.now() - new Date(n.created_at).getTime() < 30000))
+        );
+        if (isDuplicate) return prev;
+        return [inAppItem, ...prev];
+      });
       setUnreadCount(count => count + 1);
     });
 
     return () => {
       unsubscribeOrderAlerts();
     };
-  }, [soundEnabled]);
+  }, [soundEnabled, user?.id]);
 
   return (
     <NotificationContext.Provider
