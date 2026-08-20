@@ -265,9 +265,9 @@ export const NotificationProvider = ({ children }) => {
     });
   };
 
-  // Subscribe to real-time incoming orders to play audio chime, OS browser push notification, and ensure DB notification exists
+  // Subscribe to real-time incoming orders to play audio chime and show OS browser push notification
   useEffect(() => {
-    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts(async (newOrder) => {
+    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts((newOrder) => {
       if (!newOrder?.id) return;
 
       if (soundEnabled) {
@@ -282,36 +282,12 @@ export const NotificationProvider = ({ children }) => {
         tag: `order-${newOrder.id}`,
         clickUrl: '/orders'
       });
-
-      if (user?.id) {
-        try {
-          const res = await pushNotificationService.createNotification(user.id, {
-            type: 'order_status',
-            title: orderTitle,
-            message: orderMessage,
-            data: { order_id: newOrder.id, event: 'order_created' }
-          });
-
-          if (res?.success && res?.data) {
-            setNotifications(prev => {
-              const isDuplicate = prev.some(n => 
-                n.id === res.data.id || 
-                (n.data?.order_id && String(n.data.order_id) === String(newOrder.id) && Math.abs(new Date(n.created_at).getTime() - new Date(res.data.created_at).getTime()) < 30000)
-              );
-              if (isDuplicate) return prev;
-              return [res.data, ...prev];
-            });
-          }
-        } catch (err) {
-          console.warn('Could not create order notification:', err);
-        }
-      }
     });
 
     return () => {
       unsubscribeOrderAlerts();
     };
-  }, [soundEnabled, user?.id]);
+  }, [soundEnabled]);
 
   return (
     <NotificationContext.Provider
