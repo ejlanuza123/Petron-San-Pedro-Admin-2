@@ -279,10 +279,10 @@ export const NotificationProvider = ({ children }) => {
       if (user?.id) {
         try {
           const res = await pushNotificationService.createNotification(user.id, {
-            type: 'order_created',
+            type: 'order_status',
             title: orderTitle,
             message: orderMessage,
-            data: { order_id: newOrder.id }
+            data: { order_id: newOrder.id, event: 'order_created' }
           });
           if (res?.success && res?.data) {
             dbNotification = res.data;
@@ -294,12 +294,12 @@ export const NotificationProvider = ({ children }) => {
 
       const inAppItem = dbNotification || {
         id: `order-alert-${newOrder.id}-${Date.now()}`,
-        type: 'order_created',
+        type: 'order_status',
         title: orderTitle,
         message: orderMessage,
         created_at: new Date().toISOString(),
         is_read: false,
-        data: { order_id: newOrder.id }
+        data: { order_id: newOrder.id, event: 'order_created' }
       };
 
       setNotifications(prev => {
