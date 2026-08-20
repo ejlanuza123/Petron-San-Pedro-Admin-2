@@ -138,49 +138,44 @@ export const NotificationProvider = ({ children }) => {
   }, [user?.id]);
 
   const markAsRead = async (notificationId) => {
-    try {
-      const result = await pushNotificationService.markAsRead(notificationId);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to mark notification as read');
+    // Optimistically mark as read in local state immediately
+    setNotifications(prev => {
+      let didTransitionToRead = false;
+
+      const next = prev.map(n => {
+        if (n.id === notificationId && !n.is_read) {
+          didTransitionToRead = true;
+          return { ...n, is_read: true };
+        }
+        return n;
+      });
+
+      if (didTransitionToRead) {
+        setUnreadCount(count => Math.max(0, count - 1));
       }
 
-      setNotifications(prev => {
-        let didTransitionToRead = false;
+      return next;
+    });
 
-        const next = prev.map(n => {
-          if (n.id === notificationId && !n.is_read) {
-            didTransitionToRead = true;
-            return { ...n, is_read: true };
-          }
-          return n;
-        });
-
-        if (didTransitionToRead) {
-          setUnreadCount(count => Math.max(0, count - 1));
-        }
-
-        return next;
-      });
+    try {
+      const result = await pushNotificationService.markAsRead(notificationId);
+      if (!result?.success && !result?.localOnly) {
+        console.warn('Failed to persist mark notification as read:', result?.error);
+      }
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-      showNotificationError(
-        `notifications-mark-read-${notificationId}`,
-        'Update Failed',
-        'Failed to mark notification as read. Please try again.',
-        error.message
-      );
+      console.warn('Failed to persist mark notification as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
-    try {
-      const result = await pushNotificationService.markAllAsRead(user.id);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to mark all notifications as read');
-      }
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
 
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+    try {
+      const result = await pushNotificationService.markAllAsRead(user?.id);
+      if (!result?.success) {
+        console.warn('Failed to mark all notifications as read in backend:', result?.error);
+      }
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
       showNotificationError(
@@ -193,36 +188,31 @@ export const NotificationProvider = ({ children }) => {
   };
 
   const removeNotification = async (notificationId) => {
-    try {
-      const result = await pushNotificationService.removeNotification(notificationId);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to remove notification');
+    // Optimistically remove from local state immediately
+    setNotifications(prev => {
+      let removedWasUnread = false;
+      const next = prev.filter(n => {
+        if (n.id === notificationId) {
+          removedWasUnread = !n.is_read;
+          return false;
+        }
+        return true;
+      });
+
+      if (removedWasUnread) {
+        setUnreadCount(count => Math.max(0, count - 1));
       }
 
-      setNotifications(prev => {
-        let removedWasUnread = false;
-        const next = prev.filter(n => {
-          if (n.id === notificationId) {
-            removedWasUnread = !n.is_read;
-            return false;
-          }
-          return true;
-        });
+      return next;
+    });
 
-        if (removedWasUnread) {
-          setUnreadCount(count => Math.max(0, count - 1));
-        }
-
-        return next;
-      });
+    try {
+      const result = await pushNotificationService.removeNotification(notificationId);
+      if (!result?.success && !result?.localOnly) {
+        console.warn('Failed to persist remove notification in backend:', result?.error);
+      }
     } catch (error) {
-      console.error('Failed to remove notification:', error);
-      showNotificationError(
-        `notifications-remove-${notificationId}`,
-        'Remove Failed',
-        'Failed to remove notification. Please try again.',
-        error.message
-      );
+      console.warn('Failed to persist remove notification:', error);
     }
   };
 

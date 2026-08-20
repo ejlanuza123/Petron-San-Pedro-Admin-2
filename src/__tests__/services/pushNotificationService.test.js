@@ -203,6 +203,15 @@ describe('pushNotificationService', () => {
     expect(result.error).toBe('write failed');
   });
 
+  it('markAsRead and removeNotification handle local synthesized notification IDs without querying db', async () => {
+    const markRes = await pushNotificationService.markAsRead('order-alert-9-1787195920412');
+    const removeRes = await pushNotificationService.removeNotification('order-alert-9-1787195920412');
+
+    expect(markRes).toEqual({ success: true, localOnly: true });
+    expect(removeRes).toEqual({ success: true, localOnly: true });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it('markAllAsRead returns success on valid chain', async () => {
     const secondEq = vi.fn().mockResolvedValue({ error: null });
     const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
