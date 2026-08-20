@@ -1110,24 +1110,24 @@ export default function Reports() {
                   <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                     {reportData.timeSeriesData.map((item, index) => {
                       const maxAmount = Math.max(...reportData.timeSeriesData.map(d => d.sales), 1);
-                      const percentage = (item.sales / maxAmount) * 100;
+                      const percentage = Math.min(Math.max((item.sales / maxAmount) * 100, 0), 100);
                       
                       return (
                         <div key={index} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-500 w-24">{item.date}</span>
-                          <div className="flex-1">
-                            <div className="h-8 bg-gray-100 dark:bg-slate-700 rounded-lg relative group">
+                          <span className="text-xs text-gray-500 w-24 truncate">{item.date}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="h-8 bg-gray-100 dark:bg-slate-700 rounded-lg relative group overflow-hidden">
                               <div 
                                 className="h-full bg-petron-blue rounded-lg transition-all duration-300"
                                 style={{ width: `${percentage}%` }}
                               >
-                                <div className="opacity-0 group-hover:opacity-100 absolute right-0 -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded transition-opacity shadow">
+                                <div className="opacity-0 group-hover:opacity-100 absolute right-0 -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded transition-opacity shadow pointer-events-none z-10">
                                   {formatCurrency(item.sales)} ({item.orders} orders)
                                 </div>
                               </div>
                             </div>
                           </div>
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-24 text-right">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-24 text-right truncate">
                             {formatCurrency(item.sales)}
                           </span>
                         </div>
@@ -1146,25 +1146,26 @@ export default function Reports() {
                 <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Payment Method Distribution</h3>
                 
                 <div className="space-y-4 mb-6">
-                  {Object.entries(reportData.paymentMethods || {}).map(([method, count]) => {
-                    const pct = reportData.summary.totalOrdersCount > 0
-                      ? Math.round((count / reportData.summary.totalOrdersCount) * 100)
-                      : 0;
-                    return (
-                      <div key={method} className="space-y-1">
-                        <div className="flex justify-between text-xs font-semibold">
-                          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{method}</span>
-                          <span className="text-blue-600">{count} orders ({pct}%)</span>
+                  {(() => {
+                    const totalPaymentOrders = Object.values(reportData.paymentMethods || {}).reduce((a, b) => a + Number(b || 0), 0) || reportData.summary?.totalOrdersCount || 1;
+                    return Object.entries(reportData.paymentMethods || {}).map(([method, count]) => {
+                      const pct = Math.min(Math.max(Math.round((Number(count || 0) / totalPaymentOrders) * 100), 0), 100);
+                      return (
+                        <div key={method} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{method}</span>
+                            <span className="text-blue-600">{count} orders ({pct}%)</span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                              style={{ width: `${pct}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-                          <div
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${pct}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
 
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-blue-50/60 border-blue-100'}`}>
@@ -1216,23 +1217,24 @@ export default function Reports() {
               <div className={`rounded-xl shadow-sm border p-6 transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
                 <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Category Sales Distribution</h3>
                 <div className="space-y-4">
-                  {(reportData.categorySales || []).map((cat) => {
-                    const pct = reportData.summary.totalSales > 0
-                      ? Math.round((cat.revenue / reportData.summary.totalSales) * 100)
-                      : 0;
-                    return (
-                      <div key={cat.category}>
-                        <div className="flex justify-between text-xs font-semibold mb-1">
-                          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{cat.category}</span>
-                          <span className="text-emerald-600">{formatCurrency(cat.revenue)} ({pct}%)</span>
+                  {(() => {
+                    const totalCatRevenue = (reportData.categorySales || []).reduce((sum, c) => sum + Number(c.revenue || 0), 0) || reportData.summary?.totalSales || 1;
+                    return (reportData.categorySales || []).map((cat) => {
+                      const pct = Math.min(Math.max(Math.round((Number(cat.revenue || 0) / totalCatRevenue) * 100), 0), 100);
+                      return (
+                        <div key={cat.category} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{cat.category}</span>
+                            <span className="text-emerald-600 font-bold">{formatCurrency(cat.revenue)} ({pct}%)</span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                            <div className="bg-emerald-600 h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{cat.quantity} items sold</p>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                          <div className="bg-emerald-600 h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
-                        </div>
-                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{cat.quantity} items sold</p>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
