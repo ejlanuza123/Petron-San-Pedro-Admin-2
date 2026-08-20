@@ -24,6 +24,10 @@ vi.mock('../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false, toggleDarkMode: vi.fn() }),
 }));
 
+vi.mock('../../context/ErrorContext', () => ({
+  useError: () => ({ showToast: vi.fn(), showError: vi.fn(), setError: vi.fn() }),
+}));
+
 vi.mock('react-router-dom', () => ({
   useLocation: (...args) => mocks.useLocation(...args),
   useNavigate: (...args) => mocks.useNavigate(...args),

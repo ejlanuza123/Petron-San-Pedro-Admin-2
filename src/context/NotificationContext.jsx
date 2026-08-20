@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useError } from './ErrorContext';
 import { supabase } from '../lib/supabase';
 import { pushNotificationService, playNotificationChime } from '../services/pushNotificationService';
+import { formatOrderNumber } from '../utils/formatters';
 
 const NotificationContext = createContext();
 
@@ -273,7 +274,7 @@ export const NotificationProvider = ({ children }) => {
         playNotificationChime();
       }
 
-      const orderTitle = `🔔 New Order #${String(newOrder.order_number || newOrder.id || '').slice(0, 8)}`;
+      const orderTitle = `🔔 New Order ${formatOrderNumber(newOrder.order_number, newOrder.id)}`;
       const orderMessage = `Amount: ₱${Number(newOrder.total_amount || 0).toLocaleString()} • Status: ${newOrder.status || 'Pending'}`;
 
       pushNotificationService.sendNotification(orderTitle, {

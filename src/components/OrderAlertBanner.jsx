@@ -110,7 +110,7 @@ export default function OrderAlertBanner({ storeName = "Petron Station" }) {
           <div className="flex justify-between items-center bg-blue-50/60 dark:bg-slate-800/60 p-3 rounded-xl border border-blue-100/80 dark:border-slate-700">
             <div>
               <span className="text-xs font-bold text-gray-900 dark:text-white block">
-                {formatOrderNumber(order.order_number) || `Order #${order.id}`}
+                {formatOrderNumber(order.order_number, order.id)}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 block truncate max-w-[200px]">
                 {order.customer_name || order.delivery_address || 'Customer Delivery'}
