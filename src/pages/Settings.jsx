@@ -105,6 +105,85 @@ const ADMIN_MANUAL_SECTIONS = [
   },
 ];
 
+const PETRON_STORE_PAUSE_PRESETS = {
+  emergency: [
+    {
+      id: 'severe_weather',
+      title: 'Severe Weather & Typhoon Advisory',
+      reason: 'Deliveries are temporarily paused due to inclement weather, heavy rainfall, and road safety protocols in San Pedro. All active in-progress deliveries will be fulfilled safely once conditions clear.',
+    },
+    {
+      id: 'flooding',
+      title: 'Road Flooding / Route Safety Pause',
+      reason: 'Delivery routes in San Pedro and nearby areas are currently impassable due to street flooding. Ordering will resume as soon as safety inspectors clear the roads.',
+    },
+    {
+      id: 'power_outage',
+      title: 'Power Outage & Technical Advisory',
+      reason: 'Our station is currently experiencing a regional power interruption and generator switchover. Fuel dispensing and order processing will resume shortly.',
+    },
+    {
+      id: 'road_repairs',
+      title: 'Road Closure / Station Access Restriction',
+      reason: 'Access roads leading to our San Pedro station are temporarily closed for emergency public works. Deliveries will resume as soon as alternate access opens.',
+    },
+    {
+      id: 'safety_drill',
+      title: 'Mandatory Safety & Fire Protocol Drill',
+      reason: 'Our station is conducting a required periodic safety and fire emergency response drill. Operations will resume immediately after the drill concludes.',
+    },
+  ],
+  holiday: [
+    {
+      id: 'holiday_closure',
+      title: 'Holiday Operations Notice',
+      reason: 'Our station is observing a scheduled holiday closure. We look forward to refueling your journey upon reopening! Thank you for your continued trust.',
+    },
+    {
+      id: 'christmas_newyear',
+      title: 'Christmas & New Year Holiday Break',
+      reason: 'Warmest holiday greetings from Petron San Pedro! Our station team is on a scheduled festive break with their families. Normal fuel delivery operations will resume promptly after the holidays.',
+    },
+    {
+      id: 'holy_week',
+      title: 'Holy Week Station Schedule',
+      reason: 'Our station is observing Holy Week solemn operations. Deliveries and on-site dispensing will resume according to our regular operating hours on the scheduled date.',
+    },
+    {
+      id: 'all_saints_day',
+      title: 'Undas / All Saints’ Day Schedule',
+      reason: 'In observance of All Saints’ and All Souls’ Day, delivery operations are temporarily paused. We encourage scheduled pre-orders where available.',
+    },
+    {
+      id: 'company_event',
+      title: 'Station Staff Annual Assembly & Outing',
+      reason: 'Our station crew is attending our annual team assembly and customer service training. We will be back to serve you with excellence upon reopening!',
+    },
+  ],
+  maintenance: [
+    {
+      id: 'station_maintenance',
+      title: 'Scheduled System & Station Maintenance',
+      reason: 'We are currently conducting routine station safety checks, pump calibrations, and IT system enhancements to serve you better.',
+    },
+    {
+      id: 'tank_sanitation',
+      title: 'Fuel Tank & Dispenser Inspection',
+      reason: 'Periodic fuel storage tank calibration and quality inspection are in progress to guarantee 100% authentic Petron quality fuel for all customers.',
+    },
+    {
+      id: 'inventory_audit',
+      title: 'Quarterly Stock & Inventory Audit',
+      reason: 'Our station is performing our quarterly comprehensive inventory and lubricant stock verification. Operations will resume once stock verification completes.',
+    },
+    {
+      id: 'server_upgrade',
+      title: 'Digital Platform & Server Maintenance',
+      reason: 'We are performing scheduled cloud database upgrades and performance optimizations. The mobile app will unlock automatically upon completion.',
+    },
+  ],
+};
+
 export default function Settings() {
   const { isDarkMode } = useTheme();
   const { profile, updateProfile } = useAuth();
@@ -132,6 +211,7 @@ export default function Settings() {
   // Store Holiday / Emergency Pause state
   const [storePaused, setStorePaused] = useState(false);
   const [storePauseMode, setStorePauseMode] = useState('open'); // 'open' | 'emergency' | 'holiday' | 'maintenance'
+  const [storePausePresetId, setStorePausePresetId] = useState('');
   const [storePauseTitle, setStorePauseTitle] = useState('');
   const [storePauseReason, setStorePauseReason] = useState('');
   const [storeReopenAt, setStoreReopenAt] = useState('');
@@ -208,13 +288,23 @@ export default function Settings() {
   const fetchStorePauseSettings = async () => {
     try {
       const data = await settingsService.getStorePauseSettings();
+      const currentMode = data.isPaused ? data.mode : 'open';
       setStorePaused(data.isPaused);
-      setStorePauseMode(data.isPaused ? data.mode : 'open');
-      setStorePauseTitle(data.title);
-      setStorePauseReason(data.reason);
-      setStoreReopenAt(data.reopenAt);
-      setStoreAllowPreorders(data.allowPreorders);
-      setStoreAutoReopen(data.autoReopen);
+      setStorePauseMode(currentMode);
+      setStorePauseTitle(data.title || '');
+      setStorePauseReason(data.reason || '');
+      setStoreReopenAt(data.reopenAt || '');
+      setStoreAllowPreorders(data.allowPreorders || false);
+      setStoreAutoReopen(data.autoReopen !== undefined ? data.autoReopen : true);
+
+      if (currentMode !== 'open' && PETRON_STORE_PAUSE_PRESETS[currentMode]) {
+        const matched = PETRON_STORE_PAUSE_PRESETS[currentMode].find(
+          (p) => p.title === data.title
+        );
+        setStorePausePresetId(matched ? matched.id : 'custom');
+      } else {
+        setStorePausePresetId('');
+      }
     } catch (err) {
       console.error('Error fetching store pause settings:', err);
     }
@@ -224,22 +314,45 @@ export default function Settings() {
     setStorePauseMode(mode);
     if (mode === 'open') {
       setStorePaused(false);
+      setStorePausePresetId('');
       setStorePauseTitle('');
       setStorePauseReason('');
       setStoreReopenAt('');
-    } else if (mode === 'emergency') {
+    } else {
       setStorePaused(true);
-      if (!storePauseTitle) setStorePauseTitle('Severe Weather / Emergency Advisory');
-      if (!storePauseReason) setStorePauseReason('Deliveries are temporarily paused due to inclement weather and road safety conditions in San Pedro. All active in-progress deliveries will be fulfilled safely.');
-    } else if (mode === 'holiday') {
-      setStorePaused(true);
-      if (!storePauseTitle) setStorePauseTitle('Holiday Operations Notice');
-      if (!storePauseReason) setStorePauseReason('Our station is observing a scheduled holiday closure. We look forward to refueling your journey upon reopening!');
-    } else if (mode === 'maintenance') {
-      setStorePaused(true);
-      if (!storePauseTitle) setStorePauseTitle('Scheduled System & Station Maintenance');
-      if (!storePauseReason) setStorePauseReason('We are currently conducting routine station safety checks and inventory counts.');
+      const presets = PETRON_STORE_PAUSE_PRESETS[mode] || [];
+      const defaultPreset = presets[0];
+      if (defaultPreset) {
+        setStorePausePresetId(defaultPreset.id);
+        setStorePauseTitle(defaultPreset.title);
+        setStorePauseReason(defaultPreset.reason);
+      } else {
+        setStorePausePresetId('custom');
+      }
     }
+  };
+
+  const handleSelectPreset = (presetId) => {
+    setStorePausePresetId(presetId);
+    if (presetId === 'custom') return;
+
+    const presets = PETRON_STORE_PAUSE_PRESETS[storePauseMode] || [];
+    const chosen = presets.find((p) => p.id === presetId);
+    if (chosen) {
+      setStorePauseTitle(chosen.title);
+      setStorePauseReason(chosen.reason);
+    }
+  };
+
+  const handleTitleChange = (val) => {
+    setStorePauseTitle(val);
+    const presets = PETRON_STORE_PAUSE_PRESETS[storePauseMode] || [];
+    const matched = presets.find((p) => p.title === val);
+    setStorePausePresetId(matched ? matched.id : 'custom');
+  };
+
+  const handleReasonChange = (val) => {
+    setStorePauseReason(val);
   };
 
   const handleApplyReopenPreset = (hours) => {
@@ -790,14 +903,36 @@ export default function Settings() {
                     : isDarkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/80 border-blue-200'
                 }`}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Announcement Title Preset Dropdown */}
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Quick Situation / Announcement Preset
+                      </label>
+                      <select
+                        value={storePausePresetId}
+                        onChange={(e) => handleSelectPreset(e.target.value)}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      >
+                        {(PETRON_STORE_PAUSE_PRESETS[storePauseMode] || []).map((preset) => (
+                          <option key={preset.id} value={preset.id}>
+                            {preset.title}
+                          </option>
+                        ))}
+                        <option value="custom">✏️ Custom Announcement (Edit Title & Reason Below)</option>
+                      </select>
+                      <p className={`text-xs mt-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Selecting a preset automatically populates the title and reason below. You can still customize either field freely.
+                      </p>
+                    </div>
+
                     <div>
                       <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                        Announcement Title
+                        Announcement Title (Editable)
                       </label>
                       <input
                         type="text"
                         value={storePauseTitle}
-                        onChange={(e) => setStorePauseTitle(e.target.value)}
+                        onChange={(e) => handleTitleChange(e.target.value)}
                         placeholder="e.g. Severe Weather Closure Notice"
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       />
@@ -817,12 +952,12 @@ export default function Settings() {
 
                     <div className="md:col-span-2">
                       <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                        Customer Reason &amp; Operational Details (Displayed on Mobile App)
+                        Customer Reason &amp; Operational Details (Displayed on Mobile App, Editable)
                       </label>
                       <textarea
                         rows="3"
                         value={storePauseReason}
-                        onChange={(e) => setStorePauseReason(e.target.value)}
+                        onChange={(e) => handleReasonChange(e.target.value)}
                         placeholder="Explain why deliveries are paused and what customers can expect..."
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       />

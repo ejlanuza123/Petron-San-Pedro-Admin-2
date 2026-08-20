@@ -18,7 +18,7 @@ describe('settingsService', () => {
     vi.clearAllMocks();
 
     mockSingle.mockResolvedValue({ data: { value: '75' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockEq.mockReturnValue({ single: mockSingle, maybeSingle: mockSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockUpsert.mockResolvedValue({ error: null });
 
@@ -62,21 +62,21 @@ describe('settingsService', () => {
   });
 
   it('updateDefaultDeliveryFee returns true on successful upsert', async () => {
-    const ok = await settingsService.updateDefaultDeliveryFee(65);
+    const res = await settingsService.updateDefaultDeliveryFee(65);
 
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'default_delivery_fee', value: '65' }),
       { onConflict: 'key' }
     );
-    expect(ok).toBe(true);
+    expect(res?.success).toBe(true);
   });
 
   it('updateDefaultDeliveryFee returns false when upsert throws', async () => {
     mockUpsert.mockResolvedValue({ error: new Error('write failed') });
 
-    const ok = await settingsService.updateDefaultDeliveryFee(90);
+    const res = await settingsService.updateDefaultDeliveryFee(90);
 
-    expect(ok).toBe(false);
+    expect(res?.success).toBe(false);
   });
 
   it('getSetting returns default when value missing', async () => {
