@@ -99,7 +99,10 @@ export const NotificationProvider = ({ children }) => {
       unsubscribeRef.current = pushNotificationService.subscribeToNotifications(
         user.id,
         (newNotification) => {
-          setNotifications(prev => [newNotification, ...prev]);
+          setNotifications(prev => {
+            if (prev.some(n => n.id === newNotification.id)) return prev;
+            return [newNotification, ...prev];
+          });
           if (!newNotification.is_read) {
             setUnreadCount(prev => prev + 1);
           }
@@ -257,66 +260,29 @@ export const NotificationProvider = ({ children }) => {
     });
   };
 
-  // Subscribe to real-time incoming orders to play audio chime and browser notification
+  // Subscribe to real-time incoming orders to play audio chime and OS browser push notification
   useEffect(() => {
-    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts(async (newOrder) => {
+    const unsubscribeOrderAlerts = pushNotificationService.subscribeToOrderAlerts((newOrder) => {
       if (!newOrder?.id) return;
 
       if (soundEnabled) {
         playNotificationChime();
       }
 
-      const orderTitle = `🔔 New Order #${String(newOrder.id || '').slice(0, 8)}`;
+      const orderTitle = `🔔 New Order #${String(newOrder.order_number || newOrder.id || '').slice(0, 8)}`;
       const orderMessage = `Amount: ₱${Number(newOrder.total_amount || 0).toLocaleString()} • Status: ${newOrder.status || 'Pending'}`;
 
       pushNotificationService.sendNotification(orderTitle, {
         body: orderMessage,
-        tag: 'order_created',
+        tag: `order-${newOrder.id}`,
         clickUrl: '/orders'
       });
-
-      let dbNotification = null;
-      if (user?.id) {
-        try {
-          const res = await pushNotificationService.createNotification(user.id, {
-            type: 'order_status',
-            title: orderTitle,
-            message: orderMessage,
-            data: { order_id: newOrder.id, event: 'order_created' }
-          });
-          if (res?.success && res?.data) {
-            dbNotification = res.data;
-          }
-        } catch (err) {
-          console.warn('Could not persist order notification to database:', err);
-        }
-      }
-
-      const inAppItem = dbNotification || {
-        id: `order-alert-${newOrder.id}-${Date.now()}`,
-        type: 'order_status',
-        title: orderTitle,
-        message: orderMessage,
-        created_at: new Date().toISOString(),
-        is_read: false,
-        data: { order_id: newOrder.id, event: 'order_created' }
-      };
-
-      setNotifications(prev => {
-        const isDuplicate = prev.some(n => 
-          n.id === inAppItem.id || 
-          (n.data?.order_id && String(n.data.order_id) === String(newOrder.id) && (Date.now() - new Date(n.created_at).getTime() < 30000))
-        );
-        if (isDuplicate) return prev;
-        return [inAppItem, ...prev];
-      });
-      setUnreadCount(count => count + 1);
     });
 
     return () => {
       unsubscribeOrderAlerts();
     };
-  }, [soundEnabled, user?.id]);
+  }, [soundEnabled]);
 
   return (
     <NotificationContext.Provider
