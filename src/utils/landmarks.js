@@ -47,7 +47,7 @@ export const PUERTO_PRINCESA_BARANGAYS = [
   { name: 'Inagawan', aliases: ['inagawan', 'brgy inagawan'], lat: 9.550000, lng: 118.620000 }
 ];
 
-// Rich verified catalog of landmarks, parks, historical sites, hospitals, and malls in Puerto Princesa City
+// Rich verified catalog of landmarks, parks, historical sites, hospitals, universities, fast food, and malls in Puerto Princesa City
 export const PUERTO_PRINCESA_LANDMARKS = [
   // 1. Malls & Shopping Hubs
   { 
@@ -91,7 +91,49 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.746870 
   },
 
-  // 2. Coliseums & Sports Hubs
+  // 2. Fast Food & Popular Dining Landmarks
+  { 
+    name: 'McDonald\'s Palawan Junction', 
+    address: 'National Highway cor. North Road (Junction), San Pedro',
+    aliases: ['mcdo junction', 'mcdonalds junction', 'mcdonalds palawan junction', 'mcdo san pedro', 'junction mcdo'], 
+    category: 'Dining', 
+    icon: '🍔', 
+    barangay: 'San Pedro', 
+    lat: 9.7569611, 
+    lng: 118.7436146 
+  },
+  { 
+    name: 'Jollibee Rizal', 
+    address: 'Rizal Ave.',
+    aliases: ['jollibee', 'jollibee rizal', 'jollibee downtown', 'jollibee tagumpay'], 
+    category: 'Dining', 
+    icon: '🍔', 
+    barangay: 'Tagumpay', 
+    lat: 9.739959, 
+    lng: 118.7382802 
+  },
+  { 
+    name: 'Jollibee Malvar', 
+    address: 'Malvar St.',
+    aliases: ['jollibee malvar', 'jb malvar'], 
+    category: 'Dining', 
+    icon: '🍔', 
+    barangay: 'San Miguel', 
+    lat: 9.7437293, 
+    lng: 118.7368364 
+  },
+  { 
+    name: 'Jollibee Palawan Drive Thru', 
+    address: 'National Highway, San Pedro / Tiniguiban',
+    aliases: ['jollibee drive thru', 'jollibee national highway', 'jollibee san pedro drive thru', 'jb drive thru'], 
+    category: 'Dining', 
+    icon: '🍔', 
+    barangay: 'San Pedro', 
+    lat: 9.7648376, 
+    lng: 118.7440386 
+  },
+
+  // 3. Coliseums & Sports Hubs
   { 
     name: 'Edward S. Hagedorn Coliseum', 
     address: 'Peneyra Rd.',
@@ -103,17 +145,113 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.748890 
   },
   { 
-    name: 'Balayong People\'s Park & Sports Complex', 
-    address: 'San Pedro',
-    aliases: ['balayong', 'balayong park', "balayong people's park", 'balayong stadium'], 
+    name: 'Balayong People\'s Park', 
+    address: 'Santa Monica / San Pedro',
+    aliases: ['balayong', 'balayong park', "balayong people's park", 'balayong stadium', 'balayong sports complex'], 
     category: 'Park', 
     icon: '🌳', 
-    barangay: 'San Pedro', 
-    lat: 9.758000, 
-    lng: 118.742000 
+    barangay: 'Santa Monica', 
+    lat: 9.7840625, 
+    lng: 118.7303241 
   },
 
-  // 3. Parks & Waterfront
+  // 4. Universities & Higher Education
+  { 
+    name: 'Palawan State University Main (PSU Main)', 
+    address: 'Tiniguiban Heights',
+    aliases: ['psu', 'psu main', 'palawan state university', 'palawan state university main'], 
+    category: 'University', 
+    icon: '🎓', 
+    barangay: 'Tiniguiban', 
+    lat: 9.7773331, 
+    lng: 118.7312721 
+  },
+  { 
+    name: 'Western Philippines University (WPU)', 
+    address: 'Rafols Rd., Sta. Monica',
+    aliases: ['wpu', 'western philippines university', 'western philippine university', 'wpu sta monica'], 
+    category: 'University', 
+    icon: '🎓', 
+    barangay: 'Santa Monica', 
+    lat: 9.7842528, 
+    lng: 118.7273844 
+  },
+  { 
+    name: 'Holy Trinity University (HTU Main)', 
+    address: 'Quezon St. / Rizal Ave.',
+    aliases: ['htu', 'holy trinity', 'holy trinity university', 'htu main', 'htu quezon'], 
+    category: 'University', 
+    icon: '🎓', 
+    barangay: 'Maligaya', 
+    lat: 9.7410047, 
+    lng: 118.729397 
+  },
+  { 
+    name: 'Holy Trinity University (Sta. Monica Campus)', 
+    address: 'National Highway, Sta. Monica',
+    aliases: ['htu sta monica', 'holy trinity university sta monica', 'htu sta. monica campus', 'holy trinity university sta. monica campus'], 
+    category: 'University', 
+    icon: '🎓', 
+    barangay: 'Santa Monica', 
+    lat: 9.7937457, 
+    lng: 118.7340572 
+  },
+
+  // 5. Hospitals & Medical Hubs
+  { 
+    name: 'Ospital ng Palawan (ONP)', 
+    address: '220 Malvar St.',
+    aliases: ['onp', 'ospital ng palawan', 'onp hospital', 'ospital'], 
+    category: 'Hospital', 
+    icon: '🏥', 
+    barangay: 'San Miguel', 
+    lat: 9.7478371, 
+    lng: 118.7416775 
+  },
+  { 
+    name: 'MMG-PPC Cooperative Hospital', 
+    address: 'Burgos St.',
+    aliases: ['mmg hospital', 'mmg', 'cooperative hospital'], 
+    category: 'Hospital', 
+    icon: '🏥', 
+    barangay: 'San Pedro', 
+    lat: 9.756200, 
+    lng: 118.747500 
+  },
+  { 
+    name: 'Adventist Hospital Palawan', 
+    address: 'San Pedro',
+    aliases: ['adventist hospital', 'adventist', 'sanitarium'], 
+    category: 'Hospital', 
+    icon: '🏥', 
+    barangay: 'San Pedro', 
+    lat: 9.751200, 
+    lng: 118.749100 
+  },
+
+  // 6. Markets & Commercial
+  { 
+    name: 'New Public Market', 
+    address: 'Puerto Princesa City, Palawan',
+    aliases: ['new public market', 'bagong palengke', 'new market', 'new public market maunlad'], 
+    category: 'Market', 
+    icon: '🧺', 
+    barangay: 'Maunlad', 
+    lat: 9.7461309, 
+    lng: 118.7202496 
+  },
+  { 
+    name: 'Old Public Market', 
+    address: 'Valencia St. / Malvar St.',
+    aliases: ['old public market', 'public market', 'old market', 'palengke'], 
+    category: 'Market', 
+    icon: '🧺', 
+    barangay: 'Tagumpay', 
+    lat: 9.7422666, 
+    lng: 118.7333285 
+  },
+
+  // 7. Parks & Waterfront
   { 
     name: 'Mendoza Park', 
     address: 'H. Mendoza St.',
@@ -155,7 +293,7 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.733000 
   },
 
-  // 4. Government & Civic
+  // 8. Government & Civic
   { 
     name: 'Palawan Provincial Capitol', 
     address: 'Fernandez St.',
@@ -177,7 +315,7 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.736970 
   },
 
-  // 5. Transportation Hubs
+  // 9. Transportation Hubs
   { 
     name: 'Puerto Princesa International Airport', 
     address: 'National Highway',
@@ -209,83 +347,7 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.7425823 
   },
 
-  // 6. Hospitals & Medical
-  { 
-    name: 'Ospital ng Palawan (ONP)', 
-    address: '220 Malvar St.',
-    aliases: ['onp', 'ospital ng palawan', 'onp hospital'], 
-    category: 'Hospital', 
-    icon: '🏥', 
-    barangay: 'San Miguel', 
-    lat: 9.7478371, 
-    lng: 118.7416775 
-  },
-  { 
-    name: 'MMG-PPC Cooperative Hospital', 
-    address: 'Burgos St.',
-    aliases: ['mmg hospital', 'mmg', 'cooperative hospital'], 
-    category: 'Hospital', 
-    icon: '🏥', 
-    barangay: 'San Pedro', 
-    lat: 9.756200, 
-    lng: 118.747500 
-  },
-  { 
-    name: 'Adventist Hospital Palawan', 
-    address: 'San Pedro',
-    aliases: ['adventist hospital', 'adventist', 'sanitarium'], 
-    category: 'Hospital', 
-    icon: '🏥', 
-    barangay: 'San Pedro', 
-    lat: 9.751200, 
-    lng: 118.749100 
-  },
-
-  // 7. Universities & Education
-  { 
-    name: 'Palawan State University (PSU Main)', 
-    address: 'Tiniguiban Heights',
-    aliases: ['psu', 'psu main', 'palawan state university'], 
-    category: 'University', 
-    icon: '🎓', 
-    barangay: 'Tiniguiban', 
-    lat: 9.771000, 
-    lng: 118.738000 
-  },
-  { 
-    name: 'Holy Trinity University (HTU)', 
-    address: 'Quezon St.',
-    aliases: ['htu', 'holy trinity', 'holy trinity university'], 
-    category: 'University', 
-    icon: '🎓', 
-    barangay: 'Tiniguiban', 
-    lat: 9.764000, 
-    lng: 118.743500 
-  },
-
-  // 8. Markets & Commercial
-  { 
-    name: 'Old Public Market', 
-    address: 'Valencia St. / Malvar St.',
-    aliases: ['old public market', 'public market', 'old market', 'palengke'], 
-    category: 'Market', 
-    icon: '🧺', 
-    barangay: 'Tagumpay', 
-    lat: 9.7422666, 
-    lng: 118.7333285 
-  },
-  { 
-    name: 'New Public Market (Maunlad)', 
-    address: 'PPWQ+F82, Puerto Princesa City',
-    aliases: ['new public market', 'bagong palengke'], 
-    category: 'Market', 
-    icon: '🧺', 
-    barangay: 'Maunlad', 
-    lat: 9.7461309, 
-    lng: 118.7356991 
-  },
-
-  // 9. Churches & Religious
+  // 10. Churches & Religious
   { 
     name: 'Immaculate Conception Cathedral', 
     address: 'Taft St.',
@@ -297,7 +359,7 @@ export const PUERTO_PRINCESA_LANDMARKS = [
     lng: 118.729900 
   },
 
-  // 10. Tourism & Attractions
+  // 11. Tourism & Attractions
   { 
     name: 'Palawan Wildlife Rescue & Conservation Center', 
     address: 'South Road, Irawan',
