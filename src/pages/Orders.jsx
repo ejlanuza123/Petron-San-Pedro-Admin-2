@@ -21,6 +21,7 @@ import {
   CheckSquare,
   Trash2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { bulkOperationsService } from '../services/bulkOperationsService';
 import OrderModal from '../components/OrderModal';
 import AssignRiderModal from '../components/AssignRiderModal';
@@ -65,7 +66,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const handledFocusNonceRef = useRef(null);
   const { user } = useAuth();
-  const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, viewOrderDetails } = useOrders();
+  const { orders, loading, error, clearError, selectedOrder, setSelectedOrder, updateStatus, viewOrderDetails, refetch } = useOrders();
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -479,28 +480,32 @@ export default function Orders() {
       if (result.success) {
         notifySuccess(`${result.count} order${result.count > 1 ? 's' : ''} moved to Processing`);
         clearSelection();
-        window.location.reload();
+        if (typeof refetch === 'function') {
+          await refetch(true);
+        }
       } else {
         setStatusActionError(result.error || 'Bulk action failed');
       }
     } finally {
       setBulkActionLoading(false);
     }
-  }, [pendingSelectedOrders, user?.id, clearSelection]);
+  }, [pendingSelectedOrders, user?.id, clearSelection, refetch]);
 
   const handleBulkRiderAssigned = useCallback(async ({ riderId, orderIds, riderName }) => {
     notifySuccess(`Successfully assigned ${orderIds.length} order${orderIds.length > 1 ? 's' : ''} to ${riderName}`);
     setShowBulkAssignModal(false);
     clearSelection();
 
-    // Refresh delivery info in background
+    // Refresh delivery info in background and refetch orders silently
     const latestByOrder = await fetchDeliveryInfoForOrders(orderIds);
     setDeliveryInfoMap(prev => ({
       ...prev,
       ...latestByOrder
     }));
-    window.location.reload();
-  }, [clearSelection, fetchDeliveryInfoForOrders]);
+    if (typeof refetch === 'function') {
+      await refetch(true);
+    }
+  }, [clearSelection, fetchDeliveryInfoForOrders, refetch]);
 
   const openBulkCancelDialog = useCallback(() => {
     setBulkCancelReason(CANCELLATION_REASONS[0]);
@@ -520,14 +525,16 @@ export default function Orders() {
         notifySuccess(`${result.count} order${result.count > 1 ? 's' : ''} cancelled`);
         setShowBulkCancelDialog(false);
         clearSelection();
-        window.location.reload();
+        if (typeof refetch === 'function') {
+          await refetch(true);
+        }
       } else {
         setStatusActionError(result.error || 'Bulk cancel failed');
       }
     } finally {
       setBulkActionLoading(false);
     }
-  }, [cancellableSelectedOrders, user?.id, bulkCancelReason, bulkCancelNote, clearSelection]);
+  }, [cancellableSelectedOrders, user?.id, bulkCancelReason, bulkCancelNote, clearSelection, refetch]);
 
   const handleBulkExportCsv = useCallback(() => {
     const selected = filteredOrders.filter(o => selectedOrderIds.has(o.id));
@@ -784,101 +791,110 @@ export default function Orders() {
         />
       ) : (
         <>
-          {/* Bulk Actions Bar */}
-          {selectedOrderIds.size > 0 && (
-            <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 rounded-xl border mb-2 transition-colors duration-300 ${
-              isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-blue-50 border-blue-200'
-            }`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-sm font-bold flex items-center gap-1.5 ${ isDarkMode ? 'text-blue-300' : 'text-[#0033A0]'}`}>
-                  <CheckSquare size={16} />
-                  {selectedOrderIds.size} Order{selectedOrderIds.size > 1 ? 's' : ''} Selected
-                </span>
+          {/* Bulk Actions Bar with Animation */}
+          <AnimatePresence>
+            {selectedOrderIds.size > 0 && (
+              <motion.div
+                key="bulk-actions-bar"
+                initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className={`flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 rounded-xl border mb-2 shadow-sm transition-colors duration-300 ${
+                  isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-blue-50 border-blue-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-sm font-bold flex items-center gap-1.5 ${ isDarkMode ? 'text-blue-300' : 'text-[#0033A0]'}`}>
+                    <CheckSquare size={16} />
+                    {selectedOrderIds.size} Order{selectedOrderIds.size > 1 ? 's' : ''} Selected
+                  </span>
 
-                {/* Status breakdown pills */}
-                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                  {pendingSelectedOrders.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 font-semibold">
-                      {pendingSelectedOrders.length} Pending
-                    </span>
-                  )}
-                  {unassignedProcessingOrders.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-semibold">
-                      {unassignedProcessingOrders.length} Processing (Unassigned)
-                    </span>
+                  {/* Status breakdown pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                    {pendingSelectedOrders.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 font-semibold">
+                        {pendingSelectedOrders.length} Pending
+                      </span>
+                    )}
+                    {unassignedProcessingOrders.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-semibold">
+                        {unassignedProcessingOrders.length} Processing (Unassigned)
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick filter selection link */}
+                  {selectedOrderIds.size > unassignedProcessingOrders.length && unassignedProcessingOrders.length > 0 && (
+                    <button
+                      onClick={() => handleFilterSelection('unassigned_processing')}
+                      className="text-[11px] underline font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 ml-1"
+                      title="Keep only unassigned processing orders in selection"
+                    >
+                      (Filter to {unassignedProcessingOrders.length} unassigned)
+                    </button>
                   )}
                 </div>
 
-                {/* Quick filter selection link */}
-                {selectedOrderIds.size > unassignedProcessingOrders.length && unassignedProcessingOrders.length > 0 && (
-                  <button
-                    onClick={() => handleFilterSelection('unassigned_processing')}
-                    className="text-[11px] underline font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 ml-1"
-                    title="Keep only unassigned processing orders in selection"
-                  >
-                    (Filter to {unassignedProcessingOrders.length} unassigned)
-                  </button>
-                )}
-              </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Assign Rider Button (Visible when unassigned processing orders are selected) */}
+                  {unassignedProcessingOrders.length > 0 && (
+                    <button
+                      onClick={() => setShowBulkAssignModal(true)}
+                      disabled={bulkActionLoading}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-60"
+                    >
+                      <Truck size={14} />
+                      <span>Assign Rider ({unassignedProcessingOrders.length})</span>
+                    </button>
+                  )}
 
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Assign Rider Button (Visible when unassigned processing orders are selected) */}
-                {unassignedProcessingOrders.length > 0 && (
+                  {/* Mark Processing Button */}
+                  {pendingSelectedOrders.length > 0 && (
+                    <button
+                      onClick={handleBulkMarkProcessing}
+                      disabled={bulkActionLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0033A0] hover:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
+                    >
+                      <Clock size={13} />
+                      <span>Mark Processing ({pendingSelectedOrders.length})</span>
+                    </button>
+                  )}
+
+                  {/* Bulk Cancel Button */}
+                  {cancellableSelectedOrders.length > 0 && (
+                    <button
+                      onClick={openBulkCancelDialog}
+                      disabled={bulkActionLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
+                    >
+                      <Trash2 size={13} />
+                      <span>Bulk Cancel ({cancellableSelectedOrders.length})</span>
+                    </button>
+                  )}
+
+                  {/* Export CSV Button */}
                   <button
-                    onClick={() => setShowBulkAssignModal(true)}
+                    onClick={handleBulkExportCsv}
                     disabled={bulkActionLoading}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
                   >
-                    <Truck size={14} />
-                    <span>Assign Rider ({unassignedProcessingOrders.length})</span>
+                    <Download size={13} /> Export CSV
                   </button>
-                )}
 
-                {/* Mark Processing Button */}
-                {pendingSelectedOrders.length > 0 && (
+                  {/* Clear Selection */}
                   <button
-                    onClick={handleBulkMarkProcessing}
-                    disabled={bulkActionLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0033A0] hover:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
+                    onClick={clearSelection}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+                      isDarkMode ? 'border-slate-500 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-600 hover:bg-white'
+                    }`}
                   >
-                    <Clock size={13} />
-                    <span>Mark Processing ({pendingSelectedOrders.length})</span>
+                    <XCircle size={13} /> Clear
                   </button>
-                )}
-
-                {/* Bulk Cancel Button */}
-                {cancellableSelectedOrders.length > 0 && (
-                  <button
-                    onClick={openBulkCancelDialog}
-                    disabled={bulkActionLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
-                  >
-                    <Trash2 size={13} />
-                    <span>Bulk Cancel ({cancellableSelectedOrders.length})</span>
-                  </button>
-                )}
-
-                {/* Export CSV Button */}
-                <button
-                  onClick={handleBulkExportCsv}
-                  disabled={bulkActionLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-60"
-                >
-                  <Download size={13} /> Export CSV
-                </button>
-
-                {/* Clear Selection */}
-                <button
-                  onClick={clearSelection}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
-                    isDarkMode ? 'border-slate-500 text-gray-300 hover:bg-slate-600' : 'border-gray-300 text-gray-600 hover:bg-white'
-                  }`}
-                >
-                  <XCircle size={13} /> Clear
-                </button>
-              </div>
-            </div>
-          )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Orders Table */}
           <div className={`rounded-xl shadow-sm border overflow-x-auto transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
