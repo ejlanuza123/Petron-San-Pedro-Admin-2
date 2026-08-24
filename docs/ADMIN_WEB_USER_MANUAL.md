@@ -100,10 +100,21 @@ Automate order assignments to eliminate dispatch bottlenecks:
 2. Review available online riders sorted by active workload and proximity.
 3. Select the rider and click **Confirm Assignment**.
 
-### C. Live Fleet Map Hub 🗺️
-1. Click the **Live Fleet Map** tab on Orders.
-2. Station Hub Location: **Petron San Pedro Station** (`9.7533882, 118.745289`).
-3. View store hub pin (`🏬`), live rider GPS positions (`🛵`), and active customer delivery drop-off pins (`📍`).
+### C. Live Fleet Map Hub & Live Delivery Tracking 🗺️
+1. **Live Fleet Overview**: Click the **Live Fleet Map** tab on Orders to monitor all active riders (`🛵`), in-progress order destinations (`📍`), and the central fulfillment hub (`🏬`).
+2. **Dedicated Live Delivery Tracking Modal**:
+   - In the Orders table or details modal, click **Track Delivery** on any active delivery.
+   - Shows real-time rider GPS tracking, turn-by-turn road route polyline with directional arrows, live ETA, and total distance metrics.
+3. **🌙 Dark Mode Map Tiles & Layer Controls**:
+   - Seamlessly adapts to Dark Mode theme with CartoDB Dark Matter map styling.
+   - Use the map layer controls to toggle between:
+     - 🗺️ **Street** (CartoDB Voyager)
+     - 🌙 **Dark** (CartoDB Dark Matter)
+     - 🛰️ **Satellite** (Esri World Imagery)
+     - 🏷️ **Landmarks Toggle** (Show/hide Puerto Princesa official landmarks)
+4. **📍 Proximity Landmark Detection**:
+   - Synchronized with the mobile app's comprehensive Puerto Princesa catalog (40+ landmarks across Malls, Hospitals, Coliseums, Universities, and Waterfront parks).
+   - The delivery sidebar dynamically computes and displays the nearest landmark and distance (e.g. `📍 Near: SM City Puerto Princesa (320m away) · Brgy. San Miguel`).
 
 ### D. Digital E-Invoice & PDF Receipt Generation
 1. In the Order Details modal, click **"Print / Download Invoice"**.

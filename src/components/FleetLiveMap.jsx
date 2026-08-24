@@ -4,6 +4,7 @@ import { Truck, MapPin, Navigation, Phone, User, RefreshCw, Layers, CheckCircle,
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatPhoneNumber } from '../utils/formatters';
 import { useTheme } from '../context/ThemeContext';
+import { PUERTO_PRINCESA_LANDMARKS, detectNearestLandmark } from '../utils/landmarks';
 
 export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder }) {
   const { isDarkMode: themeDarkMode } = useTheme();
@@ -119,8 +120,6 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
 
   // Generate Leaflet HTML String for iframe map rendering with dark mode & tile layer support
   const mapHtml = useMemo(() => {
-    const defaultCenter = { lat: 9.7534772, lng: 118.7478688 }; // Petron San Pedro Hub
-
     // Store origin
     const storePin = { lat: 9.7534772, lng: 118.7478688, name: 'Petron San Pedro Hub' };
 
@@ -148,6 +147,8 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
         amount: formatCurrency(o.total_amount || 0),
         status: o.status,
       }));
+
+    const landmarksJson = JSON.stringify(PUERTO_PRINCESA_LANDMARKS);
 
     return `
 <!DOCTYPE html>
@@ -230,22 +231,40 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
       font-size: 18px; 
       box-shadow: 0 4px 14px rgba(22,163,74,0.5); 
     }
+    .landmark-pin {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: ${isDarkMode ? '#334155' : '#f1f5f9'};
+      border: 2px solid ${isDarkMode ? '#64748b' : '#cbd5e1'};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      transition: transform 0.15s ease;
+    }
+    .landmark-pin:hover {
+      transform: scale(1.2);
+      z-index: 9999 !important;
+    }
     .map-layer-control {
       position: absolute;
       top: 12px;
       right: 12px;
       z-index: 1000;
-      background: ${isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)'};
+      background: ${isDarkMode ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'};
       backdrop-filter: blur(8px);
       padding: 4px;
       border-radius: 10px;
       border: 1px solid ${isDarkMode ? '#334155' : '#e2e8f0'};
       display: flex;
-      gap: 4px;
+      gap: 3px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      align-items: center;
     }
     .map-layer-btn {
-      padding: 5px 10px;
+      padding: 5px 9px;
       font-size: 11px;
       font-weight: 600;
       border: none;
@@ -264,6 +283,11 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
       color: #ffffff;
       box-shadow: 0 2px 6px rgba(0,51,160,0.4);
     }
+    .landmark-toggle-btn {
+      margin-left: 4px;
+      border-left: 1px solid ${isDarkMode ? '#334155' : '#e2e8f0'};
+      padding-left: 8px;
+    }
   </style>
 </head>
 <body>
@@ -271,6 +295,7 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
     <button class="map-layer-btn ${!isDarkMode ? 'active' : ''}" data-layer="street" onclick="setLayer('street')">🗺️ Street</button>
     <button class="map-layer-btn ${isDarkMode ? 'active' : ''}" data-layer="dark" onclick="setLayer('dark')">🌙 Dark</button>
     <button class="map-layer-btn" data-layer="satellite" onclick="setLayer('satellite')">🛰️ Satellite</button>
+    <button class="map-layer-btn landmark-toggle-btn active" id="landmarkToggle" onclick="toggleLandmarks()">🏷️ Landmarks</button>
   </div>
   <div id="map"></div>
   <script>
@@ -278,11 +303,14 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
     const store = ${JSON.stringify(storePin)};
     const riders = ${JSON.stringify(riderMarkers)};
     const orders = ${JSON.stringify(orderMarkers)};
+    const landmarks = ${landmarksJson};
 
     const centerLat = riders.length > 0 ? riders[0].lat : store.lat;
     const centerLng = riders.length > 0 ? riders[0].lng : store.lng;
 
     const map = L.map('map', { zoomControl: true }).setView([centerLat, centerLng], 13);
+    let landmarkMarkers = [];
+    let showLandmarks = true;
 
     const tileLayers = {
       street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -311,8 +339,20 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
       currentTileLayer = tileLayers[layerKey] || (isDark ? tileLayers.dark : tileLayers.street);
       currentTileLayer.addTo(map);
 
-      document.querySelectorAll('.map-layer-btn').forEach(btn => {
+      document.querySelectorAll('.map-layer-btn:not(.landmark-toggle-btn)').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.layer === layerKey);
+      });
+    }
+
+    function toggleLandmarks() {
+      showLandmarks = !showLandmarks;
+      document.getElementById('landmarkToggle').classList.toggle('active', showLandmarks);
+      landmarkMarkers.forEach(m => {
+        if (showLandmarks) {
+          m.addTo(map);
+        } else {
+          map.removeLayer(m);
+        }
       });
     }
 
@@ -338,6 +378,25 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
         .bindPopup('<b>📍 Order ' + o.number + '</b><br/>' + o.address + '<br/>Total: ' + o.amount);
     });
 
+    // Puerto Princesa Landmarks
+    landmarks.forEach(lm => {
+      if (!lm.lat || !lm.lng) return;
+      const icon = L.divIcon({
+        className: 'landmark-pin',
+        html: lm.icon || '📍',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+
+      const marker = L.marker([lm.lat, lm.lng], { icon, zIndexOffset: 300 })
+        .bindPopup('<b>' + (lm.icon || '📍') + ' ' + lm.name + '</b><br/><span style="color:#64748b; font-size:11px;">' + lm.category + ' · Brgy. ' + lm.barangay + '</span>' + (lm.address ? '<br/><span style="font-size:11px;">' + lm.address + '</span>' : ''));
+
+      if (showLandmarks) {
+        marker.addTo(map);
+      }
+      landmarkMarkers.push(marker);
+    });
+
     if (riders.length > 0 || orders.length > 0) {
       const bounds = [];
       bounds.push([store.lat, store.lng]);
@@ -360,7 +419,7 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
           <div>
             <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Full Fleet Live Tracking Map</h3>
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Real-time GPS locations of riders on duty & active delivery drop-offs
+              Real-time GPS locations of riders on duty, active deliveries & Puerto Princesa landmarks
             </p>
           </div>
         </div>
