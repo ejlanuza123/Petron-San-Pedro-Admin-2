@@ -109,7 +109,22 @@ Automate order assignments to eliminate dispatch bottlenecks:
 1. In the Order Details modal, click **"Print / Download Invoice"**.
 2. Generates an official formatted PDF invoice (`Order-#24.pdf`) with complete line items, tax breakdown, and station details.
 
-### E. Order Cancellation
+### E. Status-Based Bulk Operations & Bulk Rider Assignment
+1. **Select Multiple Orders**: Check individual boxes or use the table header checkbox to select all orders on the page.
+2. **Dynamic Breakdown & Selection Filtering**:
+   - The Bulk Actions Bar displays the count and live status breakdown (e.g. `5 Orders Selected: 3 Processing (Unassigned), 2 Pending`).
+   - Click **`(Filter to N unassigned)`** to instantly refine the selection down to unassigned processing orders.
+3. **Bulk Rider Assignment**:
+   - When unassigned processing orders are selected, click **`Assign Rider (N unassigned)`**.
+   - Review selected order numbers, customer names, delivery addresses, and aggregate total in the **Bulk Assign Rider Modal**.
+   - Select an available fleet rider and click **`Assign N Orders to [Rider Name]`**.
+   - Delivery records and orders update in batch with instant sound and push notifications sent to the assigned rider.
+4. **Bulk Status Updates & Export**:
+   - **`Mark Processing (N pending)`**: Moves all selected pending orders into the station fulfillment pipeline.
+   - **`Bulk Cancel`**: Cancels unfulfilled orders with an administrative audit reason.
+   - **`Export CSV`**: Exports transactional data of only the selected orders.
+
+### F. Order Cancellation
 1. Open order details and click **Cancel Order**.
 2. Choose a cancellation reason (*Customer Request*, *Item Out of Stock*, *Unreachable Address*, *Other*).
 3. Add optional administrative notes and confirm.

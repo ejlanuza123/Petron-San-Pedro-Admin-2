@@ -122,6 +122,69 @@ describe('bulkOperationsService', () => {
     expect(result.error).toBe('delivery write failed');
   });
 
+  it('bulkAssignRidersToOrders handles both existing and new deliveries, updates orders, and creates rider notification', async () => {
+    const selectDeliveries = vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({
+        data: [{ id: 'del-1', order_id: 'ord-1' }],
+        error: null,
+      }),
+    });
+    const updateDeliveries = vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const insertDeliveries = vi.fn().mockResolvedValue({ error: null });
+    const updateOrders = vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const insertNotifications = vi.fn().mockResolvedValue({ error: null });
+    const insertAudit = vi.fn().mockResolvedValue({ error: null });
+
+    mocks.from.mockImplementation((table) => {
+      if (table === 'deliveries') {
+        return {
+          select: selectDeliveries,
+          update: updateDeliveries,
+          insert: insertDeliveries,
+        };
+      }
+      if (table === 'orders') return { update: updateOrders };
+      if (table === 'notifications') return { insert: insertNotifications };
+      if (table === 'admin_logs') return { insert: insertAudit };
+      return {};
+    });
+
+    const result = await bulkOperationsService.bulkAssignRidersToOrders(['ord-1', 'ord-2'], 'rider-99', 'admin-5');
+
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(2);
+    expect(updateDeliveries).toHaveBeenCalledWith(expect.objectContaining({ rider_id: 'rider-99', status: 'assigned' }));
+    expect(insertDeliveries).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ order_id: 'ord-2', rider_id: 'rider-99', status: 'assigned' }),
+      ])
+    );
+    expect(updateOrders).toHaveBeenCalledWith(expect.objectContaining({ rider_id: 'rider-99' }));
+    expect(insertNotifications).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ user_id: 'rider-99', type: 'order_status' }),
+      ])
+    );
+    expect(insertAudit).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ admin_id: 'admin-5', entity_type: 'order', entity_id: 'ord-1' }),
+        expect.objectContaining({ admin_id: 'admin-5', entity_type: 'order', entity_id: 'ord-2' }),
+      ])
+    );
+  });
+
+  it('bulkAssignRidersToOrders returns failure when parameters are missing', async () => {
+    const res1 = await bulkOperationsService.bulkAssignRidersToOrders([], 'rider-1');
+    expect(res1.success).toBe(false);
+
+    const res2 = await bulkOperationsService.bulkAssignRidersToOrders(['ord-1'], '');
+    expect(res2.success).toBe(false);
+  });
+
   it('bulkApplyDiscount updates computed discount prices', async () => {
     const products = [
       { id: 'p1', current_price: 100 },

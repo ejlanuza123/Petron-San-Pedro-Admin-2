@@ -120,6 +120,115 @@ export const bulkOperationsService = {
   },
 
   /**
+   * Bulk assign riders directly by Order IDs
+   * (handles both existing and newly created delivery records)
+   */
+  async bulkAssignRidersToOrders(orderIds, riderId, adminId) {
+    if (!orderIds?.length || !riderId) {
+      return { success: false, error: 'Order IDs and Rider ID are required' };
+    }
+
+    try {
+      const actorAdminId = await resolveActorAdminId(adminId);
+      const nowIso = new Date().toISOString();
+
+      // 1. Fetch existing delivery records for these orders
+      const { data: existingDeliveries, error: fetchErr } = await supabase
+        .from('deliveries')
+        .select('id, order_id')
+        .in('order_id', orderIds);
+
+      if (fetchErr) throw fetchErr;
+
+      const existingByOrderId = new Map();
+      (existingDeliveries || []).forEach(d => {
+        existingByOrderId.set(d.order_id, d.id);
+      });
+
+      const existingDeliveryIds = [];
+      const newDeliveriesToInsert = [];
+
+      orderIds.forEach(orderId => {
+        if (existingByOrderId.has(orderId)) {
+          existingDeliveryIds.push(existingByOrderId.get(orderId));
+        } else {
+          newDeliveriesToInsert.push({
+            order_id: orderId,
+            rider_id: riderId,
+            status: 'assigned',
+            assigned_at: nowIso
+          });
+        }
+      });
+
+      // 2. Update existing delivery records
+      if (existingDeliveryIds.length > 0) {
+        const { error: updateDeliveryErr } = await supabase
+          .from('deliveries')
+          .update({
+            rider_id: riderId,
+            status: 'assigned',
+            assigned_at: nowIso
+          })
+          .in('id', existingDeliveryIds);
+
+        if (updateDeliveryErr) throw updateDeliveryErr;
+      }
+
+      // 3. Insert new delivery records for orders without deliveries
+      if (newDeliveriesToInsert.length > 0) {
+        const { error: insertDeliveryErr } = await supabase
+          .from('deliveries')
+          .insert(newDeliveriesToInsert);
+
+        if (insertDeliveryErr) throw insertDeliveryErr;
+      }
+
+      // 4. Update orders table in batch with assigned rider
+      const { error: updateOrdersErr } = await supabase
+        .from('orders')
+        .update({
+          rider_id: riderId,
+          updated_at: nowIso
+        })
+        .in('id', orderIds);
+
+      if (updateOrdersErr) throw updateOrdersErr;
+
+      // 5. Create notification for the rider
+      const notification = {
+        user_id: riderId,
+        type: 'order_status',
+        title: 'New Deliveries Assigned 🛵',
+        message: `You have been assigned ${orderIds.length} delivery order${orderIds.length > 1 ? 's' : ''}`,
+        data: { orderIds, event: 'bulk_rider_assigned' },
+        created_at: nowIso
+      };
+
+      await supabase.from('notifications').insert([notification]);
+
+      // 6. Create audit logs
+      const auditLogs = orderIds.map(orderId => buildAuditLog(
+        actorAdminId,
+        'ASSIGN_RIDER',
+        'order',
+        orderId,
+        { riderId, bulk: true, totalOrders: orderIds.length }
+      ));
+      await tryInsertAuditLogs(auditLogs);
+
+      return {
+        success: true,
+        count: orderIds.length,
+        message: `Successfully assigned ${orderIds.length} order${orderIds.length > 1 ? 's' : ''} to rider`
+      };
+    } catch (error) {
+      console.error('Failed to bulk assign riders to orders:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
    * Bulk cancel orders
    */
   async bulkCancelOrders(orderIds, cancellationReason, cancelledByUserId, adminId = cancelledByUserId) {
