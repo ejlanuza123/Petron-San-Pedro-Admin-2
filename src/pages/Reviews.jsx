@@ -366,7 +366,7 @@ export default function Reviews() {
                       className="px-3 py-1.5 rounded-lg border border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-xs font-semibold flex items-center gap-1 transition"
                       title="Reply to Review"
                     >
-                      <CornerDownRight size={14} /> Reply
+                      <CornerDownRight size={14} /> {(review.replies && review.replies.length > 0) ? 'View Thread' : 'Reply'}
                     </button>
 
                     <button
@@ -389,13 +389,17 @@ export default function Reviews() {
                   <p className={`text-xs italic mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No written comment provided.</p>
                 )}
 
-                {/* Official Store Response */}
-                {review.admin_reply && (
+                {/* Official Store Response or Thread */}
+                {(review.admin_reply || (review.replies && review.replies.length > 0)) && (
                   <div className={`p-3 rounded-lg border flex items-start gap-2 mt-2 ${isDarkMode ? 'bg-blue-950/40 border-blue-800/60 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
                     <ShieldCheck size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mt-0.5 flex-shrink-0`} />
-                    <div>
-                      <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>Official Store Response</p>
-                      <p className="text-xs mt-0.5">{review.admin_reply}</p>
+                    <div className="w-full">
+                      <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>
+                        {review.replies && review.replies.length > 0 ? `Conversation Thread (${review.replies.length + 1}) - Latest Reply` : 'Official Store Response'}
+                      </p>
+                      <p className="text-xs mt-0.5">
+                        {review.replies && review.replies.length > 0 ? review.replies[review.replies.length - 1].message : review.admin_reply}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -452,7 +456,7 @@ export default function Reviews() {
                     className="px-3 py-1.5 rounded-lg border border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-xs font-semibold flex items-center gap-1 transition"
                     title="Reply to Rating"
                   >
-                    <CornerDownRight size={14} /> Reply
+                    <CornerDownRight size={14} /> {(item.replies && item.replies.length > 0) ? 'View Thread' : 'Reply'}
                   </button>
 
                   <button
@@ -475,13 +479,17 @@ export default function Reviews() {
                 <p className={`text-xs italic mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No written comment provided.</p>
               )}
 
-              {/* Official Store Response */}
-              {item.admin_reply && (
+              {/* Official Store Response or Thread */}
+              {(item.admin_reply || (item.replies && item.replies.length > 0)) && (
                 <div className={`p-3 rounded-lg border flex items-start gap-2 mt-2 ${isDarkMode ? 'bg-blue-950/40 border-blue-800/60 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
                   <ShieldCheck size={16} className={`${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'} mt-0.5 flex-shrink-0`} />
-                  <div>
-                    <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>Official Store Response</p>
-                    <p className="text-xs mt-0.5">{item.admin_reply}</p>
+                  <div className="w-full">
+                    <p className={`text-xs font-bold ${isDarkMode ? 'text-blue-400' : 'text-[#0033A0]'}`}>
+                      {item.replies && item.replies.length > 0 ? `Conversation Thread (${item.replies.length + 1}) - Latest Reply` : 'Official Store Response'}
+                    </p>
+                    <p className="text-xs mt-0.5">
+                      {item.replies && item.replies.length > 0 ? item.replies[item.replies.length - 1].message : item.admin_reply}
+                    </p>
                   </div>
                 </div>
               )}
