@@ -133,19 +133,20 @@ export default function Reviews() {
 
   const handleOpenReplyModal = (item, type) => {
     setReplyingItem({ ...item, type });
-    setReplyText(item.admin_reply || '');
+    setReplyText('');
   };
 
   const handleSendReply = async () => {
     if (!replyingItem || !replyText.trim()) return;
     try {
       setIsSubmittingReply(true);
+      const existingReplies = replyingItem.replies || [];
       if (replyingItem.type === 'product') {
-        const { error } = await respondToProductReview(replyingItem.id, replyText.trim());
+        const { error } = await respondToProductReview(replyingItem.id, replyText.trim(), existingReplies);
         if (error) throw error;
         notifySuccess('Official reply posted to product review!');
       } else {
-        const { error } = await respondToRiderRating(replyingItem.id, replyText.trim());
+        const { error } = await respondToRiderRating(replyingItem.id, replyText.trim(), existingReplies);
         if (error) throw error;
         notifySuccess('Official reply posted to rider rating!');
       }
@@ -499,6 +500,36 @@ export default function Reviews() {
             <p className={`text-xs mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Replying to customer feedback for {replyingItem.type === 'product' ? (replyingItem.products?.name || 'Product') : (replyingItem.rider?.full_name || 'Rider')}
             </p>
+
+            <div className={`mb-4 max-h-60 overflow-y-auto space-y-3 p-3 border rounded-lg ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+              {/* Original Review */}
+              <div className="flex flex-col gap-1 items-start">
+                <span className="text-xs font-semibold text-gray-500">Customer</span>
+                <p className={`text-sm p-2 rounded-lg max-w-[85%] ${isDarkMode ? 'bg-slate-700 text-white' : 'bg-gray-200 text-black'}`}>
+                  {replyingItem.comment || '(No comment provided)'}
+                </p>
+              </div>
+              
+              {/* Replies Thread */}
+              {replyingItem.replies && replyingItem.replies.map((msg, idx) => (
+                <div key={idx} className={`flex flex-col gap-1 ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
+                  <span className="text-xs font-semibold text-gray-500">{msg.sender === 'admin' ? 'Official Store' : 'Customer'}</span>
+                  <p className={`text-sm p-2 rounded-lg max-w-[85%] ${msg.sender === 'admin' ? 'bg-[#0033A0] text-white' : (isDarkMode ? 'bg-slate-700 text-white' : 'bg-gray-200 text-black')}`}>
+                    {msg.message}
+                  </p>
+                </div>
+              ))}
+
+              {/* Fallback for legacy admin_reply */}
+              {(!replyingItem.replies || replyingItem.replies.length === 0) && replyingItem.admin_reply && (
+                <div className="flex flex-col gap-1 items-end">
+                  <span className="text-xs font-semibold text-gray-500">Official Store</span>
+                  <p className="text-sm p-2 rounded-lg max-w-[85%] bg-[#0033A0] text-white">
+                    {replyingItem.admin_reply}
+                  </p>
+                </div>
+              )}
+            </div>
 
             <textarea
               value={replyText}

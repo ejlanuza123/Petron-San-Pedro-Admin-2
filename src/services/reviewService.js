@@ -30,6 +30,7 @@ export async function getProductReviews(options = {}) {
     user_id,
     rating,
     comment,
+    replies,
     admin_reply,
     admin_replied_at,
     created_at,
@@ -122,6 +123,7 @@ export async function getRiderRatings(options = {}) {
     delivery_id,
     rating,
     comment,
+    replies,
     admin_reply,
     admin_replied_at,
     created_at,
@@ -270,13 +272,23 @@ export async function deleteRiderRating(ratingId) {
  * Adds an admin official reply to a product review.
  * @param {string} reviewId
  * @param {string} replyText
+ * @param {Array} existingReplies
  * @returns {Promise<{ error: object|null }>}
  */
-export async function respondToProductReview(reviewId, replyText) {
+export async function respondToProductReview(reviewId, replyText, existingReplies = []) {
+  const newMessage = {
+    sender: 'admin',
+    message: replyText,
+    created_at: new Date().toISOString()
+  };
+  
+  const updatedReplies = [...existingReplies, newMessage];
+
   const { error } = await supabase
     .from('product_reviews')
     .update({ 
-      admin_reply: replyText,
+      replies: updatedReplies,
+      admin_reply: replyText, // keep for backward compatibility
       admin_replied_at: new Date().toISOString()
     })
     .eq('id', reviewId);
@@ -288,13 +300,23 @@ export async function respondToProductReview(reviewId, replyText) {
  * Adds an admin official reply to a rider rating.
  * @param {string} ratingId
  * @param {string} replyText
+ * @param {Array} existingReplies
  * @returns {Promise<{ error: object|null }>}
  */
-export async function respondToRiderRating(ratingId, replyText) {
+export async function respondToRiderRating(ratingId, replyText, existingReplies = []) {
+  const newMessage = {
+    sender: 'admin',
+    message: replyText,
+    created_at: new Date().toISOString()
+  };
+  
+  const updatedReplies = [...existingReplies, newMessage];
+
   const { error } = await supabase
     .from('rider_ratings')
     .update({ 
-      admin_reply: replyText,
+      replies: updatedReplies,
+      admin_reply: replyText, // keep for backward compatibility
       admin_replied_at: new Date().toISOString()
     })
     .eq('id', ratingId);
