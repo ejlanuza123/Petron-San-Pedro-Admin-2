@@ -1,5 +1,6 @@
 // src/pages/SuperAdminPortal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheck, UserPlus, Search, RefreshCw, Key, UserCheck, 
   UserX, Shield, Activity, Clock, CheckCircle2, AlertCircle, X, Loader2,
@@ -18,8 +19,23 @@ const SUPERADMIN_PASSCODE = import.meta.env.VITE_SUPERADMIN_VERIFICATION_CODE ||
 const SUPERADMIN_SESSION_STORAGE_KEY = 'petron-superadmin-passcode-verified';
 
 export default function SuperAdminPortal() {
+  const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { user: currentUser, profile, isAuthenticated, isSuperAdmin, signIn, signOut } = useAuth();
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (err) {
+      console.error('Failed to sign out:', err);
+      navigate('/login');
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    navigate('/');
+  };
   
   // Phase 1: Personnel Verification Code Gate
   const [passcode, setPasscode] = useState('');
@@ -205,19 +221,45 @@ export default function SuperAdminPortal() {
       <div className={`min-h-screen relative flex items-center justify-center p-6 transition-colors duration-300 ${
         isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
-        {/* Top Right Theme Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className={`absolute top-6 right-6 p-3 rounded-2xl border transition-all shadow-md flex items-center gap-2 text-xs font-bold ${
-            isDarkMode 
-              ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
-              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
-        </button>
+        {/* Top Header Controls */}
+        <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
+          <button
+            onClick={handleBackToDashboard}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition shadow-sm text-xs font-bold ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <ArrowLeft size={16} />
+            <span>Main Dashboard</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleDarkMode}
+              className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
+                isDarkMode 
+                  ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {isAuthenticated && (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+                title="Sign Out"
+              >
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className={`max-w-md w-full p-8 rounded-2xl border text-center shadow-2xl transition-colors duration-300 ${
           isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
@@ -292,19 +334,45 @@ export default function SuperAdminPortal() {
       <div className={`min-h-screen relative flex items-center justify-center p-6 transition-colors duration-300 ${
         isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-900'
       }`}>
-        {/* Top Right Theme Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className={`absolute top-6 right-6 p-3 rounded-2xl border transition-all shadow-md flex items-center gap-2 text-xs font-bold ${
-            isDarkMode 
-              ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
-              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
-        </button>
+        {/* Top Header Controls */}
+        <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
+          <button
+            onClick={handleBackToDashboard}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition shadow-sm text-xs font-bold ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <ArrowLeft size={16} />
+            <span>Main Dashboard</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleDarkMode}
+              className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
+                isDarkMode 
+                  ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {isAuthenticated && (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+                title="Sign Out"
+              >
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className={`max-w-md w-full p-8 rounded-2xl border shadow-2xl transition-colors duration-300 ${
           isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'
@@ -409,6 +477,17 @@ export default function SuperAdminPortal() {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={handleBackToDashboard}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition border shadow-sm ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <ArrowLeft size={16} /> Main Dashboard
+          </button>
+
+          <button
             onClick={toggleDarkMode}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition border shadow-sm ${
               isDarkMode 
@@ -440,7 +519,7 @@ export default function SuperAdminPortal() {
           </button>
 
           <button
-            onClick={signOut}
+            onClick={handleSignOut}
             className="flex items-center gap-2 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-md"
             title="Sign Out"
           >
