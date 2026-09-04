@@ -311,3 +311,30 @@ export function setRiderPayoutStatus(riderId, status) {
     return {};
   }
 }
+
+/**
+ * Fetches all active rider profiles for assignment.
+ * @returns {Promise<Array>}
+ */
+export async function getAvailableRiders() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, phone_number, vehicle_type, vehicle_plate, is_active')
+    .eq('role', 'rider')
+    .eq('is_active', true)
+    .order('full_name');
+
+  if (error) throw error;
+  return data || [];
+}
+
+export const riderService = {
+  getAllRidersWithStats,
+  buildLeaderboard,
+  computePlatformStats,
+  computeRiderStats,
+  resolveDateRange,
+  getStoredPayoutSettlements,
+  setRiderPayoutStatus,
+  getAvailableRiders,
+};

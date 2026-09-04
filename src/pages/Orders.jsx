@@ -35,7 +35,8 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useOrders } from '../hooks/useOrders';
 import { ORDER_STATUS, ORDER_STATUS_COLORS, getOrderStatusColor, getDeliveryStatusColor, CANCELLATION_REASONS } from '../utils/constants';
 import { formatCurrency, formatDate, formatPhoneNumber, formatOrderNumber } from '../utils/formatters';
-import { supabase } from '../lib/supabase';
+import { orderService } from '../services/orderService';
+import { riderService } from '../services/riderService';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
 import FleetLiveMap from '../components/FleetLiveMap';
 import { useAuth } from '../hooks/useAuth';
@@ -143,66 +144,33 @@ export default function Orders() {
 
   const fetchAvailableRiders = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone_number, vehicle_type, vehicle_plate, is_active')
-        .eq('role', 'rider')
-        .eq('is_active', true)
-        .order('full_name');
-
-      if (error) throw error;
-      setAvailableRiders(data || []);
+      const riders = await riderService.getAvailableRiders();
+      setAvailableRiders(riders || []);
     } catch (err) {
       console.error('Error fetching riders:', err);
     }
   };
 
   const fetchDeliveryInfoForOrders = useCallback(async (orderIds) => {
-    if (!orderIds?.length) return {};
-
-    try {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('id, order_id, rider_id, status, assigned_at')
-        .in('order_id', orderIds)
-        .order('assigned_at', { ascending: false });
-
-      if (error) throw error;
-
-      const latestByOrder = {};
-      for (const delivery of data || []) {
-        if (!latestByOrder[delivery.order_id]) {
-          latestByOrder[delivery.order_id] = delivery;
-        }
-      }
-
-      return latestByOrder;
-    } catch (err) {
-      console.error('Error fetching delivery info:', err);
-      return {};
-    }
+    return await orderService.getDeliveryInfoForOrders(orderIds);
   }, []);
 
   useEffect(() => {
-    const subscription = supabase
-      .channel('deliveries-channel')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'deliveries' },
-        async (payload) => {
-          const orderId = payload.new?.order_id || payload.old?.order_id;
-          if (!orderId) return;
+    const unsubscribe = orderService.subscribeToDeliveries(async (payload) => {
+      const orderId = payload.new?.order_id || payload.old?.order_id;
+      if (!orderId) return;
 
-          const latestInfo = await fetchDeliveryInfoForOrders([orderId]);
-          setDeliveryInfoMap(prev => ({
-            ...prev,
-            [orderId]: latestInfo[orderId] || null
-          }));
-        }
-      )
-      .subscribe();
+      const latestInfo = await fetchDeliveryInfoForOrders([orderId]);
+      setDeliveryInfoMap(prev => ({
+        ...prev,
+        [orderId]: latestInfo[orderId] || null
+      }));
+    });
 
-    return () => subscription.unsubscribe();
-}, [fetchDeliveryInfoForOrders]);
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [fetchDeliveryInfoForOrders]);
 
   // Handle assign rider click
   const handleAssignRider = (order) => {
@@ -310,22 +278,7 @@ export default function Orders() {
   }, []);
 
   const checkOrderHasProof = useCallback(async (orderId) => {
-    const { data: deliveries, error: deliveryError } = await supabase
-      .from('deliveries')
-      .select('id')
-      .eq('order_id', orderId);
-
-    if (deliveryError) throw deliveryError;
-    const deliveryIds = (deliveries || []).map((d) => d.id);
-    if (!deliveryIds.length) return false;
-
-    const { count, error: proofError } = await supabase
-      .from('delivery_proofs')
-      .select('*', { count: 'exact', head: true })
-      .in('delivery_id', deliveryIds);
-
-    if (proofError) throw proofError;
-    return (count || 0) > 0;
+    return await orderService.checkOrderHasProof(orderId);
   }, []);
 
   const openDefaultFeeDialog = useCallback(() => {

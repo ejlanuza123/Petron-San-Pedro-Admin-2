@@ -230,5 +230,65 @@ export const orderService = {
       console.error('Error during auto-dispatch:', err);
       return { success: false, error: err.message };
     }
+  },
+
+  async getDeliveryInfoForOrders(orderIds) {
+    if (!orderIds?.length) return {};
+
+    try {
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('id, order_id, rider_id, status, assigned_at')
+        .in('order_id', orderIds)
+        .order('assigned_at', { ascending: false });
+
+      if (error) throw error;
+
+      const latestByOrder = {};
+      for (const delivery of data || []) {
+        if (!latestByOrder[delivery.order_id]) {
+          latestByOrder[delivery.order_id] = delivery;
+        }
+      }
+
+      return latestByOrder;
+    } catch (err) {
+      console.error('Error fetching delivery info:', err);
+      return {};
+    }
+  },
+
+  async checkOrderHasProof(orderId) {
+    const { data: deliveries, error: deliveryError } = await supabase
+      .from('deliveries')
+      .select('id')
+      .eq('order_id', orderId);
+
+    if (deliveryError) throw deliveryError;
+    const deliveryIds = (deliveries || []).map((d) => d.id);
+    if (!deliveryIds.length) return false;
+
+    const { count, error: proofError } = await supabase
+      .from('delivery_proofs')
+      .select('*', { count: 'exact', head: true })
+      .in('delivery_id', deliveryIds);
+
+    if (proofError) throw proofError;
+    return (count || 0) > 0;
+  },
+
+  subscribeToDeliveries(onPayload) {
+    const channel = supabase
+      .channel('deliveries-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deliveries' },
+        onPayload
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }
 };
