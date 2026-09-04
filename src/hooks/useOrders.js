@@ -46,16 +46,37 @@ export function useOrders() {
 
   // Real-time subscription
   useEffect(() => {
-    const subscription = orderService.subscribeToChanges((payload) => {
+    const subscription = orderService.subscribeToChanges(async (payload) => {
       if (payload.eventType === 'INSERT') {
-        setOrders(prev => [payload.new, ...prev]);
+        try {
+          // Fetch complete joined order so customer profile and line items appear immediately
+          const fullOrder = await orderService.getById(payload.new.id);
+          setOrders(prev => {
+            if (prev.some(o => o.id === fullOrder.id)) return prev;
+            return [fullOrder, ...prev];
+          });
+        } catch (err) {
+          console.warn('Failed to fetch full order on real-time insert, falling back to raw payload:', err);
+          setOrders(prev => {
+            if (prev.some(o => o.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
+        }
       } else if (payload.eventType === 'UPDATE') {
-        setOrders(prev => prev.map(o =>
-          o.id === payload.new.id ? { ...o, ...payload.new } : o
-        ));
-        setSelectedOrder(prev => (
-          prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev
-        ));
+        try {
+          const fullOrder = await orderService.getById(payload.new.id);
+          setOrders(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          setSelectedOrder(prev => (
+            prev?.id === fullOrder.id ? fullOrder : prev
+          ));
+        } catch (err) {
+          setOrders(prev => prev.map(o =>
+            o.id === payload.new.id ? { ...o, ...payload.new } : o
+          ));
+          setSelectedOrder(prev => (
+            prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev
+          ));
+        }
       } else if (payload.eventType === 'DELETE') {
         setOrders(prev => prev.filter(o => o.id !== payload.old.id));
         setSelectedOrder(prev => (

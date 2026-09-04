@@ -71,7 +71,14 @@ describe('useOrders', () => {
     expect(mocks.orderService.subscribeToChanges).toHaveBeenCalledTimes(1);
   });
 
-  it('handles realtime insert events', async () => {
+  it('handles realtime insert events with joined customer details', async () => {
+    mocks.orderService.getById.mockResolvedValueOnce({
+      id: 'o-2',
+      status: 'Processing',
+      profiles: { full_name: 'Jane Doe', phone_number: '09123456789' },
+      order_items: [{ id: 'item-1', quantity: 2 }],
+    });
+
     const { result } = renderHook(() => useOrders());
 
     await waitFor(() => {
@@ -79,17 +86,27 @@ describe('useOrders', () => {
       expect(typeof realtimeCallback).toBe('function');
     });
 
-    act(() => {
-      realtimeCallback({
+    await act(async () => {
+      await realtimeCallback({
         eventType: 'INSERT',
         new: { id: 'o-2', status: 'Processing' },
       });
     });
 
-    expect(result.current.orders[0]).toEqual({ id: 'o-2', status: 'Processing' });
+    expect(result.current.orders[0]).toEqual({
+      id: 'o-2',
+      status: 'Processing',
+      profiles: { full_name: 'Jane Doe', phone_number: '09123456789' },
+      order_items: [{ id: 'item-1', quantity: 2 }],
+    });
   });
 
   it('handles realtime update and delete events', async () => {
+    mocks.orderService.getById.mockResolvedValue({
+      id: 'o-1',
+      status: 'Completed',
+    });
+
     const { result } = renderHook(() => useOrders());
 
     await waitFor(() => {
@@ -102,8 +119,8 @@ describe('useOrders', () => {
     });
     expect(result.current.selectedOrder).toEqual({ id: 'o-1', status: 'Pending' });
 
-    act(() => {
-      realtimeCallback({
+    await act(async () => {
+      await realtimeCallback({
         eventType: 'UPDATE',
         new: { id: 'o-1', status: 'Completed' },
       });
