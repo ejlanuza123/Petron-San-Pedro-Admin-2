@@ -288,6 +288,9 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
       border-left: 1px solid ${isDarkMode ? '#334155' : '#e2e8f0'};
       padding-left: 8px;
     }
+    .dark-tiles {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+    }
   </style>
 </head>
 <body>
@@ -313,16 +316,17 @@ export default function FleetLiveMap({ isDarkMode: isDarkModeProp, onSelectOrder
     let showLandmarks = true;
 
     const tileLayers = {
-      street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '©OpenStreetMap ©CartoDB',
+      street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
       }),
-      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '©OpenStreetMap ©CartoDB',
+      dark: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        className: 'dark-tiles',
         maxZoom: 19
       }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '©Esri',
+        attribution: '&copy; Esri',
         maxZoom: 19
       })
     };

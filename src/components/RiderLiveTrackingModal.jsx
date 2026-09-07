@@ -233,6 +233,9 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider, isDarkM
     .rider-marker { width: 16px; height: 16px; border-radius: 999px; background: #16a34a; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.2); }
     .delivery-pin { width: 14px; height: 14px; border-radius: 999px; background: #dc2626; border: 3px solid #fff; }
     .delivery-label { background: #fff; border: 1px solid #e5e7eb; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 2px 8px; }
+    .dark-tiles {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+    }
   </style>
 </head>
 <body>
@@ -254,8 +257,10 @@ export default function RiderLiveTrackingModal({ isOpen, onClose, rider, isDarkM
     let mapMode = '${mode}';
     let selectedDeliveryId = ${focusedDeliveryId ? `'${focusedDeliveryId}'` : 'null'};
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '©OpenStreetMap, ©CartoDB', subdomains: 'abcd', maxZoom: 19,
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      className: ${isDarkMode} ? 'dark-tiles' : '',
+      maxZoom: 19,
     }).addTo(map);
 
     function clearRoute() {
