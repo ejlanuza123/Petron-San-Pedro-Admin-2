@@ -23,6 +23,7 @@ import SalesHeatmap from './pages/SalesHeatmap';
 import ChatInbox from './pages/ChatInbox';
 import ChatThread from './pages/ChatThread';
 import SuperAdminPortal from './pages/SuperAdminPortal';
+import BroadcastNotifications from './pages/BroadcastNotifications';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PasswordResetSuccess from './pages/PasswordResetSuccess';
@@ -94,6 +95,7 @@ function App() {
                       <Route path="chat" element={<ChatInbox />} />
                       <Route path="chat/:conversationId" element={<ChatThread />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="broadcast" element={<BroadcastNotifications />} />
                       <Route path="audit-logs" element={<AuditLogs />} />
                     </Route>
 
